@@ -1,0 +1,26 @@
+# Build stage
+FROM golang:1.24-alpine AS builder
+WORKDIR /app
+
+# Copy and download dependencies
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy the source code
+COPY . .
+
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -a -o apiserver ./cmd/api
+
+# Final stage
+FROM alpine:3.18
+WORKDIR /app
+
+# Copy the binary from the builder stage
+COPY --from=builder /app/apiserver .
+
+# Expose the port the API runs on
+EXPOSE 8080
+
+# Run the binary
+CMD ["./apiserver"]

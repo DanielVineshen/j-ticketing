@@ -2,6 +2,7 @@
 package service
 
 import (
+	"database/sql"
 	"fmt"
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
@@ -56,10 +57,10 @@ func (s *customerService) RegisterCustomer(email, password, identificationNo, fu
 	customer := &models.Customer{
 		CustId:           custID,
 		Email:            email,
-		Password:         hashedPassword,
+		Password:         sql.NullString{String: hashedPassword, Valid: hashedPassword != ""},
 		IdentificationNo: identificationNo,
 		FullName:         fullName,
-		ContactNo:        contactNo,
+		ContactNo:        sql.NullString{String: contactNo, Valid: contactNo != ""},
 		IsDisabled:       false,
 		CreatedAt:        time.Now(),
 		UpdatedAt:        time.Now(),
@@ -87,7 +88,10 @@ func (s *customerService) UpdateCustomer(id, fullName, contactNo string) (*model
 	}
 
 	customer.FullName = fullName
-	customer.ContactNo = contactNo
+	customer.ContactNo = sql.NullString{
+		String: contactNo,
+		Valid:  contactNo != "", // Will be NULL if contactNo is empty
+	}
 	customer.UpdatedAt = time.Now()
 
 	err = s.customerRepo.Update(customer)
@@ -106,7 +110,7 @@ func (s *customerService) ChangePassword(id, currentPassword, newPassword string
 	}
 
 	// Verify current password
-	err = utils.CheckPassword(currentPassword, customer.Password)
+	err = utils.CheckPassword(currentPassword, customer.Password.String)
 	if err != nil {
 		return fmt.Errorf("current password is incorrect")
 	}
@@ -117,7 +121,11 @@ func (s *customerService) ChangePassword(id, currentPassword, newPassword string
 		return err
 	}
 
-	customer.Password = hashedPassword
+	customer.Password = sql.NullString{
+		String: hashedPassword,
+		Valid:  hashedPassword != "", // Will be NULL if contactNo is empty
+	}
+
 	customer.UpdatedAt = time.Now()
 
 	return s.customerRepo.Update(customer)
@@ -158,7 +166,10 @@ func (s *customerService) ListCustomers() ([]models.Customer, error) {
 
 	// Remove password from response
 	for i := range customers {
-		customers[i].Password = ""
+		customers[i].Password = sql.NullString{
+			String: "",
+			Valid:  false,
+		}
 	}
 
 	return customers, nil

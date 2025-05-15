@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"database/sql"
 	service "j-ticketing/internal/services"
 
 	"github.com/gofiber/fiber/v2"
@@ -59,7 +60,10 @@ func (h *CustomerHandler) RegisterCustomer(c *fiber.Ctx) error {
 	}
 
 	// Remove password from response
-	customer.Password = ""
+	customer.Password = sql.NullString{
+		String: "",
+		Valid:  false,
+	}
 
 	return c.Status(fiber.StatusCreated).JSON(customer)
 }
@@ -90,7 +94,10 @@ func (h *CustomerHandler) GetCustomer(c *fiber.Ctx) error {
 	}
 
 	// Remove password from response
-	customer.Password = ""
+	customer.Password = sql.NullString{
+		String: "",
+		Valid:  false,
+	}
 
 	return c.JSON(customer)
 }
@@ -134,7 +141,10 @@ func (h *CustomerHandler) UpdateCustomer(c *fiber.Ctx) error {
 	}
 
 	// Remove password from response
-	customer.Password = ""
+	customer.Password = sql.NullString{
+		String: "",
+		Valid:  false,
+	}
 
 	return c.JSON(customer)
 }

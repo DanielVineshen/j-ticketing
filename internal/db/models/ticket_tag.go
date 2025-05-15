@@ -7,10 +7,10 @@ import (
 
 // TicketTag represents the junction table between TicketGroup and Tag
 type TicketTag struct {
-	TicketGroupId uint      `gorm:"primaryKey;column:ticket_group_id;type:bigint unsigned"`
-	TagId         uint      `gorm:"primaryKey;column:tag_id;type:bigint unsigned"`
-	CreatedAt     time.Time `gorm:"column:created_at"`
-	UpdatedAt     time.Time `gorm:"column:updated_at"`
+	TicketGroupId uint      `gorm:"primaryKey;column:ticket_group_id;type:bigint unsigned;not null"`
+	TagId         uint      `gorm:"primaryKey;column:tag_id;type:bigint unsigned;not null"`
+	CreatedAt     time.Time `gorm:"column:created_at;not null"`
+	UpdatedAt     time.Time `gorm:"column:updated_at;not null"`
 
 	// Define relationships with constraint:false
 	TicketGroup TicketGroup `gorm:"foreignKey:TicketGroupId;references:TicketGroupId;constraint:false"`

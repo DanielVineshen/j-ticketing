@@ -2,6 +2,7 @@
 package service
 
 import (
+	"database/sql"
 	"errors"
 	"j-ticketing/internal/core/dto"
 	coremodels "j-ticketing/internal/db/models" // Add this import for core models
@@ -106,7 +107,7 @@ func (s *authService) LoginCustomer(email, password string) (*dto.TokenResponse,
 	}
 
 	// Validate password
-	if err := bcrypt.CompareHashAndPassword([]byte(customer.Password), []byte(password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(customer.Password.String), []byte(password)); err != nil {
 		return nil, errors.New("invalid credentials")
 	}
 
@@ -179,8 +180,8 @@ func (s *authService) SaveToken(userID, userType, accessToken, refreshToken, ipA
 		UserType:     userType,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		IpAddress:    ipAddress,
-		UserAgent:    userAgent,
+		IpAddress:    sql.NullString{String: ipAddress, Valid: ipAddress != ""},
+		UserAgent:    sql.NullString{String: userAgent, Valid: userAgent != ""},
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}

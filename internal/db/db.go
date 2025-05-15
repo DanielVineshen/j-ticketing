@@ -97,6 +97,7 @@ func AutoMigrateSchema(db *gorm.DB, createConstraints bool) error {
 		&models.GroupGallery{},
 		&models.TicketTag{},
 		&models.OrderTicketInfo{},
+		&models.TicketDetail{},
 	}
 
 	for _, model := range dependentTables {
@@ -126,13 +127,6 @@ func AutoMigrateSchema(db *gorm.DB, createConstraints bool) error {
 			reference   string
 			referenceID string
 		}{
-			{
-				table:       "Banner",
-				constraint:  "fk_banner_ticket_group",
-				foreignKey:  "ticket_group_id",
-				reference:   "Ticket_Group",
-				referenceID: "ticket_group_id",
-			},
 			{
 				table:       "Order_Ticket_Group",
 				constraint:  "fk_order_ticket_group_ticket_group",
@@ -174,6 +168,13 @@ func AutoMigrateSchema(db *gorm.DB, createConstraints bool) error {
 				foreignKey:  "tag_id",
 				reference:   "Tag",
 				referenceID: "tag_id",
+			},
+			{
+				table:       "Ticket_Detail",
+				constraint:  "fk_ticket_detail_ticket_group",
+				foreignKey:  "ticket_group_id",
+				reference:   "Ticket_Group",
+				referenceID: "ticket_group_id",
 			},
 		}
 

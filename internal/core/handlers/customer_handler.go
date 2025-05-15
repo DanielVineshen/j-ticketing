@@ -2,6 +2,8 @@
 package handlers
 
 import (
+	service "j-ticketing/internal/services"
+
 	"github.com/gofiber/fiber/v2"
 )
 

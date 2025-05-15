@@ -2,7 +2,7 @@
 package middleware
 
 import (
-	"j-ticketing/internal/auth/jwt"
+	"j-ticketing/pkg/jwt"
 
 	"github.com/gofiber/fiber/v2"
 )

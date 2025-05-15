@@ -1,11 +1,13 @@
-// FILE: internal/auth/service/auth_service.go
+// FILE: internal/auth/service/auth_service.go (fixed import)
 package service
 
 import (
 	"errors"
-	"j-ticketing/internal/auth/jwt"
-	"j-ticketing/internal/auth/models"
+	"j-ticketing/internal/core/dto"
+	coremodels "j-ticketing/internal/db/models" // Add this import for core models
 	"j-ticketing/internal/db/repositories"
+	jwt "j-ticketing/pkg/jwt"
+	"strconv" // Add this import for string conversion
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -13,10 +15,10 @@ import (
 
 // AuthService is the interface for authentication operations
 type AuthService interface {
-	LoginAdmin(username, password string) (*models.TokenResponse, error)
-	LoginCustomer(email, password string) (*models.TokenResponse, error)
-	ValidateToken(token string) (*models.UserClaims, error)
-	RefreshToken(refreshToken string) (*models.TokenResponse, error)
+	LoginAdmin(username, password string) (*dto.TokenResponse, error)
+	LoginCustomer(email, password string) (*dto.TokenResponse, error)
+	ValidateToken(token string) (*dto.UserClaims, error)
+	RefreshToken(refreshToken string) (*dto.TokenResponse, error)
 	SaveToken(userID, userType, accessToken, refreshToken, ipAddress, userAgent string) error
 	RevokeToken(userID, refreshToken string) error
 }
@@ -49,22 +51,22 @@ func NewAuthService(
 }
 
 // LoginAdmin handles admin login authentication
-func (s *authService) LoginAdmin(username, password string) (*models.TokenResponse, error) {
+func (s *authService) LoginAdmin(username, password string) (*dto.TokenResponse, error) {
 	// Find admin by username
 	admin, err := s.adminRepo.FindByUsername(username)
 	if err != nil {
-		return nil, errors.New("invalid credentials")
+		return nil, errors.New("invalid credentials -> name")
 	}
 
 	// Validate password (assuming Admin model has a Password field)
 	// In a real application, you should use bcrypt to compare passwords
 	if err := bcrypt.CompareHashAndPassword([]byte(admin.Password), []byte(password)); err != nil {
-		return nil, errors.New("invalid credentials")
+		return nil, errors.New("invalid credentials -> password")
 	}
 
 	// Create user claims
-	userClaims := &models.UserClaims{
-		UserID:   string(admin.AdminId), // Convert uint to string
+	userClaims := &dto.UserClaims{
+		UserID:   strconv.FormatUint(uint64(admin.AdminId), 10), // Correctly convert uint to string
 		Username: admin.Username,
 		UserType: "admin",
 		Role:     admin.Role,
@@ -82,7 +84,7 @@ func (s *authService) LoginAdmin(username, password string) (*models.TokenRespon
 		return nil, err
 	}
 
-	return &models.TokenResponse{
+	return &dto.TokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
@@ -91,7 +93,7 @@ func (s *authService) LoginAdmin(username, password string) (*models.TokenRespon
 }
 
 // LoginCustomer handles customer login authentication
-func (s *authService) LoginCustomer(email, password string) (*models.TokenResponse, error) {
+func (s *authService) LoginCustomer(email, password string) (*dto.TokenResponse, error) {
 	// Find customer by email
 	customer, err := s.customerRepo.FindByEmail(email)
 	if err != nil {
@@ -109,7 +111,7 @@ func (s *authService) LoginCustomer(email, password string) (*models.TokenRespon
 	}
 
 	// Create user claims
-	userClaims := &models.UserClaims{
+	userClaims := &dto.UserClaims{
 		UserID:   customer.CustId,
 		Username: customer.Email, // Using email as username for customers
 		UserType: "customer",
@@ -128,7 +130,7 @@ func (s *authService) LoginCustomer(email, password string) (*models.TokenRespon
 		return nil, err
 	}
 
-	return &models.TokenResponse{
+	return &dto.TokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
@@ -137,12 +139,12 @@ func (s *authService) LoginCustomer(email, password string) (*models.TokenRespon
 }
 
 // ValidateToken validates a JWT token
-func (s *authService) ValidateToken(token string) (*models.UserClaims, error) {
+func (s *authService) ValidateToken(token string) (*dto.UserClaims, error) {
 	return s.jwtService.ValidateToken(token)
 }
 
 // RefreshToken refreshes an access token using a refresh token
-func (s *authService) RefreshToken(refreshToken string) (*models.TokenResponse, error) {
+func (s *authService) RefreshToken(refreshToken string) (*dto.TokenResponse, error) {
 	// Validate refresh token
 	claims, err := s.jwtService.ValidateToken(refreshToken)
 	if err != nil {
@@ -162,7 +164,7 @@ func (s *authService) RefreshToken(refreshToken string) (*models.TokenResponse, 
 	}
 
 	// Return new tokens
-	return &models.TokenResponse{
+	return &dto.TokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken, // Keep the same refresh token
 		TokenType:    "Bearer",

@@ -2,20 +2,21 @@ package handlers
 
 import (
 	"j-ticketing/internal/db/models"
-	"j-ticketing/internal/services"
 	"net/http"
 	"strconv"
+
+	service "j-ticketing/internal/services"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 // TicketGroupHandler handles HTTP requests for ticket groups
 type TicketGroupHandler struct {
-	ticketGroupService *services.TicketGroupService
+	ticketGroupService *service.TicketGroupService
 }
 
 // NewTicketGroupHandler creates a new ticket group handler
-func NewTicketGroupHandler(ticketGroupService *services.TicketGroupService) *TicketGroupHandler {
+func NewTicketGroupHandler(ticketGroupService *service.TicketGroupService) *TicketGroupHandler {
 	return &TicketGroupHandler{
 		ticketGroupService: ticketGroupService,
 	}

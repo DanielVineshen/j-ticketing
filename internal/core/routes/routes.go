@@ -2,9 +2,9 @@
 package routes
 
 import (
-	"j-ticketing/internal/auth/jwt"
-	"j-ticketing/internal/auth/middleware"
 	"j-ticketing/internal/core/handlers"
+	"j-ticketing/internal/core/middleware"
+	"j-ticketing/pkg/jwt"
 
 	"github.com/gofiber/fiber/v2"
 )

@@ -3,16 +3,15 @@ package main
 
 import (
 	"fmt"
-	authHandlers "j-ticketing/internal/auth/handlers"
-	"j-ticketing/internal/auth/jwt"
-	authRoutes "j-ticketing/internal/auth/routes"
-	"j-ticketing/internal/auth/service"
+	authHandlers "j-ticketing/internal/core/handlers"
 	coreHandlers "j-ticketing/internal/core/handlers"
+	authRoutes "j-ticketing/internal/core/routes"
 	coreRoutes "j-ticketing/internal/core/routes"
 	"j-ticketing/internal/db"
 	"j-ticketing/internal/db/repositories"
-	"j-ticketing/internal/services"
+	service "j-ticketing/internal/services"
 	"j-ticketing/pkg/config"
+	"j-ticketing/pkg/jwt"
 	"log"
 	"os"
 
@@ -73,7 +72,7 @@ func main() {
 	tokenRepo := repositories.NewTokenRepository(database)
 
 	// Initialize services
-	ticketGroupService := services.NewTicketGroupService(ticketGroupRepo, bannerRepo)
+	ticketGroupService := service.NewTicketGroupService(ticketGroupRepo, bannerRepo)
 	authService := service.NewAuthService(
 		jwtService,
 		adminRepo,
@@ -104,7 +103,7 @@ func main() {
 	// Middleware
 	app.Use(recover.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "*",
+		AllowOrigins:     "http://localhost:8080",
 		AllowMethods:     "GET,POST,PUT,DELETE",
 		AllowHeaders:     "Origin,Content-Type,Accept,Authorization",
 		AllowCredentials: true,

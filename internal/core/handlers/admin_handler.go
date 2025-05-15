@@ -2,7 +2,7 @@
 package handlers
 
 import (
-	service "j-ticketing/internal/services/"
+	service "j-ticketing/internal/services"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"

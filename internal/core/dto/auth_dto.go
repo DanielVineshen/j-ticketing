@@ -1,5 +1,5 @@
 // FILE: internal/auth/models/auth.go
-package models
+package dto
 
 // LoginRequest represents the structure for a login request
 type LoginRequest struct {

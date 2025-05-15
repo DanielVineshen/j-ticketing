@@ -3,7 +3,7 @@ package jwt
 
 import (
 	"errors"
-	"j-ticketing/internal/auth/models"
+	"j-ticketing/internal/core/dto"
 	"j-ticketing/pkg/config"
 	"strings"
 	"time"
@@ -13,8 +13,8 @@ import (
 
 // JWTService is the interface for JWT operations
 type JWTService interface {
-	GenerateToken(userClaims *models.UserClaims, isRefreshToken bool) (string, error)
-	ValidateToken(tokenString string) (*models.UserClaims, error)
+	GenerateToken(userClaims *dto.UserClaims, isRefreshToken bool) (string, error)
+	ValidateToken(tokenString string) (*dto.UserClaims, error)
 	ExtractTokenFromHeader(authHeader string) string
 }
 
@@ -34,7 +34,7 @@ func NewJWTService(cfg *config.Config) JWTService {
 }
 
 // GenerateToken generates a new JWT token
-func (s *jwtService) GenerateToken(userClaims *models.UserClaims, isRefreshToken bool) (string, error) {
+func (s *jwtService) GenerateToken(userClaims *dto.UserClaims, isRefreshToken bool) (string, error) {
 	// Determine token expiration time
 	var expiration time.Duration
 	if isRefreshToken {
@@ -67,7 +67,7 @@ func (s *jwtService) GenerateToken(userClaims *models.UserClaims, isRefreshToken
 }
 
 // ValidateToken validates a JWT token and returns the claims
-func (s *jwtService) ValidateToken(tokenString string) (*models.UserClaims, error) {
+func (s *jwtService) ValidateToken(tokenString string) (*dto.UserClaims, error) {
 	// Parse the token
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Validate signing method
@@ -109,7 +109,7 @@ func (s *jwtService) ValidateToken(tokenString string) (*models.UserClaims, erro
 	}
 
 	// Create user claims object
-	userClaims := &models.UserClaims{
+	userClaims := &dto.UserClaims{
 		UserID:   userID,
 		Username: username,
 		UserType: userType,

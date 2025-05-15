@@ -2,8 +2,9 @@
 package handlers
 
 import (
-	"j-ticketing/internal/auth/models"
-	"j-ticketing/internal/auth/service"
+	"j-ticketing/internal/core/dto"
+	service "j-ticketing/internal/services"
+	"log"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -23,14 +24,21 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 // Login handles the login request
 func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	// Parse login request
-	var req models.LoginRequest
+	var req dto.LoginRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Invalid request body",
 		})
 	}
 
-	var tokenResp *models.TokenResponse
+	// Set default user type if not provided
+	if req.UserType == "" {
+		req.UserType = "admin" // Default to admin if not specified
+	}
+
+	log.Printf("Login attempt: username=%s, userType=%s", req.Username, req.UserType)
+
+	var tokenResp *dto.TokenResponse
 	var err error
 
 	// Handle login based on user type
@@ -46,13 +54,17 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	}
 
 	if err != nil {
+		log.Printf("Login failed: %v", err)
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": err.Error(),
 		})
 	}
 
+	// Don't try to get userID from context here - it won't be set before authentication
+	// Use the username from the request instead
+	userID := req.Username
+
 	// Save token to database
-	userID := c.Locals("userId").(string)
 	if err := h.authService.SaveToken(
 		userID,
 		req.UserType,
@@ -61,8 +73,8 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		c.IP(),
 		c.Get("User-Agent"),
 	); err != nil {
+		log.Printf("Failed to save token: %v", err)
 		// Log error but don't fail the request
-		// You might want to handle this differently
 	}
 
 	return c.JSON(tokenResp)
@@ -100,12 +112,16 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 	}
 
 	// Get user ID from context (set by Protected middleware)
-	userID := c.Locals("userId").(string)
+	userID, ok := c.Locals("userId").(string)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "User not authenticated",
+		})
+	}
 
 	// Revoke token
 	if err := h.authService.RevokeToken(userID, refreshToken); err != nil {
-		// Log error but don't fail the request
-		// You might want to handle this differently
+		log.Printf("Failed to revoke token: %v", err)
 	}
 
 	return c.JSON(fiber.Map{

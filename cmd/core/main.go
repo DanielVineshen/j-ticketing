@@ -12,12 +12,14 @@ import (
 	service "j-ticketing/internal/services"
 	"j-ticketing/pkg/config"
 	"j-ticketing/pkg/jwt"
+	"j-ticketing/pkg/middleware"
 	"log"
 	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"go.uber.org/zap"
 	"gorm.io/gorm/logger"
 )
 
@@ -86,18 +88,16 @@ func main() {
 	ticketGroupHandler := coreHandlers.NewTicketGroupHandler(ticketGroupService)
 	authHandler := authHandlers.NewAuthHandler(authService)
 
+	// Initialize logger
+	logger, err := zap.NewProduction()
+	if err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+	defer logger.Sync()
+
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			code := fiber.StatusInternalServerError
-			if e, ok := err.(*fiber.Error); ok {
-				code = e.Code
-			}
-			return c.Status(code).JSON(fiber.Map{
-				"message": "An error occurred",
-				"error":   err.Error(),
-			})
-		},
+		ErrorHandler: middleware.GlobalErrorHandler(logger),
 	})
 
 	// Middleware

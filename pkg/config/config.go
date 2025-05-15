@@ -8,54 +8,67 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Config holds application configuration
-type Config struct {
-	Database DatabaseConfig
-	Server   ServerConfig
-}
-
-// DatabaseConfig holds database configuration
-type DatabaseConfig struct {
+type DBConfig struct {
 	Host     string
-	Port     int
+	Port     string
 	User     string
 	Password string
 	Name     string
-	// Parameters for connection options
-	Params string
 }
 
-// ServerConfig holds server configuration
-type ServerConfig struct {
-	Port string
+// JWT configuration
+type JWTConfig struct {
+	SecretKey       string
+	AccessTokenTTL  int64 // in minutes
+	RefreshTokenTTL int64 // in hours
 }
 
-// Load loads configuration from environment variables
-func Load() (*Config, error) {
-	// Load .env file if it exists
-	godotenv.Load()
-
-	dbPort, _ := strconv.Atoi(getEnv("DB_PORT", "3306"))
-
-	return &Config{
-		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     dbPort,
-			User:     getEnv("DB_USER", "root"),
-			Password: getEnv("DB_PASSWORD", ""),
-			Name:     getEnv("DB_NAME", "j_ticketing"),
-			Params:   getEnv("DB_PARAMS", "parseTime=true&loc=Local"),
-		},
-		Server: ServerConfig{
-			Port: getEnv("PORT", "8080"),
-		},
-	}, nil
+type Config struct {
+	DB     DBConfig
+	Server struct {
+		Port string
+	}
+	// Migration section to control migration behavior
+	Migration struct {
+		AutoMigrate bool
+		Path        string
+	}
+	// JWT configuration
+	JWT struct {
+		SecretKey       string
+		AccessTokenTTL  int64
+		RefreshTokenTTL int64
+	}
 }
 
-// DSN returns the Data Source Name for database connection
-func (d DatabaseConfig) DSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?%s",
-		d.User, d.Password, d.Host, d.Port, d.Name, d.Params)
+// LoadConfig loads configuration from environment variables
+func LoadConfig() (*Config, error) {
+	if err := godotenv.Load(); err != nil {
+		fmt.Println("Warning: .env file not found")
+	}
+
+	config := &Config{}
+
+	// Database config
+	config.DB.Host = getEnv("DB_HOST", "localhost")
+	config.DB.Port = getEnv("DB_PORT", "3306")
+	config.DB.User = getEnv("DB_USER", "root")
+	config.DB.Password = getEnv("DB_PASSWORD", "")
+	config.DB.Name = getEnv("DB_NAME", "ticketing")
+
+	// Server config
+	config.Server.Port = getEnv("SERVER_PORT", "8080")
+
+	// Migration config
+	config.Migration.AutoMigrate = getEnvBool("AUTO_MIGRATE", false)
+	config.Migration.Path = getEnv("MIGRATION_PATH", "migrations")
+
+	// JWT config
+	config.JWT.SecretKey = getEnv("JWT_SECRET_KEY", "your-default-secret-key")
+	config.JWT.AccessTokenTTL = getEnvInt64("JWT_ACCESS_TOKEN_TTL", 15)     // 15 minutes
+	config.JWT.RefreshTokenTTL = getEnvInt64("JWT_REFRESH_TOKEN_TTL", 24*7) // 7 days
+
+	return config, nil
 }
 
 func getEnv(key, defaultValue string) string {
@@ -64,4 +77,24 @@ func getEnv(key, defaultValue string) string {
 		return defaultValue
 	}
 	return value
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value == "true" || value == "1" || value == "yes"
+}
+
+func getEnvInt64(key string, defaultValue int64) int64 {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	val, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return defaultValue
+	}
+	return val
 }

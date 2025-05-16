@@ -3,12 +3,10 @@ package main
 
 import (
 	"fmt"
-	authHandlers "j-ticketing/internal/core/handlers"
-	coreHandlers "j-ticketing/internal/core/handlers"
-	orderHandlers "j-ticketing/internal/core/handlers"
-	authRoutes "j-ticketing/internal/core/routes"
-	coreRoutes "j-ticketing/internal/core/routes"
-	orderRoutes "j-ticketing/internal/core/routes"
+	"github.com/joho/godotenv"
+	"j-ticketing/internal/core/dto/payment"
+	"j-ticketing/internal/core/handlers"
+	"j-ticketing/internal/core/routes"
 	service "j-ticketing/internal/core/services"
 	"j-ticketing/internal/db"
 	"j-ticketing/internal/db/repositories"
@@ -27,6 +25,12 @@ import (
 )
 
 func main() {
+	// Load environment variables
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("Warning: .env file not found, using default or environment values")
+	}
+
 	// Load configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {
@@ -74,7 +78,6 @@ func main() {
 
 	// Initialize repositories
 	ticketGroupRepo := repositories.NewTicketGroupRepository(database)
-	//bannerRepo := repositories.NewBannerRepository(database)
 	adminRepo := repositories.NewAdminRepository(database)
 	customerRepo := repositories.NewCustomerRepository(database)
 	tokenRepo := repositories.NewTokenRepository(database)
@@ -111,9 +114,9 @@ func main() {
 	)
 
 	// Initialize handlers
-	ticketGroupHandler := coreHandlers.NewTicketGroupHandler(ticketGroupService)
-	authHandler := authHandlers.NewAuthHandler(authService, emailService) // Update auth handler with email service
-	orderHandler := orderHandlers.NewOrderHandler(orderService)
+	ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService)
+	authHandler := handlers.NewAuthHandler(authService, emailService) // Update auth handler with email service
+	orderHandler := handlers.NewOrderHandler(orderService)
 
 	// Initialize logger
 	logger, err := zap.NewProduction()
@@ -135,14 +138,25 @@ func main() {
 		AllowHeaders:     "Origin,Content-Type,Accept,Authorization",
 		AllowCredentials: true,
 	}))
+	app.Static("/public", "./pkg/public")
 
 	// // Apply audit logging middleware (if needed)
 	// app.Use(middleware.AuditMiddleware(auditLogRepo))
 
+	// Initialize payment config
+	paymentConfig := payment.PaymentConfig{
+		GatewayURL: getRequiredEnv("PAYMENT_GATEWAY_URL"),
+		APIKey:     getRequiredEnv("JP_API_KEY"),
+		BaseURL:    getRequiredEnv("BASE_URL"),
+		AGToken:    getRequiredEnv("AG_TOKEN"),
+	}
+
 	// Setup routes
-	coreRoutes.SetupTicketGroupRoutes(app, ticketGroupHandler, jwtService)
-	authRoutes.SetupAuthRoutes(app, authHandler, jwtService)
-	orderRoutes.SetupOrderRoutes(app, orderHandler, jwtService)
+	routes.SetupTicketGroupRoutes(app, ticketGroupHandler, jwtService)
+	routes.SetupAuthRoutes(app, authHandler, jwtService)
+	routes.SetupOrderRoutes(app, orderHandler, jwtService)
+	routes.SetupPaymentRoutes(app, paymentConfig)
+	routes.SetupViewRoutes(app)
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.Server.Port)
@@ -150,4 +164,22 @@ func main() {
 	if err := app.Listen(addr); err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}
+}
+
+// Helper function to get environment variables with fallback
+func getEnv(key, fallback string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
+// Helper function to get environment variables with required check
+func getRequiredEnv(key string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		log.Fatalf("Error: Environment variable %s is required but not set", key)
+	}
+	return value
 }

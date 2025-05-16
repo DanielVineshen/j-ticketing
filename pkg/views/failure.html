@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{.Title}} - JohorPay Integration</title>
+    <link rel="stylesheet" href="/public/css/styles.css" />
+  </head>
+  <body>
+    <div class="container failure-container">
+      <div class="failure-icon">✕</div>
+      <h1>Payment Failed</h1>
+      <div class="error-details">
+        <p>We're sorry, but your payment could not be processed.</p>
+        <div class="detail-item">
+          <span class="label">Error Code:</span>
+          <span class="value">{{.ErrorCode}}</span>
+        </div>
+        <div class="detail-item">
+          <span class="label">Error Message:</span>
+          <span class="value">{{.ErrorMessage}}</span>
+        </div>
+        <div class="detail-item">
+          <span class="label">Date:</span>
+          <span class="value" id="current-date"></span>
+        </div>
+      </div>
+      <div class="action-buttons">
+        <a href="/checkout" class="btn">Try Again</a>
+        <a href="/" class="btn">Return to Home</a>
+      </div>
+    </div>
+    <script>
+      document.getElementById("current-date").textContent =
+        new Date().toLocaleString();
+    </script>
+  </body>
+</html>

@@ -300,23 +300,23 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 	return orderTicketGroupDTO, nil
 }
 
-// CreateOrder creates a new order ticket group
-func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderRequest) error {
+// CreateOrder creates a new order ticket group and returns the order ID
+func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderRequest) (uint, error) {
 	// Validate ticket group exists
 	ticketGroup, err := s.ticketGroupRepo.FindByID(req.TicketGroupId)
 	if err != nil {
-		return fmt.Errorf("ticket group not found: %w", err)
+		return 0, fmt.Errorf("ticket group not found: %w", err)
 	}
 
 	// Ensure ticket group is active
 	if !ticketGroup.IsActive {
-		return errors.New("ticket group is not active")
+		return 0, errors.New("ticket group is not active")
 	}
 
 	// Parse and validate date
 	orderDate, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
-		return fmt.Errorf("invalid date format: %w", err)
+		return 0, fmt.Errorf("invalid date format: %w", err)
 	}
 
 	// Generate order number and transaction ID
@@ -365,7 +365,7 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 	// Save order ticket group to get the ID
 	err = s.orderTicketGroupRepo.Create(orderTicketGroup)
 	if err != nil {
-		return fmt.Errorf("failed to create order: %w", err)
+		return 0, fmt.Errorf("failed to create order: %w", err)
 	}
 
 	// Process tickets
@@ -406,13 +406,13 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 	orderTicketGroup.TotalAmount = totalAmount
 	err = s.orderTicketGroupRepo.Update(orderTicketGroup)
 	if err != nil {
-		return fmt.Errorf("failed to update order total amount: %w", err)
+		return 0, fmt.Errorf("failed to update order total amount: %w", err)
 	}
 
 	// Save all ticket info entries
 	err = s.orderTicketInfoRepo.BatchCreate(orderTicketInfos)
 	if err != nil {
-		return fmt.Errorf("failed to create order tickets: %w", err)
+		return 0, fmt.Errorf("failed to create order tickets: %w", err)
 	}
 
 	// If we've gotten this far, proceed with payment processing
@@ -427,10 +427,11 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 		}
 		s.orderTicketGroupRepo.Update(orderTicketGroup)
 
-		return fmt.Errorf("payment processing failed: %w", err)
+		return 0, fmt.Errorf("payment processing failed: %w", err)
 	}
 
-	return nil
+	// Return the order ID
+	return orderTicketGroup.OrderTicketGroupId, nil
 }
 
 // Helper functions for order creation

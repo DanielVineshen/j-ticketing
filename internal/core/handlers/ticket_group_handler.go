@@ -1,4 +1,4 @@
-// File: j-ticketing/internal/core/handlers/ticket_group_handlers.go
+// File: j-ticketing/internal/core/handlers/ticket_group_handler.go
 package handlers
 
 import (

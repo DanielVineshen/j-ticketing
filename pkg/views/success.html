@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{.Title}} - Payment Gateway Demo</title>
+    <link rel="stylesheet" href="/public/css/styles.css" />
+  </head>
+  <body>
+    <div class="container success-container">
+      <div class="success-icon">✓</div>
+      <h1>Payment Successful</h1>
+      <div class="payment-details">
+        <p>Thank you for your payment!</p>
+        <div class="detail-item">
+          <span class="label">Order ID:</span>
+          <span class="value">{{.OrderID}}</span>
+        </div>
+        <div class="detail-item">
+          <span class="label">Transaction ID:</span>
+          <span class="value">{{.TransactionID}}</span>
+        </div>
+        <div class="detail-item">
+          <span class="label">Date:</span>
+          <span class="value" id="current-date"></span>
+        </div>
+      </div>
+      <a href="/" class="btn">Return to Home</a>
+    </div>
+    <script>
+      document.getElementById("current-date").textContent =
+        new Date().toLocaleString();
+    </script>
+  </body>
+</html>

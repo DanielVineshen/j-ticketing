@@ -16,7 +16,8 @@ func SetupOrderRoutes(app *fiber.App, orderHandler *handlers.OrderHandler, jwtSe
 
 	// Protected routes (require authentication)
 	orderGroup.Get("/orderTicketGroups", middleware.Protected(jwtService), orderHandler.GetOrderTicketGroups)
-	orderGroup.Get("/orderTicketGroups/:id", middleware.Protected(jwtService), orderHandler.GetOrderTicketGroup)
+
+	orderGroup.Get("/orderTicketGroups/:id", orderHandler.GetOrderTicketGroup)
 
 	// Add create order endpoint
 	orderGroup.Post("/orderTicketGroup", middleware.Protected(jwtService), orderHandler.CreateOrderTicketGroup)

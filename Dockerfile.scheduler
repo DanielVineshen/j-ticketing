@@ -10,15 +10,14 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -o scheduler ./cmd/scheduler
+RUN CGO_ENABLED=0 GOOS=linux go build -a -o scheduler-server ./cmd/scheduler
 
 # Final stage
 FROM alpine:3.18
 WORKDIR /app
 
 # Copy the binary from the builder stage
-COPY --from=builder /app/scheduler .
-COPY --from=builder /app/configs ./configs
+COPY --from=builder /app/scheduler-server .
 
 # Run the binary
-CMD ["./scheduler"]
+CMD ["./scheduler-server"]

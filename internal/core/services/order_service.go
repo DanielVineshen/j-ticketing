@@ -415,21 +415,6 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 		return 0, fmt.Errorf("failed to create order tickets: %w", err)
 	}
 
-	// If we've gotten this far, proceed with payment processing
-	// (This would typically be handled by a payment service)
-	err = s.processPayment(orderTicketGroup, req.PaymentType, req.Mode, req.BankCode)
-	if err != nil {
-		// Update order status to FAILED
-		orderTicketGroup.TransactionStatus = "FAILED"
-		orderTicketGroup.StatusMessage = sql.NullString{
-			String: err.Error(),
-			Valid:  true,
-		}
-		s.orderTicketGroupRepo.Update(orderTicketGroup)
-
-		return 0, fmt.Errorf("payment processing failed: %w", err)
-	}
-
 	// Return the order ID
 	return orderTicketGroup.OrderTicketGroupId, nil
 }
@@ -460,15 +445,6 @@ func (s *OrderService) calculateTicketPrice(ticketId string, ticketGroupId uint)
 	// For now, returning a placeholder price
 	// Implement actual price lookup logic
 	return 50.00
-}
-
-func (s *OrderService) processPayment(order *models.OrderTicketGroup, paymentType, mode, bankCode string) error {
-	// This would integrate with a payment gateway
-	// For now, just simulating a successful payment
-
-	// Update order status to COMPLETED for demonstration
-	order.TransactionStatus = "COMPLETED"
-	return s.orderTicketGroupRepo.Update(order)
 }
 
 // Utility functions for generating IDs and tokens

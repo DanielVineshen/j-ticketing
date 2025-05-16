@@ -28,7 +28,7 @@ type TicketGroup struct {
 	LocationMapUrl         string         `gorm:"column:location_map_url;type:text;not null"`
 	OrganiserName          string         `gorm:"column:organiser_name;type:varchar(255);not null"`
 	OrganiserAddress       string         `gorm:"column:organiser_address;type:varchar(255);not null"`
-	OrganiserDescHtml      string         `gorm:"column:organiser_desc_html;type:varchar(255);not null"`
+	OrganiserDescHtml      string         `gorm:"column:organiser_desc_html;type:text;not null"`
 	OrganiserContact       string         `gorm:"column:organiser_contact;type:varchar(255);not null"`
 	OrganiserEmail         string         `gorm:"column:organiser_email;type:varchar(255);not null"`
 	OrganiserWebsite       string         `gorm:"column:organiser_website;type:varchar(255);not null"`

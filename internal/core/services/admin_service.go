@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
-	"j-ticketing/pkg/utils"
+	bcryptPassword "j-ticketing/pkg/utils"
 	"time"
 )
 
@@ -38,7 +38,7 @@ func (s *adminService) CreateAdmin(username, password, fullName, role string) (*
 	}
 
 	// Hash the password
-	hashedPassword, err := utils.HashPassword(password)
+	hashedPassword, err := bcryptPassword.HashPassword(password)
 	if err != nil {
 		return nil, err
 	}
@@ -94,13 +94,13 @@ func (s *adminService) ChangePassword(id uint, currentPassword, newPassword stri
 	}
 
 	// Verify current password
-	err = utils.CheckPassword(currentPassword, admin.Password)
+	err = bcryptPassword.CheckPassword(currentPassword, admin.Password)
 	if err != nil {
 		return fmt.Errorf("current password is incorrect")
 	}
 
 	// Hash the new password
-	hashedPassword, err := utils.HashPassword(newPassword)
+	hashedPassword, err := bcryptPassword.HashPassword(newPassword)
 	if err != nil {
 		return err
 	}

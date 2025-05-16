@@ -1,5 +1,5 @@
 // FILE: internal/auth/utils/password.go
-package utils
+package util
 
 import (
 	"crypto/rand"

@@ -1,7 +1,7 @@
 variables:
-  IMAGE_REGISTRY: ${CI_IMAGE_REGISTRY}
-  CONTAINER_CORE_IMAGE: ${CI_IMAGE_REGISTRY}/core:${CI_COMMIT_BRANCH}_${CI_COMMIT_SHORT_SHA}
-  CONTAINER_SCHEDULER_IMAGE: ${CI_IMAGE_REGISTRY}/scheduler:${CI_COMMIT_BRANCH}_${CI_COMMIT_SHORT_SHA}
+  IMAGE_REGISTRY: ${CI_REGISTRY_IMAGE}
+  CONTAINER_CORE_IMAGE: ${CI_REGISTRY_IMAGE}/core:${CI_COMMIT_BRANCH}_${CI_COMMIT_SHORT_SHA}
+  CONTAINER_SCHEDULER_IMAGE: ${CI_REGISTRY_IMAGE}/scheduler:${CI_COMMIT_BRANCH}_${CI_COMMIT_SHORT_SHA}
 
 stages:
   - build
@@ -13,7 +13,7 @@ build_core_image:
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $IMAGE_REGISTRY
     - docker pull $CONTAINER_CORE_IMAGE || true
-    - docker build --cache-from=$CONTAINER_CORE_IMAGE -t $CONTAINER_CORE_IMAGE .
+    - docker build -f Dockerfile.core --cache-from=$CONTAINER_CORE_IMAGE -t $CONTAINER_CORE_IMAGE .
     - docker push $CONTAINER_CORE_IMAGE
   rules:
     - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "dev"'
@@ -25,7 +25,7 @@ build_scheduler_image:
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $IMAGE_REGISTRY
     - docker pull $CONTAINER_SCHEDULER_IMAGE || true
-    - docker build --cache-from=$CONTAINER_SCHEDULER_IMAGE -t $CONTAINER_SCHEDULER_IMAGE .
+    - docker build -f Dockerfile.scheduler --cache-from=$CONTAINER_SCHEDULER_IMAGE -t $CONTAINER_SCHEDULER_IMAGE .
     - docker push $CONTAINER_SCHEDULER_IMAGE
   rules:
     - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "dev"'

@@ -1,4 +1,3 @@
-// FILE: pkg/config/config.go (updated with email config)
 package config
 
 import (

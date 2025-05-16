@@ -1,4 +1,4 @@
-// File: internal/core/models/customer.go
+// File: j-ticketing/internal/db/models/customer.go
 package models
 
 import (

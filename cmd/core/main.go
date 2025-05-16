@@ -1,4 +1,4 @@
-// FILE: cmd/core/main.go (Updated with auth integration)
+// File: j-ticketing/cmd/core/main.go
 package main
 
 import (

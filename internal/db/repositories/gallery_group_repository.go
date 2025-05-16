@@ -1,4 +1,4 @@
-// File: internal/db/repositories/group_gallery_repository.go
+// File: j-ticketing/internal/db/repositories/gallery_group_repository.go
 package repositories
 
 import (

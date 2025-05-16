@@ -1,4 +1,3 @@
-// FILE: internal/auth/jwt/jwt.go
 package jwt
 
 import (

@@ -1,4 +1,4 @@
-// FILE: internal/auth/middleware/auth_middleware.go
+// File: j-ticketing/internal/core/middleware/auth_middleware.go
 package middleware
 
 import (

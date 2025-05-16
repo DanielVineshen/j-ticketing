@@ -1,3 +1,4 @@
+// File: j-ticketing/internal/core/dto/auth/auth_request.go
 package dto
 
 import (

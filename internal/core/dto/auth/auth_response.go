@@ -1,4 +1,4 @@
-// FILE: internal/auth/models/auth.go
+// File: j-ticketing/internal/core/dto/auth/auth_response.go
 package dto
 
 // TokenResponse represents the structure for a token response

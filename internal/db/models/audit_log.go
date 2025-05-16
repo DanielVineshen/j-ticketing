@@ -1,4 +1,4 @@
-// File: internal/core/models/audit_log.go
+// File: j-ticketing/internal/db/models/audit_log.go
 package models
 
 import (

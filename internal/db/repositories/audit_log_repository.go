@@ -1,4 +1,4 @@
-// File: internal/db/repositories/audit_log_repository.go
+// File: j-ticketing/internal/db/repositories/audit_log_repository.go
 package repositories
 
 import (

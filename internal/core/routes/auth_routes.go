@@ -1,3 +1,4 @@
+// File: j-ticketing/internal/core/routes/auth_routes.go
 package routes
 
 import (

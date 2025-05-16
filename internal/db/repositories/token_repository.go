@@ -1,4 +1,4 @@
-// FILE: internal/repositories/token_repository.go
+// File: j-ticketing/internal/db/repositories/token_repository.go
 package repositories
 
 import (

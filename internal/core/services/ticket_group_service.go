@@ -1,42 +1,13 @@
-// FILE: internal/services/ticket_group_service.go
+// File: j-ticketing/internal/core/services/ticket_group_service.go
 package service
 
 import (
+	dto "j-ticketing/internal/core/dto/ticket_group"
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
 	"strings"
 	"time"
 )
-
-// TicketGroupResponse represents the response structure for ticket groups
-type TicketGroupResponse struct {
-	TicketGroups []TicketGroupDTO `json:"ticketGroups"`
-}
-
-// TicketGroupDTO represents the data transfer object for a ticket group
-type TicketGroupDTO struct {
-	TicketGroupId   uint     `json:"ticketGroupId"`
-	GroupType       string   `json:"groupType"`
-	GroupName       string   `json:"groupName"`
-	GroupDesc       string   `json:"groupDesc"`
-	OperatingHours  string   `json:"operatingHours"`
-	PricePrefix     string   `json:"pricePrefix"`
-	PriceSuffix     string   `json:"priceSuffix"`
-	AttachmentName  string   `json:"attachmentName"`
-	AttachmentPath  string   `json:"attachmentPath"`
-	AttachmentSize  int64    `json:"attachmentSize"`
-	ContentType     string   `json:"contentType"`
-	UniqueExtension string   `json:"uniqueExtension"`
-	IsActive        bool     `json:"isActive"`
-	Tags            []TagDTO `json:"tags"`
-}
-
-// TagDTO represents the data transfer object for a tag
-type TagDTO struct {
-	TagId   uint   `json:"tagId"`
-	TagName string `json:"tagName"`
-	TagDesc string `json:"tagDesc"`
-}
 
 // TicketGroupService handles ticket group-related operations
 type TicketGroupService struct {
@@ -62,29 +33,29 @@ func NewTicketGroupService(
 }
 
 // GetAllTicketGroups retrieves all ticket groups with their associated tags
-func (s *TicketGroupService) GetAllTicketGroups() (TicketGroupResponse, error) {
+func (s *TicketGroupService) GetAllTicketGroups() (dto.TicketGroupResponse, error) {
 	// Fetch all ticket groups
 	ticketGroups, err := s.ticketGroupRepo.FindAll()
 	if err != nil {
-		return TicketGroupResponse{}, err
+		return dto.TicketGroupResponse{}, err
 	}
 
 	return s.buildTicketGroupResponse(ticketGroups)
 }
 
 // GetActiveTicketGroups retrieves only active ticket groups with their associated tags
-func (s *TicketGroupService) GetActiveTicketGroups() (TicketGroupResponse, error) {
+func (s *TicketGroupService) GetActiveTicketGroups() (dto.TicketGroupResponse, error) {
 	// Fetch active ticket groups
 	ticketGroups, err := s.ticketGroupRepo.FindActiveTicketGroups()
 	if err != nil {
-		return TicketGroupResponse{}, err
+		return dto.TicketGroupResponse{}, err
 	}
 
 	return s.buildTicketGroupResponse(ticketGroups)
 }
 
 // GetTicketGroupById retrieves a specific ticket group by ID with its associated tags
-func (s *TicketGroupService) GetTicketGroupById(id uint) (*TicketGroupDTO, error) {
+func (s *TicketGroupService) GetTicketGroupById(id uint) (*dto.TicketGroupDTO, error) {
 	// Fetch the ticket group
 	ticketGroup, err := s.ticketGroupRepo.FindByID(id)
 	if err != nil {
@@ -98,9 +69,9 @@ func (s *TicketGroupService) GetTicketGroupById(id uint) (*TicketGroupDTO, error
 	}
 
 	// Map tags to DTOs
-	tagDTOs := make([]TagDTO, 0, len(tags))
+	tagDTOs := make([]dto.TagDTO, 0, len(tags))
 	for _, tag := range tags {
-		tagDTOs = append(tagDTOs, TagDTO{
+		tagDTOs = append(tagDTOs, dto.TagDTO{
 			TagId:   tag.TagId,
 			TagName: tag.TagName,
 			TagDesc: tag.TagDesc,
@@ -108,7 +79,7 @@ func (s *TicketGroupService) GetTicketGroupById(id uint) (*TicketGroupDTO, error
 	}
 
 	// Create the ticket group DTO
-	ticketGroupDTO := &TicketGroupDTO{
+	ticketGroupDTO := &dto.TicketGroupDTO{
 		TicketGroupId:   ticketGroup.TicketGroupId,
 		GroupType:       ticketGroup.GroupType,
 		GroupName:       ticketGroup.GroupName,
@@ -129,10 +100,10 @@ func (s *TicketGroupService) GetTicketGroupById(id uint) (*TicketGroupDTO, error
 }
 
 // buildTicketGroupResponse constructs the response with ticket groups and their tags
-func (s *TicketGroupService) buildTicketGroupResponse(ticketGroups []models.TicketGroup) (TicketGroupResponse, error) {
+func (s *TicketGroupService) buildTicketGroupResponse(ticketGroups []models.TicketGroup) (dto.TicketGroupResponse, error) {
 	// Create the response
-	response := TicketGroupResponse{
-		TicketGroups: make([]TicketGroupDTO, 0, len(ticketGroups)),
+	response := dto.TicketGroupResponse{
+		TicketGroups: make([]dto.TicketGroupDTO, 0, len(ticketGroups)),
 	}
 
 	// Populate the response with ticket groups
@@ -140,13 +111,13 @@ func (s *TicketGroupService) buildTicketGroupResponse(ticketGroups []models.Tick
 		// Get tags for this ticket group
 		tags, err := s.tagRepo.FindByTicketGroupID(ticketGroup.TicketGroupId)
 		if err != nil {
-			return TicketGroupResponse{}, err
+			return dto.TicketGroupResponse{}, err
 		}
 
 		// Map tags to DTOs
-		tagDTOs := make([]TagDTO, 0, len(tags))
+		tagDTOs := make([]dto.TagDTO, 0, len(tags))
 		for _, tag := range tags {
-			tagDTOs = append(tagDTOs, TagDTO{
+			tagDTOs = append(tagDTOs, dto.TagDTO{
 				TagId:   tag.TagId,
 				TagName: tag.TagName,
 				TagDesc: tag.TagDesc,
@@ -154,7 +125,7 @@ func (s *TicketGroupService) buildTicketGroupResponse(ticketGroups []models.Tick
 		}
 
 		// Create the ticket group DTO
-		ticketGroupDTO := TicketGroupDTO{
+		ticketGroupDTO := dto.TicketGroupDTO{
 			TicketGroupId:   ticketGroup.TicketGroupId,
 			GroupType:       ticketGroup.GroupType,
 			GroupName:       ticketGroup.GroupName,
@@ -178,7 +149,7 @@ func (s *TicketGroupService) buildTicketGroupResponse(ticketGroups []models.Tick
 }
 
 // GetTicketProfile retrieves a complete ticket profile by ticket group ID
-func (s *TicketGroupService) GetTicketProfile(ticketGroupId uint) (*TicketProfileResponse, error) {
+func (s *TicketGroupService) GetTicketProfile(ticketGroupId uint) (*dto.TicketProfileResponse, error) {
 	// 1. Get the ticket group
 	ticketGroup, err := s.ticketGroupRepo.FindByID(ticketGroupId)
 	if err != nil {
@@ -192,9 +163,9 @@ func (s *TicketGroupService) GetTicketProfile(ticketGroupId uint) (*TicketProfil
 	}
 
 	// 3. Map tags to DTOs
-	tagDTOs := make([]TagDTO, 0, len(tags))
+	tagDTOs := make([]dto.TagDTO, 0, len(tags))
 	for _, tag := range tags {
-		tagDTOs = append(tagDTOs, TagDTO{
+		tagDTOs = append(tagDTOs, dto.TagDTO{
 			TagId:   tag.TagId,
 			TagName: tag.TagName,
 			TagDesc: tag.TagDesc,
@@ -228,7 +199,7 @@ func (s *TicketGroupService) GetTicketProfile(ticketGroupId uint) (*TicketProfil
 	}
 
 	// 7. Create the response
-	profile := &TicketProfileDTO{
+	profile := &dto.TicketProfileDTO{
 		TicketGroupId:            ticketGroup.TicketGroupId,
 		GroupType:                ticketGroup.GroupType,
 		GroupName:                ticketGroup.GroupName,
@@ -270,10 +241,10 @@ func (s *TicketGroupService) GetTicketProfile(ticketGroupId uint) (*TicketProfil
 	}
 
 	// 9. Prepare the complete response
-	response := &TicketProfileResponse{
+	response := &dto.TicketProfileResponse{
 		RespCode: 200,
 		RespDesc: "Success",
-		Result: TicketProfileResult{
+		Result: dto.TicketProfileResult{
 			TicketProfile: *profile,
 		},
 	}
@@ -282,7 +253,7 @@ func (s *TicketGroupService) GetTicketProfile(ticketGroupId uint) (*TicketProfil
 }
 
 // getGroupGallery retrieves gallery items for a ticket group
-func (s *TicketGroupService) getGroupGallery(ticketGroupId uint) ([]GroupGalleryDTO, error) {
+func (s *TicketGroupService) getGroupGallery(ticketGroupId uint) ([]dto.GroupGalleryDTO, error) {
 	// This would be implemented by calling a repository method
 	// Create a GroupGalleryRepository or use this from another service
 	galleries, err := s.groupGalleryRepo.FindByTicketGroupID(ticketGroupId)
@@ -290,9 +261,9 @@ func (s *TicketGroupService) getGroupGallery(ticketGroupId uint) ([]GroupGallery
 		return nil, err
 	}
 
-	galleryDTOs := make([]GroupGalleryDTO, 0, len(galleries))
+	galleryDTOs := make([]dto.GroupGalleryDTO, 0, len(galleries))
 	for _, gallery := range galleries {
-		galleryDTOs = append(galleryDTOs, GroupGalleryDTO{
+		galleryDTOs = append(galleryDTOs, dto.GroupGalleryDTO{
 			GroupGalleryId:  gallery.GroupGalleryId,
 			AttachmentName:  gallery.AttachmentName,
 			AttachmentPath:  gallery.AttachmentPath,
@@ -306,7 +277,7 @@ func (s *TicketGroupService) getGroupGallery(ticketGroupId uint) ([]GroupGallery
 }
 
 // getTicketDetails retrieves ticket details for a ticket group
-func (s *TicketGroupService) getTicketDetails(ticketGroupId uint) ([]TicketDetailDTO, error) {
+func (s *TicketGroupService) getTicketDetails(ticketGroupId uint) ([]dto.TicketDetailDTO, error) {
 	// This would be implemented by calling a repository method
 	// Create a TicketDetailRepository or use this from another service
 	details, err := s.ticketDetailRepo.FindByTicketGroupID(ticketGroupId)
@@ -314,9 +285,9 @@ func (s *TicketGroupService) getTicketDetails(ticketGroupId uint) ([]TicketDetai
 		return nil, err
 	}
 
-	detailDTOs := make([]TicketDetailDTO, 0, len(details))
+	detailDTOs := make([]dto.TicketDetailDTO, 0, len(details))
 	for _, detail := range details {
-		detailDTOs = append(detailDTOs, TicketDetailDTO{
+		detailDTOs = append(detailDTOs, dto.TicketDetailDTO{
 			TicketDetailId: detail.TicketDetailId,
 			Title:          detail.Title,
 			TitleIcon:      detail.TitleIcon,

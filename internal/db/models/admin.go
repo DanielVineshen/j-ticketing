@@ -1,4 +1,4 @@
-// File: internal/core/models/admin.go
+// File: j-ticketing/internal/db/models/admin.go
 package models
 
 import (

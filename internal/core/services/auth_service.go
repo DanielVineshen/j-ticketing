@@ -1,4 +1,4 @@
-// FILE: internal/core/services/auth_service.go (consolidated)
+// File: j-ticketing/internal/core/services/auth_service.go
 package service
 
 import (

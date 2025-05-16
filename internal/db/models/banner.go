@@ -1,4 +1,4 @@
-// File: internal/core/models/banner.go
+// File: j-ticketing/internal/db/models/banner.go
 package models
 
 import (

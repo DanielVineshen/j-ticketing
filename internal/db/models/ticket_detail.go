@@ -1,4 +1,4 @@
-// File: internal/core/models/ticket_detail.go
+// File: j-ticketing/internal/db/models/ticket_detail.go
 package models
 
 import (

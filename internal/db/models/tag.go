@@ -1,4 +1,4 @@
-// File: internal/core/models/tag.go
+// File: j-ticketing/internal/db/models/tag.go
 package models
 
 import (

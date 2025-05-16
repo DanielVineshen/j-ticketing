@@ -1,4 +1,4 @@
-// FILE: internal/db/db.go
+// File: j-ticketing/internal/db/db.go
 package db
 
 import (

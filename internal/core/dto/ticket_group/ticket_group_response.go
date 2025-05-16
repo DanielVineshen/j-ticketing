@@ -1,5 +1,35 @@
-// File: internal/core/services/ticket_profile_dto.go
-package service
+// File: j-ticketing/internal/core/dto/ticket_group/ticket_group_response.go
+package dto
+
+// TicketGroupResponse represents the response structure for ticket groups
+type TicketGroupResponse struct {
+	TicketGroups []TicketGroupDTO `json:"ticketGroups"`
+}
+
+// TicketGroupDTO represents the data transfer object for a ticket group
+type TicketGroupDTO struct {
+	TicketGroupId   uint     `json:"ticketGroupId"`
+	GroupType       string   `json:"groupType"`
+	GroupName       string   `json:"groupName"`
+	GroupDesc       string   `json:"groupDesc"`
+	OperatingHours  string   `json:"operatingHours"`
+	PricePrefix     string   `json:"pricePrefix"`
+	PriceSuffix     string   `json:"priceSuffix"`
+	AttachmentName  string   `json:"attachmentName"`
+	AttachmentPath  string   `json:"attachmentPath"`
+	AttachmentSize  int64    `json:"attachmentSize"`
+	ContentType     string   `json:"contentType"`
+	UniqueExtension string   `json:"uniqueExtension"`
+	IsActive        bool     `json:"isActive"`
+	Tags            []TagDTO `json:"tags"`
+}
+
+// TagDTO represents the data transfer object for a tag
+type TagDTO struct {
+	TagId   uint   `json:"tagId"`
+	TagName string `json:"tagName"`
+	TagDesc string `json:"tagDesc"`
+}
 
 // TicketProfileResponse represents the full API response
 type TicketProfileResponse struct {

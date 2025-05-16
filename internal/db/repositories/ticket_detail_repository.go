@@ -1,4 +1,4 @@
-// File: internal/db/repositories/ticket_detail_repository.go
+// File: j-ticketing/internal/db/repositories/ticket_detail_repository.go
 package repositories
 
 import (

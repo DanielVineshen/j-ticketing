@@ -1,4 +1,4 @@
-// File: internal/core/models/token.go
+// File: j-ticketing/internal/db/models/token.go
 package models
 
 import (

@@ -1,4 +1,3 @@
-// FILE: pkg/email/email_service.go
 package email
 
 import (

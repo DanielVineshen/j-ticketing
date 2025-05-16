@@ -1,4 +1,4 @@
-// FILE: internal/repositories/customer_repository.go (full implementation)
+// File: j-ticketing/internal/db/repositories/customer_repository.go\
 package repositories
 
 import (

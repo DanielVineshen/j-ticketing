@@ -1,4 +1,4 @@
-// FILE: internal/auth/service/customer_service.go
+// File: j-ticketing/internal/core/services/customer_service.go
 package service
 
 import (

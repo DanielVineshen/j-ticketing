@@ -1,4 +1,4 @@
-// FILE: internal/auth/models/auth.go
+// File: j-ticketing/internal/core/dto/auth/auth_user_claims.go
 package dto
 
 // UserClaims represents the claims in the JWT token

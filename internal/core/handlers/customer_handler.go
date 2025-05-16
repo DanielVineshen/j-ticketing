@@ -1,4 +1,4 @@
-// FILE: internal/auth/handlers/customer_handler.go
+// File: j-ticketing/internal/core/handlers/customer_handlers.go
 package handlers
 
 import (

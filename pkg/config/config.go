@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -26,6 +27,13 @@ type EmailConfig struct {
 	UseSSL   bool
 }
 
+// Zoo API configuration
+type ZooAPIConfig struct {
+	BaseURL  string
+	Username string
+	Password string
+}
+
 type Config struct {
 	DB     DBConfig
 	Server struct {
@@ -44,6 +52,8 @@ type Config struct {
 	}
 	// Email configuration
 	Email EmailConfig
+	// Zoo API configuration
+	ZooAPI ZooAPIConfig
 }
 
 // LoadConfig loads configuration from environment variables
@@ -80,6 +90,15 @@ func LoadConfig() (*Config, error) {
 	config.Email.Password = getEnv("EMAIL_PASSWORD", "")
 	config.Email.From = getEnv("EMAIL_FROM", "etiket@johor.gov.my")
 	config.Email.UseSSL = getEnvBool("EMAIL_USE_SSL", true) // Default to SSL
+
+	// Zoo API config
+	baseURL := getEnv("ZOO_API_BASE_URL", "https://eglobal2.ddns.net/johorzooapi")
+	if !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
+		baseURL = "https://" + baseURL
+	}
+	config.ZooAPI.BaseURL = baseURL
+	config.ZooAPI.Username = getEnv("ZOO_API_USERNAME", "")
+	config.ZooAPI.Password = getEnv("ZOO_API_PASSWORD", "")
 
 	return config, nil
 }

@@ -2,11 +2,12 @@
 package handlers
 
 import (
-	"fmt"
 	dto "j-ticketing/internal/core/dto/ticket_group"
 	services "j-ticketing/internal/core/services"
+	"j-ticketing/pkg/errors"
 	"j-ticketing/pkg/models"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -43,38 +44,82 @@ func (h *TicketGroupHandler) GetTicketGroups(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(response)
+	return c.JSON(models.NewBaseSuccessResponse(response))
 }
 
 // GetTicketProfile handles GET requests for a ticket profile
 func (h *TicketGroupHandler) GetTicketProfile(c *fiber.Ctx) error {
 	// Parse the ticket group ID from the request
 	ticketGroupIdStr := c.Query("ticketGroupId")
-	fmt.Printf("ticketGroupIdStr: %s\n", ticketGroupIdStr) // Corrected printf syntax
 
 	if ticketGroupIdStr == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			9999, "Bad Request: Missing ticketGroupId parameter", nil,
+			errors.INVALID_INPUT_FORMAT.Code, "Missing ticketGroupId parameter", nil,
 		))
 	}
 
 	ticketGroupId, err := strconv.ParseUint(ticketGroupIdStr, 10, 32)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"respCode": 400,
-			"respDesc": "Bad Request: Invalid ticketGroupId parameter",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			errors.INVALID_INPUT_VALUES.Code, "Invalid ticketGroupId parameter", nil,
+		))
 	}
 
 	// Get the ticket profile
 	response, err := h.ticketGroupService.GetTicketProfile(uint(ticketGroupId))
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"respCode": 500,
-			"respDesc": "Internal Server Error: " + err.Error(),
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			errors.PROCESSING_ERROR.Code, "Internal Server Error: "+err.Error(), nil,
+		))
 	}
 
 	// Return the response
-	return c.JSON(response)
+	return c.JSON(models.NewBaseSuccessResponse(response))
+}
+
+// GetTicketVariants handles GET requests for ticket variants
+func (h *TicketGroupHandler) GetTicketVariants(c *fiber.Ctx) error {
+	// Parse the query parameters
+	ticketGroupIdStr := c.Query("ticketGroupId")
+	date := c.Query("date")
+
+	// Validate the parameters
+	if ticketGroupIdStr == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			errors.INVALID_INPUT_FORMAT.Code, "Missing ticketGroupId parameter", nil,
+		))
+	}
+
+	if date == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			errors.INVALID_INPUT_FORMAT.Code, "Missing date parameter", nil,
+		))
+	}
+
+	// Parse the ticket group ID
+	ticketGroupId, err := strconv.ParseUint(ticketGroupIdStr, 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			errors.INVALID_INPUT_VALUES.Code, "Invalid ticketGroupId parameter", nil,
+		))
+	}
+
+	// Validate the date format (YYYY-MM-DD)
+	_, err = time.Parse("2006-01-02", date)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			errors.INVALID_INPUT_VALUES.Code, "Invalid date format. Required format: YYYY-MM-DD", nil,
+		))
+	}
+
+	// Get the ticket variants
+	response, err := h.ticketGroupService.GetTicketVariants(uint(ticketGroupId), date)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
+			errors.PROCESSING_ERROR.Code, "Failed to get ticket variants: "+err.Error(), nil,
+		))
+	}
+
+	// Return the response
+	return c.JSON(models.NewBaseSuccessResponse(response))
 }

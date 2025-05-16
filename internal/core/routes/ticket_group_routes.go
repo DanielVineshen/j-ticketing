@@ -16,4 +16,5 @@ func SetupTicketGroupRoutes(app *fiber.App, ticketGroupHandler *handlers.TicketG
 	// Public routes (no authentication required)
 	ticketGroup.Get("/", ticketGroupHandler.GetTicketGroups)
 	ticketGroup.Get("/ticketProfile", ticketGroupHandler.GetTicketProfile)
+	ticketGroup.Get("/ticketVariants", ticketGroupHandler.GetTicketVariants)
 }

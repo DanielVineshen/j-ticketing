@@ -5,8 +5,10 @@ import (
 	"fmt"
 	authHandlers "j-ticketing/internal/core/handlers"
 	coreHandlers "j-ticketing/internal/core/handlers"
+	orderHandlers "j-ticketing/internal/core/handlers"
 	authRoutes "j-ticketing/internal/core/routes"
 	coreRoutes "j-ticketing/internal/core/routes"
+	orderRoutes "j-ticketing/internal/core/routes"
 	service "j-ticketing/internal/core/services"
 	"j-ticketing/internal/db"
 	"j-ticketing/internal/db/repositories"
@@ -79,6 +81,8 @@ func main() {
 	tagRepo := repositories.NewTagRepository(database)
 	groupGalleryRepo := repositories.NewGroupGalleryRepository(database)
 	ticketDetailRepo := repositories.NewTicketDetailRepository(database)
+	orderTicketGroupRepo := repositories.NewOrderTicketGroupRepository(database)
+	orderTicketInfoRepo := repositories.NewOrderTicketInfoRepository(database)
 
 	// Initialize services
 	ticketGroupService := service.NewTicketGroupService(
@@ -86,6 +90,7 @@ func main() {
 		tagRepo,
 		groupGalleryRepo,
 		ticketDetailRepo,
+		cfg,
 	)
 	authService := service.NewAuthService(
 		jwtService,
@@ -96,10 +101,19 @@ func main() {
 		cfg.JWT.AccessTokenTTL,
 		cfg.JWT.RefreshTokenTTL,
 	)
+	orderService := service.NewOrderService(
+		orderTicketGroupRepo,
+		orderTicketInfoRepo,
+		ticketGroupRepo,
+		tagRepo,
+		groupGalleryRepo,
+		ticketDetailRepo,
+	)
 
 	// Initialize handlers
 	ticketGroupHandler := coreHandlers.NewTicketGroupHandler(ticketGroupService)
 	authHandler := authHandlers.NewAuthHandler(authService, emailService) // Update auth handler with email service
+	orderHandler := orderHandlers.NewOrderHandler(orderService)
 
 	// Initialize logger
 	logger, err := zap.NewProduction()
@@ -128,6 +142,7 @@ func main() {
 	// Setup routes
 	coreRoutes.SetupTicketGroupRoutes(app, ticketGroupHandler, jwtService)
 	authRoutes.SetupAuthRoutes(app, authHandler, jwtService)
+	orderRoutes.SetupOrderRoutes(app, orderHandler, jwtService)
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.Server.Port)

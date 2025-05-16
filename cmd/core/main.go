@@ -1,4 +1,4 @@
-// FILE: cmd/core/main.go (Updated with auth integration)
+// FILE: cmd/core/main.go (Updated with email service)
 package main
 
 import (
@@ -11,6 +11,7 @@ import (
 	"j-ticketing/internal/db"
 	"j-ticketing/internal/db/repositories"
 	"j-ticketing/pkg/config"
+	"j-ticketing/pkg/email"
 	"j-ticketing/pkg/jwt"
 	"j-ticketing/pkg/middleware"
 	"log"
@@ -66,12 +67,16 @@ func main() {
 	// Initialize JWT service
 	jwtService := jwt.NewJWTService(cfg)
 
+	// Initialize email service
+	emailService := email.NewEmailService(cfg)
+
 	// Initialize repositories
 	ticketGroupRepo := repositories.NewTicketGroupRepository(database)
 	bannerRepo := repositories.NewBannerRepository(database)
 	adminRepo := repositories.NewAdminRepository(database)
 	customerRepo := repositories.NewCustomerRepository(database)
 	tokenRepo := repositories.NewTokenRepository(database)
+	// auditLogRepo := repositories.NewAuditLogRepository(database)
 
 	// Initialize services
 	ticketGroupService := service.NewTicketGroupService(ticketGroupRepo, bannerRepo)
@@ -80,13 +85,14 @@ func main() {
 		adminRepo,
 		customerRepo,
 		tokenRepo,
+		emailService, // Add email service to auth service
 		cfg.JWT.AccessTokenTTL,
 		cfg.JWT.RefreshTokenTTL,
 	)
 
 	// Initialize handlers
 	ticketGroupHandler := coreHandlers.NewTicketGroupHandler(ticketGroupService)
-	authHandler := authHandlers.NewAuthHandler(authService)
+	authHandler := authHandlers.NewAuthHandler(authService, emailService) // Update auth handler with email service
 
 	// Initialize logger
 	logger, err := zap.NewProduction()
@@ -108,6 +114,9 @@ func main() {
 		AllowHeaders:     "Origin,Content-Type,Accept,Authorization",
 		AllowCredentials: true,
 	}))
+
+	// // Apply audit logging middleware (if needed)
+	// app.Use(middleware.AuditMiddleware(auditLogRepo))
 
 	// Setup routes
 	coreRoutes.SetupRoutes(app, ticketGroupHandler, jwtService)

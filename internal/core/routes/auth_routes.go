@@ -18,6 +18,10 @@ func SetupAuthRoutes(app *fiber.App, authHandler *handlers.AuthHandler, jwtServi
 	auth.Post("/login", authHandler.Login)
 	auth.Post("/refresh-token", authHandler.RefreshToken)
 
+	// Customer management routes
+	auth.Post("/customer/create", authHandler.CreateCustomer)
+	auth.Post("/customer/reset-password", authHandler.ResetCustomerPassword)
+
 	// Protected routes
 	auth.Get("/logout", middleware.Protected(jwtService), authHandler.Logout)
 	auth.Get("/validate", middleware.Protected(jwtService), authHandler.ValidateToken)

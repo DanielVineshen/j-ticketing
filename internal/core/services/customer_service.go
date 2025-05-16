@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
-	"j-ticketing/pkg/utils"
+	bcryptPassword "j-ticketing/pkg/utils"
 	"time"
 )
 
@@ -41,13 +41,13 @@ func (s *customerService) RegisterCustomer(email, password, identificationNo, fu
 	}
 
 	// Hash the password
-	hashedPassword, err := utils.HashPassword(password)
+	hashedPassword, err := bcryptPassword.HashPassword(password)
 	if err != nil {
 		return nil, err
 	}
 
 	// Generate a unique customer ID
-	custID, err := utils.GenerateRandomToken(8)
+	custID, err := bcryptPassword.GenerateRandomToken(8)
 	if err != nil {
 		return nil, err
 	}
@@ -110,13 +110,13 @@ func (s *customerService) ChangePassword(id, currentPassword, newPassword string
 	}
 
 	// Verify current password
-	err = utils.CheckPassword(currentPassword, customer.Password.String)
+	err = bcryptPassword.CheckPassword(currentPassword, customer.Password.String)
 	if err != nil {
 		return fmt.Errorf("current password is incorrect")
 	}
 
 	// Hash the new password
-	hashedPassword, err := utils.HashPassword(newPassword)
+	hashedPassword, err := bcryptPassword.HashPassword(newPassword)
 	if err != nil {
 		return err
 	}

@@ -1,10 +1,11 @@
-// FILE: internal/auth/handlers/auth_handler.go
+// FILE: internal/core/handlers/auth_handler.go (consolidated)
 package handlers
 
 import (
 	dto "j-ticketing/internal/core/dto/auth"
 	service "j-ticketing/internal/core/services"
-	responseModel "j-ticketing/pkg/models"
+	"j-ticketing/pkg/email"
+	"j-ticketing/pkg/models"
 	"log"
 	"strings"
 
@@ -13,13 +14,15 @@ import (
 
 // AuthHandler handles authentication related HTTP requests
 type AuthHandler struct {
-	authService service.AuthService
+	authService  service.AuthService
+	emailService email.EmailService
 }
 
 // NewAuthHandler creates a new authentication handler
-func NewAuthHandler(authService service.AuthService) *AuthHandler {
+func NewAuthHandler(authService service.AuthService, emailService email.EmailService) *AuthHandler {
 	return &AuthHandler{
-		authService: authService,
+		authService:  authService,
+		emailService: emailService,
 	}
 }
 
@@ -28,17 +31,17 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	// Parse login request
 	var req dto.LoginRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Invalid request body",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			4000, "Invalid request body", nil,
+		))
 	}
 
 	// Validate the request
 	if err := req.Validate(); err != nil {
 		// For now, just use a simple error message
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Validation failed: " + err.Error(),
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			4001, "Validation failed: "+err.Error(), nil,
+		))
 	}
 
 	// Set default user type if not provided
@@ -58,16 +61,16 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	case "customer":
 		tokenResp, err = h.authService.LoginCustomer(req.Username, req.Password)
 	default:
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Invalid user type",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			4001, "Invalid user type", nil,
+		))
 	}
 
 	if err != nil {
 		log.Printf("Login failed: %v", err)
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
+			4010, err.Error(), nil,
+		))
 	}
 
 	// Don't try to get userID from context here - it won't be set before authentication
@@ -87,16 +90,16 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		// Log error but don't fail the request
 	}
 
-	return c.JSON(responseModel.NewBaseSuccessResponse(tokenResp))
+	return c.JSON(models.NewBaseSuccessResponse(tokenResp))
 }
 
 // RefreshToken handles the token refresh request
 func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 	authHeader := c.Get("Authorization")
 	if authHeader == "" || len(authHeader) < 8 || !strings.HasPrefix(authHeader, "Bearer ") {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Refresh token is required",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			4000, "Refresh token is required", nil,
+		))
 	}
 
 	// Extract token from header (remove 'Bearer ' prefix)
@@ -105,21 +108,21 @@ func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 	// Refresh token
 	tokenResp, err := h.authService.RefreshToken(refreshToken)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
+			4010, err.Error(), nil,
+		))
 	}
 
-	return c.JSON(responseModel.NewBaseSuccessResponse(tokenResp))
+	return c.JSON(models.NewBaseSuccessResponse(tokenResp))
 }
 
 // Logout handles the logout request
 func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 	authHeader := c.Get("Authorization")
 	if authHeader == "" || len(authHeader) < 8 || !strings.HasPrefix(authHeader, "Bearer ") {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Access token is required",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			4000, "Access token is required", nil,
+		))
 	}
 
 	// Extract token from header (remove 'Bearer ' prefix)
@@ -128,9 +131,9 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 	// Get user ID from context (set by Protected middleware)
 	username, ok := c.Locals("username").(string)
 	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": "User not authenticated",
-		})
+		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
+			4010, "User not authenticated", nil,
+		))
 	}
 
 	// Revoke token
@@ -138,8 +141,8 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 		log.Printf("Failed to revoke token: %v", err)
 	}
 
-	return c.JSON(responseModel.NewBaseSuccessResponse(fiber.Map{
-		"message": "Successfully logged out",
+	return c.JSON(models.NewBaseSuccessResponse(map[string]bool{
+		"success": true,
 	}))
 }
 
@@ -148,21 +151,102 @@ func (h *AuthHandler) ValidateToken(c *fiber.Ctx) error {
 	// Get token from authorization header
 	authHeader := c.Get("Authorization")
 	if authHeader == "" || len(authHeader) < 8 || authHeader[:7] != "Bearer " {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Invalid authorization header",
-		})
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			4000, "Invalid authorization header", nil,
+		))
 	}
 
 	// Extract token
 	token := authHeader[7:]
 
 	// Validate token
-	claims, err := h.authService.ValidateToken(token)
-	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": err.Error(),
-		})
+	isValid, err := h.authService.ValidateToken(token)
+	if err != nil || !isValid {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
+			4010, "Invalid or expired token", nil,
+		))
 	}
 
-	return c.JSON(claims)
+	return c.JSON(models.NewBaseSuccessResponse(map[string]bool{
+		"valid": true,
+	}))
+}
+
+// CreateCustomer handles creating a new customer
+func (h *AuthHandler) CreateCustomer(c *fiber.Ctx) error {
+	// Parse create customer request
+	var req dto.CreateCustomerRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			4000, "Invalid request format", nil,
+		))
+	}
+
+	// Validate the request
+	if err := req.Validate(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			4001, "Validation failed: "+err.Error(), nil,
+		))
+	}
+
+	// Create customer
+	customer, err := h.authService.CreateCustomer(&req)
+	if err != nil {
+		log.Printf("Failed to create customer: %v", err)
+
+		// Check for specific errors
+		if err.Error() == "email already exists" {
+			return c.Status(fiber.StatusConflict).JSON(models.NewBaseErrorResponse(
+				4009, "A customer with this email already exists", nil,
+			))
+		}
+
+		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
+			5000, "Failed to create customer: "+err.Error(), nil,
+		))
+	}
+
+	// Create a response object that doesn't include sensitive data
+	response := map[string]interface{}{
+		"custId":           customer.CustId,
+		"email":            customer.Email,
+		"identificationNo": customer.IdentificationNo,
+		"fullName":         customer.FullName,
+		"contactNo":        customer.ContactNo.String,
+		"isDisabled":       customer.IsDisabled,
+		"createdAt":        customer.CreatedAt,
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(response))
+}
+
+// ResetCustomerPassword handles resetting a customer's password
+func (h *AuthHandler) ResetCustomerPassword(c *fiber.Ctx) error {
+	// Parse reset password request
+	var req dto.ResetPasswordRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			4000, "Invalid request format", nil,
+		))
+	}
+
+	// Validate the request
+	if err := req.Validate(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			4001, "Validation failed: "+err.Error(), nil,
+		))
+	}
+
+	// Reset password
+	result, err := h.authService.ResetPassword(req.Email)
+	if err != nil {
+		log.Printf("Failed to reset password: %v", err)
+		// Don't expose specific error details to the client (security measure)
+		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
+			5000, "An error occurred while processing your request", nil,
+		))
+	}
+
+	// Always return success (security measure)
+	return c.JSON(models.NewBaseSuccessResponse(result))
 }

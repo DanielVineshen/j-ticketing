@@ -2,9 +2,11 @@
 package handlers
 
 import (
-	"j-ticketing/internal/core/dto"
+	dto "j-ticketing/internal/core/dto/auth"
 	service "j-ticketing/internal/services"
+	responseModel "j-ticketing/pkg/models"
 	"log"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -28,6 +30,14 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Invalid request body",
+		})
+	}
+
+	// Validate the request
+	if err := req.Validate(); err != nil {
+		// For now, just use a simple error message
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Validation failed: " + err.Error(),
 		})
 	}
 
@@ -77,18 +87,20 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		// Log error but don't fail the request
 	}
 
-	return c.JSON(tokenResp)
+	return c.JSON(responseModel.NewBaseSuccessResponse(tokenResp))
 }
 
 // RefreshToken handles the token refresh request
 func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
-	// Get refresh token from request
-	refreshToken := c.FormValue("refresh_token")
-	if refreshToken == "" {
+	authHeader := c.Get("Authorization")
+	if authHeader == "" || len(authHeader) < 8 || !strings.HasPrefix(authHeader, "Bearer ") {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "Refresh token is required",
 		})
 	}
+
+	// Extract token from header (remove 'Bearer ' prefix)
+	refreshToken := strings.TrimPrefix(authHeader, "Bearer ")
 
 	// Refresh token
 	tokenResp, err := h.authService.RefreshToken(refreshToken)
@@ -98,21 +110,23 @@ func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(tokenResp)
+	return c.JSON(responseModel.NewBaseSuccessResponse(tokenResp))
 }
 
 // Logout handles the logout request
 func (h *AuthHandler) Logout(c *fiber.Ctx) error {
-	// Get refresh token from request
-	refreshToken := c.FormValue("refresh_token")
-	if refreshToken == "" {
+	authHeader := c.Get("Authorization")
+	if authHeader == "" || len(authHeader) < 8 || !strings.HasPrefix(authHeader, "Bearer ") {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Refresh token is required",
+			"message": "Access token is required",
 		})
 	}
 
+	// Extract token from header (remove 'Bearer ' prefix)
+	accessToken := strings.TrimPrefix(authHeader, "Bearer ")
+
 	// Get user ID from context (set by Protected middleware)
-	userID, ok := c.Locals("userId").(string)
+	username, ok := c.Locals("username").(string)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": "User not authenticated",
@@ -120,13 +134,13 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 	}
 
 	// Revoke token
-	if err := h.authService.RevokeToken(userID, refreshToken); err != nil {
+	if err := h.authService.RevokeToken(username, accessToken); err != nil {
 		log.Printf("Failed to revoke token: %v", err)
 	}
 
-	return c.JSON(fiber.Map{
+	return c.JSON(responseModel.NewBaseSuccessResponse(fiber.Map{
 		"message": "Successfully logged out",
-	})
+	}))
 }
 
 // ValidateToken handles token validation (mostly for testing)

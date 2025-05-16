@@ -3,7 +3,7 @@ package jwt
 
 import (
 	"errors"
-	"j-ticketing/internal/core/dto"
+	dto "j-ticketing/internal/core/dto/auth"
 	"j-ticketing/pkg/config"
 	"strings"
 	"time"

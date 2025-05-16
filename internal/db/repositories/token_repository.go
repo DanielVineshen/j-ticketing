@@ -10,8 +10,9 @@ import (
 // TokenRepository is the interface for token database operations
 type TokenRepository interface {
 	Create(token *models.Token) error
-	FindByUserIdAndRefreshToken(userID, refreshToken string) (*models.Token, error)
-	DeleteByUserIdAndRefreshToken(userID, refreshToken string) error
+	FindByUserIdAndRefreshToken(userID, access string) (*models.Token, error)
+	FindByUserIdAndAccessToken(userID, access string) (*models.Token, error)
+	DeleteByUserIdAndAccessToken(userID, accessToken string) error
 }
 
 type tokenRepository struct {
@@ -40,7 +41,17 @@ func (r *tokenRepository) FindByUserIdAndRefreshToken(userID, refreshToken strin
 	return &token, nil
 }
 
-// DeleteByUserIdAndRefreshToken deletes a token by user ID and refresh token
-func (r *tokenRepository) DeleteByUserIdAndRefreshToken(userID, refreshToken string) error {
-	return r.db.Where("user_id = ? AND refresh_token = ?", userID, refreshToken).Delete(&models.Token{}).Error
+// FindByUserIdAndAccessToken finds a token by user ID and access token
+func (r *tokenRepository) FindByUserIdAndAccessToken(userID, accessToken string) (*models.Token, error) {
+	var token models.Token
+	err := r.db.Where("user_id = ? AND access_token = ?", userID, accessToken).First(&token).Error
+	if err != nil {
+		return nil, err
+	}
+	return &token, nil
+}
+
+// DeleteByUserIdAndAccessToken deletes a token by user ID and access token
+func (r *tokenRepository) DeleteByUserIdAndAccessToken(userID, accessToken string) error {
+	return r.db.Where("user_id = ? AND access_token = ?", userID, accessToken).Delete(&models.Token{}).Error
 }

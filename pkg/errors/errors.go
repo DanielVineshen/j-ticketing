@@ -32,6 +32,7 @@ var (
 	FILE_SIZE_ERROR           = ErrorCode{4016, "File size exceeds maximum limit of 5MB."}
 	FILE_TYPE_ERROR           = ErrorCode{4017, "Only JPEG and PNG file types are allowed."}
 	USER_LACKS_PERMISSION     = ErrorCode{4018, "User lacks the permission to perform this action."}
+	USER_ACCOUNT_DISABLED     = ErrorCode{4019, "User account has been disabled."}
 
 	// Server-side errors (5xxx range)
 	PROCESSING_ERROR                 = ErrorCode{5000, "Something went wrong when processing request."}

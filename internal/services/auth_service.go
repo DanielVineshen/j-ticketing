@@ -4,10 +4,11 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"j-ticketing/internal/core/dto"
+	dto "j-ticketing/internal/core/dto/auth"
 	coremodels "j-ticketing/internal/db/models" // Add this import for core models
 	"j-ticketing/internal/db/repositories"
 	jwt "j-ticketing/pkg/jwt"
+	"log"
 	"strconv" // Add this import for string conversion
 	"time"
 
@@ -18,7 +19,7 @@ import (
 type AuthService interface {
 	LoginAdmin(username, password string) (*dto.TokenResponse, error)
 	LoginCustomer(email, password string) (*dto.TokenResponse, error)
-	ValidateToken(token string) (*dto.UserClaims, error)
+	ValidateToken(token string) (bool, error)
 	RefreshToken(refreshToken string) (*dto.TokenResponse, error)
 	SaveToken(userID, userType, accessToken, refreshToken, ipAddress, userAgent string) error
 	RevokeToken(userID, refreshToken string) error
@@ -85,11 +86,18 @@ func (s *authService) LoginAdmin(username, password string) (*dto.TokenResponse,
 		return nil, err
 	}
 
+	// Create user info for response
+	userInfo := dto.UserInfo{
+		AdminID:  admin.AdminId,
+		Username: admin.Username,
+		Role:     admin.Role,
+		FullName: admin.FullName,
+	}
+
 	return &dto.TokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		TokenType:    "Bearer",
-		ExpiresIn:    s.accessTokenTTL,
+		User:         userInfo,
 	}, nil
 }
 
@@ -131,17 +139,38 @@ func (s *authService) LoginCustomer(email, password string) (*dto.TokenResponse,
 		return nil, err
 	}
 
+	// Create user info for response
+	userInfo := dto.UserInfo{
+		CustID:           customer.CustId,
+		Email:            customer.Email,
+		IdentificationNo: customer.IdentificationNo,
+		IsDisabled:       customer.IsDisabled,
+		ContactNo:        customer.ContactNo.String,
+		Role:             userClaims.UserType,
+		FullName:         customer.FullName,
+	}
+
 	return &dto.TokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		TokenType:    "Bearer",
-		ExpiresIn:    s.accessTokenTTL,
+		User:         userInfo,
 	}, nil
 }
 
 // ValidateToken validates a JWT token
-func (s *authService) ValidateToken(token string) (*dto.UserClaims, error) {
-	return s.jwtService.ValidateToken(token)
+func (s *authService) ValidateToken(token string) (bool, error) {
+	claims, err := s.jwtService.ValidateToken(token)
+
+	// Get the identifier to use for token lookup
+	var lookupID string = claims.Username
+	// Check if refresh token exists in database
+	_, err = s.tokenRepo.FindByUserIdAndAccessToken(lookupID, token)
+	if err != nil {
+		return false, nil
+	}
+
+	// return s.jwtService.ValidateToken(token)
+	return true, nil
 }
 
 // RefreshToken refreshes an access token using a refresh token
@@ -152,8 +181,11 @@ func (s *authService) RefreshToken(refreshToken string) (*dto.TokenResponse, err
 		return nil, err
 	}
 
+	// Get the identifier to use for token lookup
+	var lookupID string = claims.Username
+
 	// Check if refresh token exists in database
-	_, err = s.tokenRepo.FindByUserIdAndRefreshToken(claims.UserID, refreshToken)
+	_, err = s.tokenRepo.FindByUserIdAndRefreshToken(lookupID, refreshToken)
 	if err != nil {
 		return nil, errors.New("invalid refresh token")
 	}
@@ -164,13 +196,55 @@ func (s *authService) RefreshToken(refreshToken string) (*dto.TokenResponse, err
 		return nil, err
 	}
 
-	// Return new tokens
-	return &dto.TokenResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken, // Keep the same refresh token
-		TokenType:    "Bearer",
-		ExpiresIn:    s.accessTokenTTL,
-	}, nil
+	if claims.UserType == "admin" {
+		// Find admin by username
+		admin, err := s.adminRepo.FindByUsername(claims.Username)
+		if err != nil {
+			return nil, errors.New("invalid credentials -> name")
+		}
+
+		// Create user info for response
+		userInfo := dto.UserInfo{
+			AdminID:  admin.AdminId,
+			Username: admin.Username,
+			Role:     admin.Role,
+			FullName: admin.FullName,
+		}
+
+		return &dto.TokenResponse{
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+			User:         userInfo,
+		}, nil
+	} else {
+		// Find customer by email
+		customer, err := s.customerRepo.FindByEmail(claims.Username)
+		if err != nil {
+			return nil, errors.New("invalid credentials")
+		}
+
+		// Check if customer is disabled
+		if customer.IsDisabled {
+			return nil, errors.New("account is disabled")
+		}
+
+		// Create user info for response
+		userInfo := dto.UserInfo{
+			CustID:           customer.CustId,
+			Email:            customer.Email,
+			IdentificationNo: customer.IdentificationNo,
+			IsDisabled:       customer.IsDisabled,
+			ContactNo:        customer.ContactNo.String,
+			Role:             claims.UserType,
+			FullName:         customer.FullName,
+		}
+
+		return &dto.TokenResponse{
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+			User:         userInfo,
+		}, nil
+	}
 }
 
 // SaveToken saves a token to the database
@@ -190,6 +264,7 @@ func (s *authService) SaveToken(userID, userType, accessToken, refreshToken, ipA
 }
 
 // RevokeToken revokes a token (for logout)
-func (s *authService) RevokeToken(userID, refreshToken string) error {
-	return s.tokenRepo.DeleteByUserIdAndRefreshToken(userID, refreshToken)
+func (s *authService) RevokeToken(userID, accessToken string) error {
+	log.Printf("UserId: %v", userID)
+	return s.tokenRepo.DeleteByUserIdAndAccessToken(userID, accessToken)
 }

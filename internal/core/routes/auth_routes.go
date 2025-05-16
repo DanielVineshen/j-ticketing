@@ -19,6 +19,6 @@ func SetupAuthRoutes(app *fiber.App, authHandler *handlers.AuthHandler, jwtServi
 	auth.Post("/refresh-token", authHandler.RefreshToken)
 
 	// Protected routes
-	auth.Post("/logout", middleware.Protected(jwtService), authHandler.Logout)
+	auth.Get("/logout", middleware.Protected(jwtService), authHandler.Logout)
 	auth.Get("/validate", middleware.Protected(jwtService), authHandler.ValidateToken)
 }

@@ -37,7 +37,8 @@ type ZooAPIConfig struct {
 type Config struct {
 	DB     DBConfig
 	Server struct {
-		Port string
+		CorePort      string
+		SchedulerPort string
 	}
 	// Migration section to control migration behavior
 	Migration struct {
@@ -72,7 +73,8 @@ func LoadConfig() (*Config, error) {
 	config.DB.Name = getEnv("DB_NAME", "ticketing")
 
 	// Server config
-	config.Server.Port = getEnv("SERVER_PORT", "8080")
+	config.Server.CorePort = getEnv("SERVER_CORE_PORT", "8080")
+	config.Server.SchedulerPort = getEnv("SERVER_SCHEDULER_PORT", "8081")
 
 	// Migration config
 	config.Migration.AutoMigrate = getEnvBool("AUTO_MIGRATE", false)

@@ -159,8 +159,8 @@ func main() {
 	routes.SetupViewRoutes(app)
 
 	// Start server
-	addr := fmt.Sprintf(":%s", cfg.Server.Port)
-	log.Printf("Server starting on %s", addr)
+	addr := fmt.Sprintf(":%s", cfg.Server.CorePort)
+	log.Printf("Server starting on %s with version 0.1", addr)
 	if err := app.Listen(addr); err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}

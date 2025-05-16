@@ -3,7 +3,7 @@ package handlers
 
 import (
 	"database/sql"
-	service "j-ticketing/internal/services"
+	service "j-ticketing/internal/core/services"
 
 	"github.com/gofiber/fiber/v2"
 )

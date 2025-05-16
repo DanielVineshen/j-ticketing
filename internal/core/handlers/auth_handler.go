@@ -3,7 +3,7 @@ package handlers
 
 import (
 	dto "j-ticketing/internal/core/dto/auth"
-	service "j-ticketing/internal/services"
+	service "j-ticketing/internal/core/services"
 	responseModel "j-ticketing/pkg/models"
 	"log"
 	"strings"

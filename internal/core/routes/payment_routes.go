@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha512"
+	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -12,15 +13,27 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"io"
 	"j-ticketing/internal/core/dto/payment"
+	"j-ticketing/internal/db/repositories"
 	"log"
 	"net/http"
 	"net/url"
-	"os"
+	"strconv"
 	"strings"
 	"time"
 )
 
-func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
+type TransactionResponse struct {
+	IDTransaksi     string `json:"id_transaksi"`
+	OrderNo         string `json:"order_no"`
+	StatusTransaksi string `json:"status_transaksi"`
+	StatusMessage   string `json:"status_message"`
+	TarikhTransaksi string `json:"tarikh_transaksi"`
+	KodBank         string `json:"kod_bank"`
+	NamaBank        string `json:"nama_bank"`
+	JpMsgToken      string `json:"jp_msg_token"`
+}
+
+func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, orderTicketGroupRepo *repositories.OrderTicketGroupRepository) {
 	app.Post("/decrypt", func(c *fiber.Ctx) error {
 		// Original combined payload (IV:ciphertext)
 		payload := `5\/4g3kU5e3TeIHRBuODwaQ==:m o5UiCWiJedyfDIxY8IrF49tfd0qejW9Iv\/5XGKQZ7BZP4ahvwIO5zDxg0nEXL x HEsuhscS7g5t2T2Ip\/4xd5bJzmbMsHJsK29Qo224Fohzf9itYxvD8njnshKi1GcBEQNQbX1  F1VTzAskn84ARSI QWM Qepcerg59quUGL17xYGLo3hoKhUFnXFclcdCsL9iv19riJXpQ65n\/ 2ZvjXfbPv fUE4lRIYtP58qh9ABUUxSPUCNoyPp\/ CfuEVyNqvG T3fZeRB86AD1ujDtP4SAx\/cOLYrELKgqaE=`
@@ -106,148 +119,6 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
 
 	// Payment return handler (callback from payment gateway)
 	app.Get("/payment/return", func(c *fiber.Ctx) error {
-		// Log the entire request for debugging
-		log.Printf("============ PAYMENT RETURN RECEIVED ============")
-		log.Printf("Time: %s", time.Now().Format(time.RFC3339))
-
-		// Log request method and URL
-		log.Printf("Method: %s", c.Method())
-		log.Printf("Path: %s", c.Path())
-		log.Printf("Full URL: %s", c.BaseURL()+c.OriginalURL())
-
-		// Log all HTTP headers
-		log.Printf("------ Headers ------")
-		c.Request().Header.VisitAll(func(key, value []byte) {
-			log.Printf("%s: %s", string(key), string(value))
-		})
-
-		// Log all query parameters
-		log.Printf("------ Query Parameters ------")
-		queryParams := c.Queries()
-		for k, v := range queryParams {
-			log.Printf("%s: %s", k, v)
-		}
-
-		// Enhanced body logging
-		log.Printf("------ Request Body ------")
-
-		// Get raw body bytes
-		body := c.Body()
-		log.Printf("Body length: %d bytes", len(body))
-
-		if len(body) > 0 {
-			// Log raw body as string
-			bodyStr := string(body)
-			log.Printf("Raw body: %s", bodyStr)
-
-			// Log body as hex dump for binary inspection
-			log.Printf("Body hex dump:")
-			for i := 0; i < len(body); i += 16 {
-				end := i + 16
-				if end > len(body) {
-					end = len(body)
-				}
-				chunk := body[i:end]
-				hexStr := ""
-				asciiStr := ""
-
-				for _, b := range chunk {
-					hexStr += fmt.Sprintf("%02x ", b)
-					if b >= 32 && b <= 126 { // Printable ASCII
-						asciiStr += string(b)
-					} else {
-						asciiStr += "."
-					}
-				}
-
-				// Pad for alignment if needed
-				for j := len(chunk); j < 16; j++ {
-					hexStr += "   "
-				}
-
-				log.Printf("  %04x: %s | %s", i, hexStr, asciiStr)
-			}
-
-			// Try to parse as URL-encoded form data
-			contentType := c.Get("Content-Type")
-			if strings.Contains(contentType, "application/x-www-form-urlencoded") {
-				log.Printf("Detected form-urlencoded content type")
-
-				// Parse as form data
-				var form map[string][]string
-				if err := c.QueryParser(&form); err == nil {
-					log.Printf("Parsed form data:")
-					for k, v := range form {
-						log.Printf("  %s: %v", k, v)
-					}
-				} else {
-					log.Printf("Failed to parse form data: %v", err)
-
-					// Try manual parsing
-					formItems := strings.Split(bodyStr, "&")
-					log.Printf("Manual form parsing (%d items):", len(formItems))
-					for _, item := range formItems {
-						parts := strings.SplitN(item, "=", 2)
-						if len(parts) == 2 {
-							key, _ := url.QueryUnescape(parts[0])
-							value, _ := url.QueryUnescape(parts[1])
-							log.Printf("  %s: %s", key, value)
-						} else if len(parts) == 1 {
-							key, _ := url.QueryUnescape(parts[0])
-							log.Printf("  %s: (no value)", key)
-						}
-					}
-				}
-			}
-
-			// Try to parse as JSON
-			if strings.Contains(contentType, "application/json") ||
-				(bodyStr != "" && bodyStr[0] == '{' && bodyStr[len(bodyStr)-1] == '}') {
-				log.Printf("Attempting to parse as JSON")
-				var jsonData map[string]interface{}
-				if err := json.Unmarshal(body, &jsonData); err == nil {
-					jsonBytes, _ := json.MarshalIndent(jsonData, "", "  ")
-					log.Printf("Parsed JSON data:\n%s", string(jsonBytes))
-				} else {
-					log.Printf("Failed to parse as JSON: %v", err)
-				}
-			}
-
-			// Look for specific patterns in the body
-			if strings.Contains(bodyStr, ":") && strings.Contains(bodyStr, "==") {
-				log.Printf("Body appears to contain encoded/encrypted data (contains ':' and '==')")
-
-				// Split and log parts separately
-				parts := strings.Split(bodyStr, ":")
-				log.Printf("Found %d parts separated by ':'", len(parts))
-				for i, part := range parts {
-					log.Printf("Part %d: %s", i+1, part)
-
-					// Check if this part looks like Base64
-					if strings.Contains(part, "==") || strings.Contains(part, "=") {
-						log.Printf("Part %d appears to be Base64 encoded", i+1)
-					}
-				}
-			}
-		} else {
-			log.Printf("Body is empty")
-		}
-
-		// Log any cookies
-		log.Printf("------ Cookies ------")
-		cookieHeader := c.Get("Cookie")
-		log.Printf("Cookie header: %s", cookieHeader)
-
-		// Log any session data
-		log.Printf("------ Session/Store Data ------")
-
-		// Log IP address and user agent
-		log.Printf("------ Client Info ------")
-		log.Printf("IP: %s", c.IP())
-		log.Printf("User-Agent: %s", c.Get("User-Agent"))
-
-		log.Printf("============ END PAYMENT RETURN LOG ============")
-
 		// Get the payload and remove surrounding quotes first
 		payload := strings.Trim(c.Query("payload"), "\"")
 
@@ -318,17 +189,6 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
 		fmt.Println("\nDecrypted result:")
 		fmt.Println(result)
 
-		type TransactionResponse struct {
-			IDTransaksi     string `json:"id_transaksi"`
-			OrderNo         string `json:"order_no"`
-			StatusTransaksi string `json:"status_transaksi"`
-			StatusMessage   string `json:"status_message"`
-			TarikhTransaksi string `json:"tarikh_transaksi"`
-			KodBank         string `json:"kod_bank"`
-			NamaBank        string `json:"nama_bank"`
-			JpMsgToken      string `json:"jp_msg_token"`
-		}
-
 		// Then unmarshal the JSON into this struct
 		var transactionData TransactionResponse
 		jsonErr := json.Unmarshal([]byte(result), &transactionData)
@@ -338,25 +198,97 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
 			return jsonErr
 		}
 
-		// Extract and process payment status and other detailsø
+		// Update the order in the database
+		err = UpdateOrderFromPaymentResponse(transactionData.OrderNo, transactionData, *orderTicketGroupRepo)
+		if err != nil {
+			log.Printf("Error updating order: %v", err)
+			// Continue with the redirect even if the update fails
+			// This ensures the user sees a response, and we can fix the data later if needed
+		}
+
+		// Extract and process payment status and other details
 		status := transactionData.StatusTransaksi
 		log.Printf("Payment status detected: %s", status)
 
-		if status == "00" {
-			log.Printf("Redirecting to success page with transaction_id=%s, order_id=%s",
-				transactionData.IDTransaksi, transactionData.OrderNo)
+		//if status == "00" {
+		//	log.Printf("Redirecting to success page with transaction_id=%s, order_id=%s",
+		//		transactionData.IDTransaksi, transactionData.OrderNo)
+		//
+		//	return c.Redirect("/payment/success?transaction_id=" +
+		//		url.QueryEscape(transactionData.IDTransaksi) + "&order_id=" +
+		//		url.QueryEscape(transactionData.OrderNo))
+		//} else {
+		//	log.Printf("Redirecting to failure page with error_code=%s, error_message=%s",
+		//		transactionData.StatusTransaksi, transactionData.StatusMessage)
+		//
+		//	return c.Redirect("/payment/failure?error_code=" +
+		//		url.QueryEscape(transactionData.StatusTransaksi) + "&error_message=" +
+		//		url.QueryEscape(transactionData.StatusMessage))
+		//}
 
-			return c.Redirect("/payment/success?transaction_id=" +
-				url.QueryEscape(transactionData.IDTransaksi) + "&order_id=" +
-				url.QueryEscape(transactionData.OrderNo))
-		} else {
-			log.Printf("Redirecting to failure page with error_code=%s, error_message=%s",
-				transactionData.StatusTransaksi, transactionData.StatusMessage)
-
-			return c.Redirect("/payment/failure?error_code=" +
-				url.QueryEscape(transactionData.StatusTransaksi) + "&error_message=" +
-				url.QueryEscape(transactionData.StatusMessage))
+		// Find the order first
+		order, err := orderTicketGroupRepo.FindByOrderNo(transactionData.OrderNo)
+		if err != nil {
+			log.Printf("Error finding order %s: %v", transactionData.OrderNo, err)
+			return err
 		}
+
+		if order == nil {
+			log.Printf("Order not found: %s", transactionData.OrderNo)
+			return fmt.Errorf("order not found: %s", transactionData.OrderNo)
+		}
+
+		// Determine the transaction status for the database
+		var dbStatus string
+		switch transactionData.StatusTransaksi {
+		case "00":
+			dbStatus = "success"
+		case "AP", "09", "99":
+			dbStatus = "pending"
+		default:
+			dbStatus = "failed"
+		}
+
+		successURL := paymentConfig.FrontendBaseURL + "/paymentRedirect"
+
+		log.Printf("Redirecting to external success page: %s", successURL)
+
+		// Build the full URL with query parameters
+		redirectURL := fmt.Sprintf("%s?orderTicketGroupId=%s&transactionStatus=%s&orderNo=%s",
+			successURL,
+			url.QueryEscape(strconv.Itoa(int(order.OrderTicketGroupId))),
+			url.QueryEscape(dbStatus),
+			url.QueryEscape(transactionData.OrderNo))
+
+		return c.Redirect(redirectURL)
+
+		//if status == "00" {
+		//	// Get success URL from config with fallback
+		//	successURL := paymentConfig.FrontendBaseURL + "/payment/success"
+		//
+		//	log.Printf("Redirecting to external success page: %s", successURL)
+		//
+		//	// Build the full URL with query parameters
+		//	redirectURL := fmt.Sprintf("%s?transaction_id=%s&order_id=%s",
+		//		successURL,
+		//		url.QueryEscape(transactionData.IDTransaksi),
+		//		url.QueryEscape(transactionData.OrderNo))
+		//
+		//	return c.Redirect(redirectURL)
+		//} else {
+		//	// Get failure URL from config with fallback
+		//	failureURL := paymentConfig.FrontendBaseURL + "/payment/failure"
+		//
+		//	log.Printf("Redirecting to external failure page: %s", failureURL)
+		//
+		//	// Build the full URL with query parameters
+		//	redirectURL := fmt.Sprintf("%s?error_code=%s&error_message=%s",
+		//		failureURL,
+		//		url.QueryEscape(transactionData.StatusTransaksi),
+		//		url.QueryEscape(transactionData.StatusMessage))
+		//
+		//	return c.Redirect(redirectURL)
+		//}
 	})
 
 	// Payment process - this will redirect to the payment gateway
@@ -368,17 +300,17 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
 		log.Printf("orderNo: %s", randomStr)
 
 		token := c.FormValue("token")
+		orderNo := c.FormValue("orderNo")
+		billId := c.FormValue("billId")
+		productId := c.FormValue("productId")
+		buyerName := c.FormValue("buyerName")
+		buyerEmail := c.FormValue("buyerEmail")
+		totalAmount := c.FormValue("totalAmount")
+		productDesc := c.FormValue("productDesc")
 		msgToken := c.FormValue("msgToken")
 		bankCode := c.FormValue("bankCode")
 
-		buyerName := "Test"
 		agToken := paymentConfig.AGToken
-		billId := randomStr
-		orderNo := randomStr
-		totalAmount := "99.99"
-		productId := "PROD-ID01"
-		productDesc := "PROD-DESC"
-		email := "test@gmail.com"
 		method := "getRedirectUrl"
 		redirectUrl := paymentConfig.BaseURL + "/payment/return"
 
@@ -409,7 +341,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
 		formData.Set("jp_total_amount", totalAmount)
 		formData.Set("jp_product_id", productId)
 		formData.Set("jp_product_desc", productDesc)
-		formData.Set("jp_email", email)
+		formData.Set("jp_email", buyerEmail)
 		formData.Set("method", method)
 		formData.Set("jp_redirect_url", redirectUrl)
 		formData.Set("jp_checksum", checksum)
@@ -607,6 +539,14 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
 			})
 		}
 
+		// Determine the mode value
+		var mode string
+		if request.Mode == "individual" || request.Mode == "01" {
+			mode = "01"
+		} else {
+			mode = "02"
+		}
+
 		// Get the API key from config
 		apiKey := paymentConfig.APIKey
 
@@ -614,7 +554,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
 		formData := url.Values{}
 		formData.Set("jp_ag_token", "ZOO")
 		formData.Set("method", "getBankList")
-		formData.Set("mode", request.Mode)
+		formData.Set("mode", mode)
 
 		// Create a new HTTP client
 		client := &http.Client{
@@ -697,24 +637,6 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
 	})
 }
 
-// Helper function to get environment variables with fallback
-func getEnv(key, fallback string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return fallback
-	}
-	return value
-}
-
-// Helper function to get environment variables with required check
-func getRequiredEnv(key string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		log.Fatalf("Error: Environment variable %s is required but not set", key)
-	}
-	return value
-}
-
 // GenerateRandom16 generates a cryptographically secure random string of 16 characters
 func GenerateRandom16() (string, error) {
 	// We need 12 bytes to get 16 characters in base64
@@ -732,35 +654,48 @@ func GenerateRandom16() (string, error) {
 	return randomString, nil
 }
 
-func Ase256Decode(cipherText string, encKey string, iv []byte) (decryptedString string) {
-	// Take first 32 characters of key (this matches PHP's behavior)
-	key := []byte(encKey[:32])
+func UpdateOrderFromPaymentResponse(orderNo string, transactionData TransactionResponse,
+	orderTicketGroupRepo repositories.OrderTicketGroupRepository) error {
 
-	// Decode base64 ciphertext
-	cipherData, err := base64.StdEncoding.DecodeString(cipherText)
+	// Find the order first
+	order, err := orderTicketGroupRepo.FindByOrderNo(orderNo)
 	if err != nil {
-		return ""
+		log.Printf("Error finding order %s: %v", orderNo, err)
+		return err
 	}
 
-	// Create cipher block
-	block, err := aes.NewCipher(key)
+	if order == nil {
+		log.Printf("Order not found: %s", orderNo)
+		return fmt.Errorf("order not found: %s", orderNo)
+	}
+
+	// Determine the transaction status for the database
+	var dbStatus string
+	switch transactionData.StatusTransaksi {
+	case "00":
+		dbStatus = "success"
+	case "AP", "09", "99":
+		dbStatus = "pending"
+	default:
+		dbStatus = "failed"
+	}
+
+	// Update order fields
+	order.TransactionId = transactionData.IDTransaksi
+	order.TransactionStatus = dbStatus
+	//order.TransactionDate = transactionData.TarikhTransaksi
+	order.StatusMessage = sql.NullString{String: transactionData.StatusMessage, Valid: transactionData.StatusMessage != ""}
+	order.UpdatedAt = time.Now()
+
+	// Save the updated order
+	err = orderTicketGroupRepo.Update(order)
 	if err != nil {
-		return ""
+		log.Printf("Error updating order: %v", err)
+		return err
 	}
 
-	// Create a buffer for decryption
-	plaintext := make([]byte, len(cipherData))
+	log.Printf("Successfully updated order %s with transaction ID %s and status %s",
+		orderNo, transactionData.IDTransaksi, dbStatus)
 
-	// Decrypt using CBC mode
-	mode := cipher.NewCBCDecrypter(block, iv)
-	mode.CryptBlocks(plaintext, cipherData)
-
-	// Remove PKCS7 padding
-	paddingLen := int(plaintext[len(plaintext)-1])
-	if paddingLen > 0 && paddingLen <= aes.BlockSize {
-		plaintext = plaintext[:len(plaintext)-paddingLen]
-	}
-
-	// Return as string
-	return string(plaintext)
+	return nil
 }

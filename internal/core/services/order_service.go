@@ -6,13 +6,19 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	orderDto "j-ticketing/internal/core/dto/order"
+	"j-ticketing/internal/core/dto/payment"
 	ticketGroupDto "j-ticketing/internal/core/dto/ticket_group"
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
+	"log"
 	mathrand "math/rand"
+	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -27,6 +33,8 @@ type OrderService struct {
 	tagRepo              *repositories.TagRepository
 	groupGalleryRepo     *repositories.GroupGalleryRepository
 	ticketDetailRepo     *repositories.TicketDetailRepository
+	paymentConfig        *payment.PaymentConfig
+	ticketGroupService   *TicketGroupService
 }
 
 // NewOrderService creates a new order service
@@ -37,6 +45,8 @@ func NewOrderService(
 	tagRepo *repositories.TagRepository,
 	groupGalleryRepo *repositories.GroupGalleryRepository,
 	ticketDetailRepo *repositories.TicketDetailRepository,
+	paymentConfig *payment.PaymentConfig,
+	ticketGroupService *TicketGroupService,
 ) *OrderService {
 	return &OrderService{
 		orderTicketGroupRepo: orderTicketGroupRepo,
@@ -45,6 +55,8 @@ func NewOrderService(
 		tagRepo:              tagRepo,
 		groupGalleryRepo:     groupGalleryRepo,
 		ticketDetailRepo:     ticketDetailRepo,
+		paymentConfig:        paymentConfig,
+		ticketGroupService:   ticketGroupService,
 	}
 }
 
@@ -319,22 +331,47 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 		return 0, fmt.Errorf("invalid date format: %w", err)
 	}
 
+	// Retrieve available ticket variants for validation and pricing
+	ticketVariantsResponse, err := s.ticketGroupService.GetTicketVariants(req.TicketGroupId, req.Date)
+	if err != nil {
+		return 0, fmt.Errorf("failed to retrieve ticket variants: %w", err)
+	}
+
+	// Create a map for easier lookup of ticket variants
+	ticketVariantMap := make(map[string]ticketGroupDto.TicketVariantDTO)
+	for _, variant := range ticketVariantsResponse.TicketVariants {
+		ticketVariantMap[variant.TicketId] = variant
+	}
+
+	// Validate that all requested tickets exist in available variants
+	for _, ticket := range req.Tickets {
+		if _, exists := ticketVariantMap[ticket.TicketId]; !exists {
+			return 0, fmt.Errorf("ticket ID %s is not available for this group and date", ticket.TicketId)
+		}
+	}
+
 	// Generate order number and transaction ID
 	orderNo := generateOrderNumber()
-	transactionId := generateTransactionId()
 
 	// Calculate total amount based on tickets
 	var totalAmount float64 = 0
+
+	var mode = ""
+	if req.Mode == "individual" {
+		mode = "01"
+	} else if req.Mode == "corporate" {
+		mode = "02"
+	}
 
 	// Create order ticket group
 	orderTicketGroup := &models.OrderTicketGroup{
 		TicketGroupId:     req.TicketGroupId,
 		CustId:            custId,
-		TransactionId:     transactionId,
+		TransactionId:     "",
 		OrderNo:           orderNo,
-		TransactionStatus: "PENDING", // Initial status
-		TransactionDate:   time.Now().String(),
-		MsgToken:          generateMessageToken(),
+		TransactionStatus: "initiate", // Initial status
+		TransactionDate:   time.Now().Format("2006-01-02 15:04:05"),
+		MsgToken:          mode,
 		BillId:            generateBillId(),
 		ProductId:         fmt.Sprintf("TG%d", req.TicketGroupId),
 		TotalAmount:       totalAmount, // Will be updated after calculating tickets
@@ -347,18 +384,26 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 
 	// Set optional fields based on payment type
 	if req.PaymentType == "fpx" {
+		// Validate bank code if FPX payment is selected
+		if req.BankCode == "" {
+			return 0, errors.New("bank code is required for FPX payment")
+		}
+
+		// Lookup the bank name based on the code
+		bankName, err := s.getBankNameByCode(req.BankCode, req.Mode)
+		if err != nil {
+			return 0, fmt.Errorf("invalid bank code: %w", err)
+		}
+
+		// Set bank code and name
 		orderTicketGroup.BankCode = sql.NullString{
 			String: req.BankCode,
 			Valid:  true,
 		}
 
-		// You may need to lookup the bank name based on the code
-		bankName, err := s.getBankNameByCode(req.BankCode)
-		if err == nil && bankName != "" {
-			orderTicketGroup.BankName = sql.NullString{
-				String: bankName,
-				Valid:  true,
-			}
+		orderTicketGroup.BankName = sql.NullString{
+			String: bankName,
+			Valid:  true,
 		}
 	}
 
@@ -371,35 +416,52 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 	// Process tickets
 	orderTicketInfos := make([]models.OrderTicketInfo, 0, len(req.Tickets))
 
-	for _, ticket := range req.Tickets {
-		// You might need to look up ticket details from a ticket repository
-		// For now, we'll create basic info
+	// Create a map to group tickets by ItemId
+	ticketInfoMap := make(map[string]*models.OrderTicketInfo)
 
-		// Calculate unit price based on ticket ID (This is a placeholder - implement actual logic)
-		unitPrice := s.calculateTicketPrice(ticket.TicketId, req.TicketGroupId)
+	for _, ticket := range req.Tickets {
+		// Get the ticket variant details
+		variant, exists := ticketVariantMap[ticket.TicketId]
+		if !exists {
+			// This should never happen as we've already validated all tickets
+			return 0, fmt.Errorf("unexpected error: ticket ID %s not found", ticket.TicketId)
+		}
+
+		// Use the unit price from the variant
+		unitPrice := variant.UnitPrice
 
 		// Update total amount
 		totalAmount += unitPrice * float64(ticket.Qty)
 
-		// Create ticket info entries for each quantity
-		for i := 0; i < ticket.Qty; i++ {
+		// Check if we already have an entry for this ticket ID
+		if existingTicket, found := ticketInfoMap[ticket.TicketId]; found {
+			// Update the quantity of the existing entry
+			existingTicket.QuantityBought += ticket.Qty
+		} else {
+			// Create a new ticket info entry with the full quantity
 			orderTicketInfo := models.OrderTicketInfo{
 				OrderTicketGroupId: orderTicketGroup.OrderTicketGroupId,
 				ItemId:             ticket.TicketId,
 				UnitPrice:          unitPrice,
-				ItemDesc1:          fmt.Sprintf("%s - %s", ticketGroup.GroupName, ticket.TicketId),
-				ItemDesc2:          req.Date,
-				PrintType:          "ETICKET",
-				QuantityBought:     1, // Each entry represents 1 ticket
-				EncryptedId:        generateEncryptedId(orderTicketGroup.OrderTicketGroupId, ticket.TicketId, i),
-				AdmitDate:          orderDate.String(),
-				Variant:            "STANDARD",
+				ItemDesc1:          variant.ItemDesc1,              // Use description from API
+				ItemDesc2:          variant.ItemDesc2,              // Use description from API
+				PrintType:          variant.PrintType,              // Use print type from API
+				QuantityBought:     ticket.Qty,                     // Set the quantity from the request
+				EncryptedId:        "",                             // You'll need to set this appropriately
+				AdmitDate:          orderDate.Format("2006-01-02"), // Format the date consistently
+				Variant:            "default",
 				CreatedAt:          time.Now(),
 				UpdatedAt:          time.Now(),
 			}
 
-			orderTicketInfos = append(orderTicketInfos, orderTicketInfo)
+			// Add to the map
+			ticketInfoMap[ticket.TicketId] = &orderTicketInfo
 		}
+	}
+
+	// Convert the map to a slice
+	for _, ticketInfo := range ticketInfoMap {
+		orderTicketInfos = append(orderTicketInfos, *ticketInfo)
 	}
 
 	// Update total amount in order ticket group
@@ -421,23 +483,91 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 
 // Helper functions for order creation
 
-func (s *OrderService) getBankNameByCode(bankCode string) (string, error) {
-	// This would typically query a bank repository or use a lookup table
-	// For simplicity, using a map
-	banks := map[string]string{
-		"MBBEMYKL": "Maybank",
-		"CIBBMYKL": "CIMB Bank",
-		"PHBMMYKL": "Public Bank",
-		"RHBBMYKL": "RHB Bank",
-		"HBMBMYKL": "HSBC Bank",
-		// Add more banks as needed
+// getBankNameByCode retrieves a bank name by its code and validates if the bank is enabled
+// Returns the bank name if found and enabled, or an error if not
+func (s *OrderService) getBankNameByCode(bankCode, mode string) (string, error) {
+	// Get the API key from config
+	apiKey := s.paymentConfig.APIKey
+
+	// Create form data for x-www-form-urlencoded request
+	formData := url.Values{}
+	formData.Set("jp_ag_token", "ZOO")
+	formData.Set("method", "getBankList")
+	if mode == "individual" {
+		formData.Set("mode", "01")
+	} else {
+		formData.Set("mode", "02")
 	}
 
-	if name, exists := banks[bankCode]; exists {
-		return name, nil
+	// Create a new HTTP client
+	client := &http.Client{
+		Timeout: time.Second * 10,
 	}
 
-	return "", fmt.Errorf("bank code not found: %s", bankCode)
+	// Create a new request
+	req, err := http.NewRequest("POST", "https://johorpay-stag.johor.gov.my/JP_gateway/getBankList", strings.NewReader(formData.Encode()))
+	if err != nil {
+		log.Printf("Error creating request: %v", err)
+		return "", fmt.Errorf("error creating request: %w", err)
+
+	}
+
+	// Add headers
+	req.Header.Add("jp-api-key", apiKey)
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	// Execute the request
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("Error executing request: %v", err)
+		return "", fmt.Errorf("error executing request: %w", err)
+
+	}
+	defer resp.Body.Close()
+
+	// Read the response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Error reading response body: %v", err)
+		return "", fmt.Errorf("error reading response body: %w", err)
+	}
+
+	// Parse the JSON response
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		log.Printf("Error parsing JSON: %v", err)
+		return "", fmt.Errorf("error parsing JSON: %w", err)
+	}
+
+	// Check if the request was successful
+	if success, ok := result["success"].(bool); ok && success {
+		// The response has a data field that contains a JSON string (not an object)
+		// We need to parse this string into an array of bank objects
+		if dataStr, ok := result["data"].(string); ok {
+			var banks []map[string]interface{}
+			if err := json.Unmarshal([]byte(dataStr), &banks); err != nil {
+				log.Printf("Error parsing bank data: %v", err)
+				return "", fmt.Errorf("error parsing bank data: %w", err)
+			}
+
+			// Look for the bank with the matching code
+			for _, bank := range banks {
+				if value, ok := bank["value"].(string); ok && value == bankCode {
+					// Check if the bank is enabled
+					if enabled, ok := bank["enabled"].(float64); ok && enabled == 1 {
+						// Return the bank name
+						if name, ok := bank["name"].(string); ok {
+							return name, nil
+						}
+					} else {
+						return "", fmt.Errorf("bank %s is disabled", bankCode)
+					}
+				}
+			}
+		}
+	}
+
+	return "", fmt.Errorf("failed to retrieve bank list")
 }
 
 func (s *OrderService) calculateTicketPrice(ticketId string, ticketGroupId uint) float64 {

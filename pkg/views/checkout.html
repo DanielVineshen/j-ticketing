@@ -228,10 +228,16 @@
     <div class="loading-subtext">You will be redirected to the payment page shortly. Please do not refresh or close this page.</div>
   </div>
 
-  <!-- Hidden form for payment submission -->
   <form id="payment-form" action="/payment/process" method="POST">
     <input type="hidden" id="token-input" name="token" value="" />
-    <input type="hidden" id="msgToken-input" name="msgToken" value="01" />
+    <input type="hidden" id="orderNo-input" name="orderNo" value="" />
+    <input type="hidden" id="billId-input" name="billId" value="" />
+    <input type="hidden" id="productId-input" name="productId" value="" />
+    <input type="hidden" id="buyerName-input" name="buyerName" value="" />
+    <input type="hidden" id="buyerEmail-input" name="buyerEmail" value="" />
+    <input type="hidden" id="totalAmount-input" name="totalAmount" value="" />
+    <input type="hidden" id="productDesc-input" name="productDesc" value="" />
+    <input type="hidden" id="msgToken-input" name="msgToken" value="" />
     <input type="hidden" id="bankCode-input" name="bankCode" value="" />
   </form>
 </div>
@@ -262,6 +268,15 @@
     const tokenInputEl = document.getElementById("token-input");
     const msgTokenInputEl = document.getElementById("msgToken-input");
     const bankCodeInputEl = document.getElementById("bankCode-input");
+    const orderNoInputEl = document.getElementById("orderNo-input");
+    const billIdInputEl = document.getElementById("billId-input");
+    const productIdInputEl = document.getElementById("productId-input");
+    const buyerNameInputEl = document.getElementById("buyerName-input");
+    const buyerEmailInputEl = document.getElementById("buyerEmail-input");
+    const totalAmountInputEl = document.getElementById("totalAmount-input");
+    const productDescInputEl = document.getElementById("productDesc-input");
+
+    let orderData = null;
 
     // Format currency
     function formatCurrency(amount) {
@@ -336,11 +351,40 @@
           throw new Error(data.respDesc || "Invalid response");
         }
 
+        orderData = data.result;
+
         // Populate order details
-        populateOrderDetails(data.result);
+        populateOrderDetails(orderData);
+
+        // Also populate the hidden form fields
+        populatePaymentForm(orderData);
       } catch (error) {
         console.error("Error loading order:", error);
         alert("Failed to load order details: " + error.message);
+      }
+    }
+
+    // Populate the payment form with order details
+    function populatePaymentForm(order) {
+      // Extract the order profile for easier access
+      const profile = order.orderProfile;
+
+      // Populate hidden form fields
+      orderNoInputEl.value = profile.orderNo || '';
+      billIdInputEl.value = profile.billId || '';
+      productIdInputEl.value = profile.productId || '';
+      buyerNameInputEl.value = profile.buyerName || '';
+      buyerEmailInputEl.value = profile.buyerEmail || '';
+      totalAmountInputEl.value = profile.totalAmount || '0';
+      productDescInputEl.value = profile.productDesc || '';
+      totalAmountInputEl.value = profile.totalAmount || 0;
+
+      // For FPX, also set the message token and bank code from the order if available
+      if (profile.msgToken) {
+        msgTokenInputEl.value = profile.msgToken;
+      }
+      if (profile.bankCode) {
+        bankCodeInputEl.value = profile.bankCode;
       }
     }
 
@@ -392,14 +436,14 @@
           ticketGroups[ticket.itemId] = {
             name: ticket.itemDesc1,
             price: ticket.unitPrice,
-            quantity: 1,
-            total: ticket.unitPrice,
+            quantity: ticket.quantityBought,
+            total: ticket.quantityBought * ticket.unitPrice,
           };
         } else {
           ticketGroups[ticket.itemId].quantity += 1;
           ticketGroups[ticket.itemId].total += ticket.unitPrice;
         }
-        totalAmount += ticket.unitPrice;
+        totalAmount += ticket.quantityBought * ticket.unitPrice;
       });
 
       // Add rows to table
@@ -453,42 +497,13 @@
       loadingContainerEl.style.display = "block";
 
       try {
-        // First generate the token
-        const token = await generateToken();
-        tokenInputEl.value = token;
-
-        // Set appropriate values based on payment type
-        if (paymentType === "fpx") {
-          msgTokenInputEl.value = "01"; // Default message token for FPX
-
-          // Fetch bank list to get the first bank
-          try {
-            const bankResponse = await fetch("/api/bank-list", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ mode: "01" }),
-            });
-
-            if (bankResponse.ok) {
-              const bankData = await bankResponse.json();
-              if (bankData.success && bankData.banks && bankData.banks.length > 0) {
-                // Get first enabled bank
-                const enabledBanks = bankData.banks.filter(bank => bank.enabled === 1);
-                if (enabledBanks.length > 0) {
-                  bankCodeInputEl.value = enabledBanks[0].value;
-                }
-              }
-            }
-          } catch (error) {
-            console.error("Error fetching bank list:", error);
-            // Continue with payment even if bank list fetch fails
-          }
-        } else {
-          msgTokenInputEl.value = "";
-          bankCodeInputEl.value = "";
+        // Check if we have the order data
+        if (!orderData) {
+          throw new Error("Order data not available");
         }
+
+        // First generate the token
+        tokenInputEl.value = await generateToken();
 
         // Submit the form to redirect to payment gateway
         paymentFormEl.submit();

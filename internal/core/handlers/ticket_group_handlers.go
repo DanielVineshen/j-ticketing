@@ -1,175 +1,134 @@
+// FILE: internal/core/handlers/ticket_group_handler.go
 package handlers
 
 import (
-	"j-ticketing/internal/db/models"
-	"net/http"
+	"fmt"
+	services "j-ticketing/internal/core/services"
+	"j-ticketing/pkg/models"
 	"strconv"
-
-	service "j-ticketing/internal/core/services"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 // TicketGroupHandler handles HTTP requests for ticket groups
 type TicketGroupHandler struct {
-	ticketGroupService *service.TicketGroupService
+	ticketGroupService *services.TicketGroupService
 }
 
-// NewTicketGroupHandler creates a new ticket group handler
-func NewTicketGroupHandler(ticketGroupService *service.TicketGroupService) *TicketGroupHandler {
+// NewTicketGroupHandler creates a new instance of TicketGroupHandler
+func NewTicketGroupHandler(ticketGroupService *services.TicketGroupService) *TicketGroupHandler {
 	return &TicketGroupHandler{
 		ticketGroupService: ticketGroupService,
 	}
 }
 
-// GetAllTicketGroups handles GET /ticket-groups
-func (h *TicketGroupHandler) GetAllTicketGroups(c *fiber.Ctx) error {
-	ticketGroups, err := h.ticketGroupService.GetAllTicketGroups()
+// GetTicketGroups handles GET requests for ticket groups
+func (h *TicketGroupHandler) GetTicketGroups(c *fiber.Ctx) error {
+	// Check if only active ticket groups should be returned
+	activeOnly := c.Query("active") == "true"
+
+	var response services.TicketGroupResponse
+	var err error
+
+	if activeOnly {
+		response, err = h.ticketGroupService.GetActiveTicketGroups()
+	} else {
+		response, err = h.ticketGroupService.GetAllTicketGroups()
+	}
+
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Failed to get ticket groups",
-			"error":   err.Error(),
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
 		})
 	}
 
-	return c.JSON(fiber.Map{
-		"message": "Ticket groups retrieved successfully",
-		"data":    ticketGroups,
-	})
+	return c.JSON(response)
 }
 
-// GetTicketGroupByID handles GET /ticket-groups/:id
-func (h *TicketGroupHandler) GetTicketGroupByID(c *fiber.Ctx) error {
-	id, err := strconv.ParseUint(c.Params("id"), 10, 32)
+// GetTicketGroupById handles GET requests for a specific ticket group
+func (h *TicketGroupHandler) GetTicketGroupById(c *fiber.Ctx) error {
+	// Parse the ticket group ID from the URL
+	idStr := c.Params("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "Invalid ID",
-			"error":   err.Error(),
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid ticket group ID",
 		})
 	}
 
-	ticketGroup, err := h.ticketGroupService.GetTicketGroupByID(uint(id))
+	// Get the ticket group
+	ticketGroup, err := h.ticketGroupService.GetTicketGroupById(uint(id))
 	if err != nil {
-		return c.Status(http.StatusNotFound).JSON(fiber.Map{
-			"message": "Ticket group not found",
-			"error":   err.Error(),
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
 		})
 	}
 
-	return c.JSON(fiber.Map{
-		"message": "Ticket group retrieved successfully",
-		"data":    ticketGroup,
-	})
+	// Create the response with a single ticket group
+	response := services.TicketGroupResponse{
+		TicketGroups: []services.TicketGroupDTO{*ticketGroup},
+	}
+
+	return c.JSON(response)
 }
 
-// CreateTicketGroup handles POST /ticket-groups
+// CreateTicketGroup handles POST requests to create a new ticket group
 func (h *TicketGroupHandler) CreateTicketGroup(c *fiber.Ctx) error {
-	ticketGroup := new(models.TicketGroup)
-	if err := c.BodyParser(ticketGroup); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "Invalid request body",
-			"error":   err.Error(),
-		})
-	}
-
-	if err := h.ticketGroupService.CreateTicketGroup(ticketGroup); err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Failed to create ticket group",
-			"error":   err.Error(),
-		})
-	}
-
-	return c.Status(http.StatusCreated).JSON(fiber.Map{
-		"message": "Ticket group created successfully",
-		"data":    ticketGroup,
+	// TODO: Implement create ticket group functionality
+	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{
+		"message": "Create ticket group functionality not implemented",
 	})
 }
 
-// UpdateTicketGroup handles PUT /ticket-groups/:id
+// UpdateTicketGroup handles PUT requests to update a ticket group
 func (h *TicketGroupHandler) UpdateTicketGroup(c *fiber.Ctx) error {
-	id, err := strconv.ParseUint(c.Params("id"), 10, 32)
-	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "Invalid ID",
-			"error":   err.Error(),
-		})
-	}
-
-	existingTicketGroup, err := h.ticketGroupService.GetTicketGroupByID(uint(id))
-	if err != nil {
-		return c.Status(http.StatusNotFound).JSON(fiber.Map{
-			"message": "Ticket group not found",
-			"error":   err.Error(),
-		})
-	}
-
-	updatedTicketGroup := new(models.TicketGroup)
-	if err := c.BodyParser(updatedTicketGroup); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "Invalid request body",
-			"error":   err.Error(),
-		})
-	}
-
-	updatedTicketGroup.TicketGroupId = existingTicketGroup.TicketGroupId
-	if err := h.ticketGroupService.UpdateTicketGroup(updatedTicketGroup); err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Failed to update ticket group",
-			"error":   err.Error(),
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"message": "Ticket group updated successfully",
-		"data":    updatedTicketGroup,
+	// TODO: Implement update ticket group functionality
+	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{
+		"message": "Update ticket group functionality not implemented",
 	})
 }
 
-// DeleteTicketGroup handles DELETE /ticket-groups/:id
+// DeleteTicketGroup handles DELETE requests to delete a ticket group
 func (h *TicketGroupHandler) DeleteTicketGroup(c *fiber.Ctx) error {
-	id, err := strconv.ParseUint(c.Params("id"), 10, 32)
-	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "Invalid ID",
-			"error":   err.Error(),
-		})
-	}
-
-	if err := h.ticketGroupService.DeleteTicketGroup(uint(id)); err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"message": "Failed to delete ticket group",
-			"error":   err.Error(),
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"message": "Ticket group deleted successfully",
+	// TODO: Implement delete ticket group functionality
+	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{
+		"message": "Delete ticket group functionality not implemented",
 	})
 }
 
-// GetTicketGroupWithBanners handles GET /ticket-groups/:id/with-banners
-func (h *TicketGroupHandler) GetTicketGroupWithBanners(c *fiber.Ctx) error {
-	id, err := strconv.ParseUint(c.Params("id"), 10, 32)
+// GetTicketProfile handles GET requests for a ticket profile
+func (h *TicketGroupHandler) GetTicketProfile(c *fiber.Ctx) error {
+	// Log full request information
+	fmt.Printf("Full URL: %s\n", c.OriginalURL())
+	fmt.Printf("All Query Parameters: %v\n", c.Queries())
+
+	// Parse the ticket group ID from the request
+	ticketGroupIdStr := c.Query("ticketGroupId")
+	fmt.Printf("ticketGroupIdStr: %s\n", ticketGroupIdStr) // Corrected printf syntax
+
+	if ticketGroupIdStr == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			9999, "Bad Request: Missing ticketGroupId parameter", nil,
+		))
+	}
+
+	ticketGroupId, err := strconv.ParseUint(ticketGroupIdStr, 10, 32)
 	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"message": "Invalid ID",
-			"error":   err.Error(),
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"respCode": 400,
+			"respDesc": "Bad Request: Invalid ticketGroupId parameter",
 		})
 	}
 
-	ticketGroup, banners, err := h.ticketGroupService.GetTicketGroupWithBanners(uint(id))
+	// Get the ticket profile
+	response, err := h.ticketGroupService.GetTicketProfile(uint(ticketGroupId))
 	if err != nil {
-		return c.Status(http.StatusNotFound).JSON(fiber.Map{
-			"message": "Failed to get ticket group with banners",
-			"error":   err.Error(),
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"respCode": 500,
+			"respDesc": "Internal Server Error: " + err.Error(),
 		})
 	}
 
-	return c.JSON(fiber.Map{
-		"message": "Ticket group with banners retrieved successfully",
-		"data": fiber.Map{
-			"ticketGroup": ticketGroup,
-			"banners":     banners,
-		},
-	})
+	// Return the response
+	return c.JSON(response)
 }

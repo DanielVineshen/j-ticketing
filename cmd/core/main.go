@@ -68,13 +68,21 @@ func main() {
 
 	// Initialize repositories
 	ticketGroupRepo := repositories.NewTicketGroupRepository(database)
-	bannerRepo := repositories.NewBannerRepository(database)
+	//bannerRepo := repositories.NewBannerRepository(database)
 	adminRepo := repositories.NewAdminRepository(database)
 	customerRepo := repositories.NewCustomerRepository(database)
 	tokenRepo := repositories.NewTokenRepository(database)
+	tagRepo := repositories.NewTagRepository(database)
+	groupGalleryRepo := repositories.NewGroupGalleryRepository(database)
+	ticketDetailRepo := repositories.NewTicketDetailRepository(database)
 
 	// Initialize services
-	ticketGroupService := service.NewTicketGroupService(ticketGroupRepo, bannerRepo)
+	ticketGroupService := service.NewTicketGroupService(
+		ticketGroupRepo,
+		tagRepo,
+		groupGalleryRepo,
+		ticketDetailRepo,
+	)
 	authService := service.NewAuthService(
 		jwtService,
 		adminRepo,
@@ -110,7 +118,7 @@ func main() {
 	}))
 
 	// Setup routes
-	coreRoutes.SetupRoutes(app, ticketGroupHandler, jwtService)
+	coreRoutes.SetupTicketGroupRoutes(app, ticketGroupHandler, jwtService)
 	authRoutes.SetupAuthRoutes(app, authHandler, jwtService)
 
 	// Start server

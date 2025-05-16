@@ -23,7 +23,7 @@ type TicketGroup struct {
 	ActiveEndDate          sql.NullString `gorm:"column:active_end_date;type:char(8);null"`
 	ActiveStartDate        sql.NullString `gorm:"column:active_start_date;type:char(8);null"`
 	IsActive               bool           `gorm:"column:is_active;type:boolean;not null"`
-	TicketInternal         string         `gorm:"column:ticket_internal;type:varchar(255);not null"`
+	IsTicketInternal       string         `gorm:"column:is_ticket_internal;type:varchar(255);not null"`
 	LocationAddress        string         `gorm:"column:location_address;type:text;not null"`
 	LocationMapUrl         string         `gorm:"column:location_map_url;type:text;not null"`
 	OrganiserName          string         `gorm:"column:organiser_name;type:varchar(255);not null"`

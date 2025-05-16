@@ -1,4 +1,3 @@
-// FILE: internal/auth/routes/auth_routes.go
 package routes
 
 import (

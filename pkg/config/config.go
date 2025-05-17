@@ -1,3 +1,4 @@
+// File: j-ticketing/pkg/config/config.go
 package config
 
 import (
@@ -25,6 +26,10 @@ type EmailConfig struct {
 	Password string
 	From     string
 	UseSSL   bool
+	// OAuth2 configuration
+	ClientID     string
+	ClientSecret string
+	RefreshToken string
 }
 
 // Zoo API configuration
@@ -87,11 +92,36 @@ func LoadConfig() (*Config, error) {
 
 	// Email config
 	config.Email.Host = getEnv("EMAIL_HOST", "smtp.gmail.com")
-	config.Email.Port = getEnv("EMAIL_PORT", "465") // Default to SSL port
+	config.Email.Port = getEnv("EMAIL_PORT", "587") // Default to 587 which works well with OAuth2
 	config.Email.Username = getEnv("EMAIL_USERNAME", "etiket@johor.gov.my")
 	config.Email.Password = getEnv("EMAIL_PASSWORD", "")
 	config.Email.From = getEnv("EMAIL_FROM", "etiket@johor.gov.my")
-	config.Email.UseSSL = getEnvBool("EMAIL_USE_SSL", true) // Default to SSL
+
+	// Automatically determine SSL usage based on port
+	port := config.Email.Port
+	if port == "465" {
+		config.Email.UseSSL = true
+		fmt.Println("Using SSL mode for email (port 465)")
+	} else {
+		config.Email.UseSSL = getEnvBool("EMAIL_USE_SSL", false)
+		if port == "587" && !config.Email.UseSSL {
+			fmt.Println("Using STARTTLS mode for email (port 587)")
+		} else if port == "587" && config.Email.UseSSL {
+			fmt.Println("Warning: Port 587 typically uses STARTTLS, not SSL. Consider setting EMAIL_USE_SSL=false")
+		}
+	}
+
+	// OAuth2 configuration
+	clientID := getEnv("CLIENT_ID", "")
+	// Check if client ID has a URL prefix and remove it
+	if strings.HasPrefix(clientID, "http://") || strings.HasPrefix(clientID, "https://") {
+		fmt.Println("Warning: CLIENT_ID contains a URL prefix. Removing prefix for OAuth2 authentication.")
+		// Remove http:// or https:// prefix
+		clientID = strings.TrimPrefix(strings.TrimPrefix(clientID, "http://"), "https://")
+	}
+	config.Email.ClientID = clientID
+	config.Email.ClientSecret = getEnv("CLIENT_SECRET", "")
+	config.Email.RefreshToken = getEnv("REFRESH_TOKEN", "")
 
 	// Zoo API config
 	baseURL := getEnv("ZOO_API_BASE_URL", "https://eglobal2.ddns.net/johorzooapi")

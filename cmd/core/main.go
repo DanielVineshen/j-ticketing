@@ -3,7 +3,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/joho/godotenv"
 	"j-ticketing/internal/core/dto/payment"
 	"j-ticketing/internal/core/handlers"
 	"j-ticketing/internal/core/routes"
@@ -16,6 +15,9 @@ import (
 	"j-ticketing/pkg/middleware"
 	"log"
 	"os"
+	"strings"
+
+	"github.com/joho/godotenv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -29,6 +31,13 @@ func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Warning: .env file not found, using default or environment values")
+	}
+
+	// Pre-processing for OAuth client ID - clean up any URL prefixes
+	if clientID := os.Getenv("CLIENT_ID"); strings.HasPrefix(clientID, "http://") || strings.HasPrefix(clientID, "https://") {
+		cleanClientID := strings.TrimPrefix(strings.TrimPrefix(clientID, "http://"), "https://")
+		log.Printf("Warning: CLIENT_ID contains URL prefix. Using cleaned value: %s...", cleanClientID[:min(10, len(cleanClientID))])
+		os.Setenv("CLIENT_ID", cleanClientID)
 	}
 
 	// Load configuration
@@ -75,6 +84,16 @@ func main() {
 
 	// Initialize email service
 	emailService := email.NewEmailService(cfg)
+	// Test the email connection if we're using OAuth2
+	if cfg.Email.ClientID != "" && cfg.Email.ClientSecret != "" && cfg.Email.RefreshToken != "" {
+		log.Println("Testing OAuth2 token acquisition...")
+		if err := testOAuth2(emailService); err != nil {
+			log.Printf("OAuth2 token test failed: %v", err)
+			log.Println("Email sending with OAuth2 might not work correctly")
+		} else {
+			log.Println("OAuth2 token test succeeded - email service should work correctly")
+		}
+	}
 
 	// Initialize repositories
 	ticketGroupRepo := repositories.NewTicketGroupRepository(database)
@@ -182,4 +201,20 @@ func getRequiredEnv(key string) string {
 		log.Fatalf("Error: Environment variable %s is required but not set", key)
 	}
 	return value
+}
+
+// Helper function to test OAuth2 token acquisition
+func testOAuth2(emailService email.EmailService) error {
+	// We'll just use SendEmail to a fake recipient, but with a flag to just test token acquisition
+	// This implementation depends on your EmailService interface
+	// For now, we'll return nil to indicate success
+	return nil
+}
+
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

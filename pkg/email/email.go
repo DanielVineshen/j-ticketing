@@ -1,8 +1,13 @@
+// File: j-ticketing/pkg/email/email_service.go
 package email
 
 import (
-	"crypto/tls"
+	"bytes"
+	"encoding/base64"
 	"fmt"
+	"github.com/boombuler/barcode"
+	"github.com/boombuler/barcode/qr"
+	"image/png"
 	"j-ticketing/pkg/config"
 	"net/smtp"
 	"strings"
@@ -13,108 +18,18 @@ import (
 type EmailService interface {
 	SendEmail(to []string, subject, body string) error
 	SendPasswordResetEmail(to string, newPassword string) error
+	SendTicketsEmail(to string, customerName string, tickets []TicketInfo) error
 }
 
 type emailService struct {
-	from     string
-	host     string
-	port     string
-	username string
-	password string
-	useSSL   bool
-}
-
-// NewEmailService creates a new email service
-func NewEmailService(cfg *config.Config) EmailService {
-	return &emailService{
-		from:     cfg.Email.From,
-		host:     cfg.Email.Host,
-		port:     cfg.Email.Port,
-		username: cfg.Email.Username,
-		password: cfg.Email.Password,
-		useSSL:   cfg.Email.UseSSL,
-	}
-}
-
-// SendEmail sends an email
-func (s *emailService) SendEmail(to []string, subject, body string) error {
-	// Construct message
-	message := []byte(fmt.Sprintf("To: %s\r\n"+
-		"Subject: %s\r\n"+
-		"MIME-Version: 1.0\r\n"+
-		"Content-Type: text/html; charset=UTF-8\r\n"+
-		"\r\n"+
-		"%s\r\n", strings.Join(to, ","), subject, body))
-
-	// Authentication
-	auth := smtp.PlainAuth("", s.username, s.password, s.host)
-
-	// Connect to the server
-	addr := fmt.Sprintf("%s:%s", s.host, s.port)
-
-	var err error
-	if s.useSSL {
-		// TLS config
-		tlsConfig := &tls.Config{
-			InsecureSkipVerify: true,
-			ServerName:         s.host,
-		}
-
-		// Connect to the SMTP server with TLS
-		conn, err := tls.Dial("tcp", addr, tlsConfig)
-		if err != nil {
-			return fmt.Errorf("failed to connect to SMTP server: %w", err)
-		}
-		defer conn.Close()
-
-		client, err := smtp.NewClient(conn, s.host)
-		if err != nil {
-			return fmt.Errorf("failed to create SMTP client: %w", err)
-		}
-		defer client.Close()
-
-		// Auth
-		if err = client.Auth(auth); err != nil {
-			return fmt.Errorf("SMTP authentication failed: %w", err)
-		}
-
-		// Set sender and recipients
-		if err = client.Mail(s.from); err != nil {
-			return fmt.Errorf("failed to set sender: %w", err)
-		}
-
-		for _, recipient := range to {
-			if err = client.Rcpt(recipient); err != nil {
-				return fmt.Errorf("failed to set recipient %s: %w", recipient, err)
-			}
-		}
-
-		// Send the message
-		writer, err := client.Data()
-		if err != nil {
-			return fmt.Errorf("failed to start email data: %w", err)
-		}
-
-		_, err = writer.Write(message)
-		if err != nil {
-			return fmt.Errorf("failed to write email data: %w", err)
-		}
-
-		err = writer.Close()
-		if err != nil {
-			return fmt.Errorf("failed to close email data writer: %w", err)
-		}
-
-		return client.Quit()
-	}
-
-	// Use standard SMTP for non-SSL
-	err = smtp.SendMail(addr, auth, s.from, to, message)
-	if err != nil {
-		return fmt.Errorf("failed to send email: %w", err)
-	}
-
-	return nil
+	from         string
+	host         string
+	port         string
+	username     string
+	password     string
+	useSSL       bool
+	useOAuth     bool
+	tokenManager *OAuth2TokenManager
 }
 
 // SendPasswordResetEmail sends a password reset email
@@ -155,4 +70,206 @@ func (s *emailService) SendPasswordResetEmail(to string, newPassword string) err
     `, newPassword, time.Now().Year())
 
 	return s.SendEmail([]string{to}, subject, body)
+}
+
+// TicketInfo represents a ticket with its QR code content and label
+type TicketInfo struct {
+	Content string
+	Label   string
+}
+
+// SendTicketsEmail sends an email with QR codes for tickets
+func (s *emailService) SendTicketsEmail(to string, customerName string, tickets []TicketInfo) error {
+	subject := "Your Zoo Johor Tickets"
+
+	// Begin building HTML content
+	var contentBuilder bytes.Buffer
+	contentBuilder.WriteString(`
+	<div class="content">
+		<p>Dear ` + customerName + `,</p>
+		<p>Thank you for your purchase. Below are your tickets for Zoo Johor:</p>
+		<div class="tickets">
+	`)
+
+	// Generate QR code for each ticket and add to email content
+	for _, ticket := range tickets {
+		// Generate QR code
+		qrCode, err := qr.Encode(ticket.Content, qr.M, qr.Auto)
+		if err != nil {
+			return fmt.Errorf("failed to generate QR code: %w", err)
+		}
+
+		// Scale QR code to appropriate size
+		qrCode, err = barcode.Scale(qrCode, 200, 200)
+		if err != nil {
+			return fmt.Errorf("failed to scale QR code: %w", err)
+		}
+
+		// Encode QR code as base64 string to embed in email
+		var qrBuffer bytes.Buffer
+		err = png.Encode(&qrBuffer, qrCode)
+		if err != nil {
+			return fmt.Errorf("failed to encode QR code as PNG: %w", err)
+		}
+
+		qrBase64 := base64.StdEncoding.EncodeToString(qrBuffer.Bytes())
+
+		// Add ticket with QR code to email content
+		contentBuilder.WriteString(`
+			<div class="ticket">
+				<div class="qr-code">
+					<img src="data:image/png;base64,` + qrBase64 + `" alt="QR Code" style="width: 150px; height: 150px;">
+				</div>
+				<div class="ticket-info">
+					<h3>` + ticket.Label + `</h3>
+					<p>Please scan this QR code at the entrance gate.</p>
+				</div>
+			</div>
+		`)
+	}
+
+	contentBuilder.WriteString(`
+		</div>
+		<p>Please show these QR codes at the entrance for scanning.</p>
+		<p>We hope you enjoy your visit to Zoo Johor!</p>
+	</div>
+	`)
+
+	// Complete HTML email body with nice formatting
+	body := fmt.Sprintf(`
+	<html>
+	<head>
+		<style>
+			body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
+			.container { max-width: 650px; margin: 0 auto; background-color: #f8f9fa; padding: 20px; border-radius: 5px; }
+			.header { background-color: #f4a261; color: white; padding: 15px; border-radius: 5px 5px 0 0; text-align: center; }
+			.content { padding: 20px; background-color: white; border-radius: 0 0 5px 5px; }
+			.tickets { margin: 20px 0; }
+			.ticket { border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 20px; display: flex; align-items: center; }
+			.ticket-info { margin-left: 20px; }
+			.qr-code { text-align: center; }
+			.qr-code img { border: 1px solid #eee; padding: 5px; }
+			.footer { margin-top: 20px; font-size: 12px; color: #666; text-align: center; }
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<div class="header">
+				<h2>Zoo Johor Tickets</h2>
+			</div>
+			%s
+			<div class="footer">
+				<p>This is an automated message, please do not reply to this email.</p>
+				<p>&copy; %d Zoo Johor</p>
+			</div>
+		</div>
+	</body>
+	</html>
+	`, contentBuilder.String(), time.Now().Year())
+
+	return s.SendEmail([]string{to}, subject, body)
+}
+
+// NewEmailService creates a new email service
+func NewEmailService(cfg *config.Config) EmailService {
+	var tokenManager *OAuth2TokenManager
+	useOAuth := false
+
+	// Check if OAuth2 credentials are configured
+	if cfg.Email.ClientID != "" && cfg.Email.ClientSecret != "" && cfg.Email.RefreshToken != "" {
+		useOAuth = true
+
+		// Log OAuth configuration (for debugging)
+		fmt.Printf("Initializing OAuth2 email service with:\n")
+		fmt.Printf("- Username: %s\n", cfg.Email.Username)
+		fmt.Printf("- Client ID length: %d characters\n", len(cfg.Email.ClientID))
+		fmt.Printf("- Client Secret length: %d characters\n", len(cfg.Email.ClientSecret))
+		fmt.Printf("- Refresh Token length: %d characters\n", len(cfg.Email.RefreshToken))
+
+		tokenManager = NewOAuth2TokenManager(OAuth2Config{
+			ClientID:     cfg.Email.ClientID,
+			ClientSecret: cfg.Email.ClientSecret,
+			RefreshToken: cfg.Email.RefreshToken,
+		})
+	} else {
+		fmt.Println("OAuth2 is NOT enabled - missing one or more required credentials")
+	}
+
+	return &emailService{
+		from:         cfg.Email.From,
+		host:         cfg.Email.Host,
+		port:         cfg.Email.Port,
+		username:     cfg.Email.Username,
+		password:     cfg.Email.Password,
+		useSSL:       cfg.Email.UseSSL,
+		useOAuth:     useOAuth,
+		tokenManager: tokenManager,
+	}
+}
+
+// SendEmail sends an email
+func (s *emailService) SendEmail(to []string, subject, body string) error {
+	// If OAuth is configured and it's Gmail, use the Gmail API (most reliable method)
+	if s.useOAuth && s.tokenManager != nil && strings.Contains(s.host, "gmail.com") {
+		return s.sendEmailViaGmailAPI(to, subject, body)
+	}
+
+	// Fallback to standard SMTP if OAuth is not configured
+	return s.sendEmailViaSmtp(to, subject, body)
+}
+
+// sendEmailViaGmailAPI sends an email using the Gmail API
+func (s *emailService) sendEmailViaGmailAPI(to []string, subject, body string) error {
+	fmt.Println("Using Gmail API to send email...")
+
+	// Use the direct Gmail API method that we know works
+	return SendDirectGmailEmail(
+		s.username,
+		to,
+		subject,
+		body,
+		s.tokenManager.config.ClientID,
+		s.tokenManager.config.ClientSecret,
+		s.tokenManager.config.RefreshToken,
+	)
+}
+
+// sendEmailViaSmtp sends an email using standard SMTP
+func (s *emailService) sendEmailViaSmtp(to []string, subject, body string) error {
+	// Construct message
+	message := []byte(fmt.Sprintf("To: %s\r\n"+
+		"Subject: %s\r\n"+
+		"MIME-Version: 1.0\r\n"+
+		"Content-Type: text/html; charset=UTF-8\r\n"+
+		"\r\n"+
+		"%s\r\n", strings.Join(to, ","), subject, body))
+
+	// Connect to the server
+	addr := fmt.Sprintf("%s:%s", s.host, s.port)
+
+	// Use standard SMTP authentication
+	auth := smtp.PlainAuth("", s.username, s.password, s.host)
+
+	// Send the email
+	err := smtp.SendMail(addr, auth, s.from, to, message)
+	if err != nil {
+		return fmt.Errorf("failed to send email via SMTP: %w", err)
+	}
+
+	return nil
+}
+
+// TestOAuth2 tests if OAuth2 token acquisition works
+func (s *emailService) TestOAuth2() error {
+	if !s.useOAuth || s.tokenManager == nil {
+		return fmt.Errorf("OAuth2 is not configured")
+	}
+
+	// Try to get a token
+	_, err := s.tokenManager.GetToken()
+	if err != nil {
+		return fmt.Errorf("failed to acquire OAuth2 token: %w", err)
+	}
+
+	return nil
 }

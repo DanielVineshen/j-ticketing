@@ -1,0 +1,573 @@
+// File: j-ticketing/internal/core/services/order_service.go
+package service
+
+import (
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	orderDto "j-ticketing/internal/core/dto/order"
+	"j-ticketing/internal/core/dto/payment"
+	ticketGroupDto "j-ticketing/internal/core/dto/ticket_group"
+	"j-ticketing/internal/db/models"
+	"j-ticketing/internal/db/repositories"
+	"log"
+	mathrand "math/rand"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+)
+
+var secureRandom = mathrand.New(mathrand.NewSource(time.Now().UnixNano()))
+
+// OrderService handles order-related operations
+type OrderService struct {
+	orderTicketGroupRepo *repositories.OrderTicketGroupRepository
+	orderTicketInfoRepo  *repositories.OrderTicketInfoRepository
+	ticketGroupRepo      *repositories.TicketGroupRepository
+	tagRepo              *repositories.TagRepository
+	groupGalleryRepo     *repositories.GroupGalleryRepository
+	ticketDetailRepo     *repositories.TicketDetailRepository
+	paymentConfig        *payment.PaymentConfig
+	ticketGroupService   *TicketGroupService
+}
+
+// NewOrderService creates a new order service
+func NewOrderService(
+	orderTicketGroupRepo *repositories.OrderTicketGroupRepository,
+	orderTicketInfoRepo *repositories.OrderTicketInfoRepository,
+	ticketGroupRepo *repositories.TicketGroupRepository,
+	tagRepo *repositories.TagRepository,
+	groupGalleryRepo *repositories.GroupGalleryRepository,
+	ticketDetailRepo *repositories.TicketDetailRepository,
+	paymentConfig *payment.PaymentConfig,
+	ticketGroupService *TicketGroupService,
+) *OrderService {
+	return &OrderService{
+		orderTicketGroupRepo: orderTicketGroupRepo,
+		orderTicketInfoRepo:  orderTicketInfoRepo,
+		ticketGroupRepo:      ticketGroupRepo,
+		tagRepo:              tagRepo,
+		groupGalleryRepo:     groupGalleryRepo,
+		ticketDetailRepo:     ticketDetailRepo,
+		paymentConfig:        paymentConfig,
+		ticketGroupService:   ticketGroupService,
+	}
+}
+
+// GetAllOrderTicketGroups retrieves all order ticket groups for a user
+func (s *OrderService) GetAllOrderTicketGroups(custId string) (orderDto.OrderTicketGroupResponse, error) {
+	var orders []models.OrderTicketGroup
+	var err error
+
+	// If customer ID is provided, retrieve orders for that customer only
+	if custId != "" {
+		orders, err = s.orderTicketGroupRepo.FindByCustomerID(custId)
+	} else {
+		// Otherwise, retrieve all orders
+		orders, err = s.orderTicketGroupRepo.FindAll()
+	}
+
+	if err != nil {
+		return orderDto.OrderTicketGroupResponse{}, err
+	}
+
+	response := orderDto.OrderTicketGroupResponse{
+		OrderTicketGroups: make([]orderDto.OrderTicketGroupDTO, 0, len(orders)),
+	}
+
+	for _, order := range orders {
+		orderDTO, err := s.mapOrderToDTO(&order)
+		if err != nil {
+			return orderDto.OrderTicketGroupResponse{}, err
+		}
+
+		response.OrderTicketGroups = append(response.OrderTicketGroups, orderDTO)
+	}
+
+	return response, nil
+}
+
+// GetOrderTicketGroup retrieves a specific order ticket group
+func (s *OrderService) GetOrderTicketGroup(orderTicketGroupId uint) (*orderDto.OrderTicketGroupDTO, error) {
+	// Use FindWithDetails to get the order with its relations
+	order, err := s.orderTicketGroupRepo.FindWithDetails(orderTicketGroupId)
+	if err != nil {
+		return nil, err
+	}
+
+	orderDTO, err := s.mapOrderToDTO(order)
+	if err != nil {
+		return nil, err
+	}
+
+	return &orderDTO, nil
+}
+
+// mapOrderToDTO maps an order model to its DTO representation
+func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.OrderTicketGroupDTO, error) {
+	// Map the order profile
+	orderProfile := orderDto.OrderProfileDTO{
+		OrderTicketGroupId: order.OrderTicketGroupId,
+		TicketGroupId:      order.TicketGroupId,
+		CustId:             order.CustId,
+		TransactionId:      order.TransactionId,
+		OrderNo:            order.OrderNo,
+		TransactionStatus:  order.TransactionStatus,
+		TransactionDate:    order.TransactionDate,
+		MsgToken:           order.MsgToken,
+		BillId:             order.BillId,
+		ProductId:          order.ProductId,
+		TotalAmount:        order.TotalAmount,
+		BuyerName:          order.BuyerName,
+		BuyerEmail:         order.BuyerEmail,
+		ProductDesc:        order.ProductDesc,
+		OrderTicketInfo:    make([]orderDto.OrderTicketInfoDTO, 0),
+		CreatedAt:          order.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:          order.UpdatedAt.Format(time.RFC3339),
+	}
+
+	// Add optional fields if they exist
+	if order.StatusMessage.Valid {
+		orderProfile.StatusMessage = order.StatusMessage.String
+	}
+	if order.BankCode.Valid {
+		orderProfile.BankCode = order.BankCode.String
+	}
+	if order.BankName.Valid {
+		orderProfile.BankName = order.BankName.String
+	}
+
+	// Get order ticket info items if they're not already loaded
+	var orderInfos []models.OrderTicketInfo
+	if len(order.OrderTicketInfos) > 0 {
+		orderInfos = order.OrderTicketInfos
+	} else {
+		var err error
+		orderInfos, err = s.orderTicketInfoRepo.FindByOrderTicketGroupID(order.OrderTicketGroupId)
+		if err != nil {
+			return orderDto.OrderTicketGroupDTO{}, err
+		}
+	}
+
+	// Map order ticket info items
+	for _, info := range orderInfos {
+		infoDTO := orderDto.OrderTicketInfoDTO{
+			OrderTicketInfoId:  info.OrderTicketInfoId,
+			OrderTicketGroupId: info.OrderTicketGroupId,
+			ItemId:             info.ItemId,
+			UnitPrice:          info.UnitPrice,
+			ItemDesc1:          info.ItemDesc1,
+			ItemDesc2:          info.ItemDesc2,
+			PrintType:          info.PrintType,
+			QuantityBought:     info.QuantityBought,
+			EncryptedId:        info.EncryptedId,
+			AdmitDate:          info.AdmitDate,
+			Variant:            info.Variant,
+			CreatedAt:          info.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:          info.UpdatedAt.Format(time.RFC3339),
+		}
+
+		if info.Twbid.Valid {
+			infoDTO.Twbid = info.Twbid.String
+		}
+
+		orderProfile.OrderTicketInfo = append(orderProfile.OrderTicketInfo, infoDTO)
+	}
+
+	// Get the ticket group
+	var ticketGroup *models.TicketGroup
+	if order.TicketGroup.TicketGroupId > 0 {
+		// If already loaded via preload
+		ticketGroup = &order.TicketGroup
+	} else {
+		// Otherwise fetch it
+		var err error
+		ticketGroup, err = s.ticketGroupRepo.FindByID(order.TicketGroupId)
+		if err != nil {
+			return orderDto.OrderTicketGroupDTO{}, err
+		}
+	}
+
+	// Get tags for this ticket group
+	tags, err := s.tagRepo.FindByTicketGroupID(ticketGroup.TicketGroupId)
+	if err != nil {
+		return orderDto.OrderTicketGroupDTO{}, err
+	}
+
+	// Map tags to DTOs
+	tagDTOs := make([]ticketGroupDto.TagDTO, 0, len(tags))
+	for _, tag := range tags {
+		tagDTOs = append(tagDTOs, ticketGroupDto.TagDTO{
+			TagId:   tag.TagId,
+			TagName: tag.TagName,
+			TagDesc: tag.TagDesc,
+		})
+	}
+
+	// Get gallery items for this ticket group
+	galleries, err := s.groupGalleryRepo.FindByTicketGroupID(ticketGroup.TicketGroupId)
+	if err != nil {
+		return orderDto.OrderTicketGroupDTO{}, err
+	}
+
+	// Map gallery items to DTOs
+	galleryDTOs := make([]ticketGroupDto.GroupGalleryDTO, 0, len(galleries))
+	for _, gallery := range galleries {
+		galleryDTOs = append(galleryDTOs, ticketGroupDto.GroupGalleryDTO{
+			GroupGalleryId:  gallery.GroupGalleryId,
+			AttachmentName:  gallery.AttachmentName,
+			AttachmentPath:  gallery.AttachmentPath,
+			AttachmentSize:  gallery.AttachmentSize,
+			ContentType:     gallery.ContentType,
+			UniqueExtension: gallery.UniqueExtension,
+		})
+	}
+
+	// Get ticket details for this ticket group
+	details, err := s.ticketDetailRepo.FindByTicketGroupID(ticketGroup.TicketGroupId)
+	if err != nil {
+		return orderDto.OrderTicketGroupDTO{}, err
+	}
+
+	// Map ticket details to DTOs
+	detailDTOs := make([]ticketGroupDto.TicketDetailDTO, 0, len(details))
+	for _, detail := range details {
+		detailDTOs = append(detailDTOs, ticketGroupDto.TicketDetailDTO{
+			TicketDetailId: detail.TicketDetailId,
+			Title:          detail.Title,
+			TitleIcon:      detail.TitleIcon,
+			RawHtml:        detail.RawHtml,
+			DisplayFlag:    detail.DisplayFlag,
+		})
+	}
+
+	// Parse organiser facilities from string to string array
+	var organiserFacilities []string
+	if ticketGroup.OrganiserFacilities != "" {
+		// Split the string based on the semicolon separator
+		organiserFacilities = strings.Split(ticketGroup.OrganiserFacilities, ";")
+
+		// Trim any whitespace from each facility
+		for i, facility := range organiserFacilities {
+			organiserFacilities[i] = strings.TrimSpace(facility)
+		}
+	} else {
+		organiserFacilities = []string{} // Empty array if no facilities
+	}
+
+	// Build the ticket profile DTO
+	ticketProfile := ticketGroupDto.TicketProfileDTO{
+		TicketGroupId:            ticketGroup.TicketGroupId,
+		GroupType:                ticketGroup.GroupType,
+		GroupName:                ticketGroup.GroupName,
+		GroupDesc:                ticketGroup.GroupDesc,
+		OperatingHours:           ticketGroup.OperatingHours,
+		PricePrefix:              ticketGroup.PricePrefix,
+		PriceSuffix:              ticketGroup.PriceSuffix,
+		AttachmentName:           ticketGroup.AttachmentName,
+		AttachmentPath:           ticketGroup.AttachmentPath,
+		AttachmentSize:           ticketGroup.AttachmentSize,
+		ContentType:              ticketGroup.ContentType,
+		UniqueExtension:          ticketGroup.UniqueExtension,
+		IsActive:                 ticketGroup.IsActive,
+		IsTicketInternal:         ticketGroup.IsTicketInternal,
+		TicketIds:                ticketGroup.TicketIds.String,
+		Tags:                     tagDTOs,
+		GroupGallery:             galleryDTOs,
+		TicketDetails:            detailDTOs,
+		LocationAddress:          ticketGroup.LocationAddress,
+		LocationMapEmbedUrl:      ticketGroup.LocationMapUrl,
+		OrganiserName:            ticketGroup.OrganiserName,
+		OrganiserAddress:         ticketGroup.OrganiserAddress,
+		OrganiserDescriptionHtml: ticketGroup.OrganiserDescHtml,
+		OrganiserContact:         ticketGroup.OrganiserContact,
+		OrganiserEmail:           ticketGroup.OrganiserEmail,
+		OrganiserWebsite:         ticketGroup.OrganiserWebsite,
+		OrganiserOperatingHours:  ticketGroup.OrganiserOperatingHour,
+		OrganiserFacilities:      organiserFacilities,
+		CreatedAt:                ticketGroup.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:                ticketGroup.UpdatedAt.Format(time.RFC3339),
+	}
+
+	// Handle optional date fields
+	if ticketGroup.ActiveStartDate.Valid {
+		ticketProfile.ActiveStartDate = ticketGroup.ActiveStartDate.String
+	}
+	if ticketGroup.ActiveEndDate.Valid {
+		ticketProfile.ActiveEndDate = ticketGroup.ActiveEndDate.String
+	}
+
+	// Create the complete order ticket group DTO
+	orderTicketGroupDTO := orderDto.OrderTicketGroupDTO{
+		OrderProfile:  orderProfile,
+		TicketProfile: ticketProfile,
+	}
+
+	return orderTicketGroupDTO, nil
+}
+
+// CreateOrder creates a new order ticket group and returns the order ID
+func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderRequest) (uint, error) {
+	// Validate ticket group exists
+	ticketGroup, err := s.ticketGroupRepo.FindByID(req.TicketGroupId)
+	if err != nil {
+		return 0, fmt.Errorf("ticket group not found: %w", err)
+	}
+
+	// Ensure ticket group is active
+	if !ticketGroup.IsActive {
+		return 0, errors.New("ticket group is not active")
+	}
+
+	// Parse and validate date
+	orderDate, err := time.Parse("2006-01-02", req.Date)
+	if err != nil {
+		return 0, fmt.Errorf("invalid date format: %w", err)
+	}
+
+	// Retrieve available ticket variants for validation and pricing
+	ticketVariantsResponse, err := s.ticketGroupService.GetTicketVariants(req.TicketGroupId, req.Date)
+	if err != nil {
+		return 0, fmt.Errorf("failed to retrieve ticket variants: %w", err)
+	}
+
+	// Create a map for easier lookup of ticket variants
+	ticketVariantMap := make(map[string]ticketGroupDto.TicketVariantDTO)
+	for _, variant := range ticketVariantsResponse.TicketVariants {
+		ticketVariantMap[variant.TicketId] = variant
+	}
+
+	// Validate that all requested tickets exist in available variants
+	for _, ticket := range req.Tickets {
+		if _, exists := ticketVariantMap[ticket.TicketId]; !exists {
+			return 0, fmt.Errorf("ticket ID %s is not available for this group and date", ticket.TicketId)
+		}
+	}
+
+	// Generate order number and transaction ID
+	orderNo := generateOrderNumber()
+
+	// Calculate total amount based on tickets
+	var totalAmount float64 = 0
+
+	var mode = ""
+	if req.Mode == "individual" {
+		mode = "01"
+	} else if req.Mode == "corporate" {
+		mode = "02"
+	}
+
+	// Create order ticket group
+	orderTicketGroup := &models.OrderTicketGroup{
+		TicketGroupId:     req.TicketGroupId,
+		CustId:            custId,
+		TransactionId:     "",
+		OrderNo:           orderNo,
+		TransactionStatus: "initiate", // Initial status
+		TransactionDate:   time.Now().Format("2006-01-02 15:04:05"),
+		MsgToken:          mode,
+		BillId:            generateBillId(),
+		ProductId:         fmt.Sprintf("TG%d", req.TicketGroupId),
+		TotalAmount:       totalAmount, // Will be updated after calculating tickets
+		BuyerName:         req.FullName,
+		BuyerEmail:        req.Email,
+		ProductDesc:       ticketGroup.GroupName,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+	}
+
+	// Set optional fields based on payment type
+	if req.PaymentType == "fpx" {
+		// Validate bank code if FPX payment is selected
+		if req.BankCode == "" {
+			return 0, errors.New("bank code is required for FPX payment")
+		}
+
+		// Lookup the bank name based on the code
+		bankName, err := s.getBankNameByCode(req.BankCode, req.Mode)
+		if err != nil {
+			return 0, fmt.Errorf("invalid bank code: %w", err)
+		}
+
+		// Set bank code and name
+		orderTicketGroup.BankCode = sql.NullString{
+			String: req.BankCode,
+			Valid:  true,
+		}
+
+		orderTicketGroup.BankName = sql.NullString{
+			String: bankName,
+			Valid:  true,
+		}
+	}
+
+	// Save order ticket group to get the ID
+	err = s.orderTicketGroupRepo.Create(orderTicketGroup)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create order: %w", err)
+	}
+
+	// Process tickets
+	orderTicketInfos := make([]models.OrderTicketInfo, 0, len(req.Tickets))
+
+	for _, ticket := range req.Tickets {
+		// Get the ticket variant details
+		variant, exists := ticketVariantMap[ticket.TicketId]
+		if !exists {
+			// This should never happen as we've already validated all tickets
+			return 0, fmt.Errorf("unexpected error: ticket ID %s not found", ticket.TicketId)
+		}
+
+		// Use the unit price from the variant
+		unitPrice := variant.UnitPrice
+
+		// Create multiple entries for tickets with quantity > 1
+		for i := 0; i < ticket.Qty; i++ {
+			// Update total amount for each individual ticket
+			totalAmount += unitPrice
+
+			// Create a new ticket info entry for each quantity
+			orderTicketInfo := models.OrderTicketInfo{
+				OrderTicketGroupId: orderTicketGroup.OrderTicketGroupId,
+				ItemId:             ticket.TicketId,
+				UnitPrice:          unitPrice,
+				ItemDesc1:          variant.ItemDesc1,              // Use description from API
+				ItemDesc2:          variant.ItemDesc2,              // Use description from API
+				PrintType:          variant.PrintType,              // Use print type from API
+				QuantityBought:     1,                              // Fixed quantity of 1
+				EncryptedId:        "",                             // You'll need to set this appropriately
+				AdmitDate:          orderDate.Format("2006-01-02"), // Format the date consistently
+				Variant:            "default",
+				CreatedAt:          time.Now(),
+				UpdatedAt:          time.Now(),
+			}
+
+			// Add directly to the slice
+			orderTicketInfos = append(orderTicketInfos, orderTicketInfo)
+		}
+	}
+
+	// Update total amount in order ticket group
+	orderTicketGroup.TotalAmount = totalAmount
+	err = s.orderTicketGroupRepo.Update(orderTicketGroup)
+	if err != nil {
+		return 0, fmt.Errorf("failed to update order total amount: %w", err)
+	}
+
+	// Save all ticket info entries
+	err = s.orderTicketInfoRepo.BatchCreate(orderTicketInfos)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create order tickets: %w", err)
+	}
+
+	// Return the order ID
+	return orderTicketGroup.OrderTicketGroupId, nil
+}
+
+// Helper functions for order creation
+
+// getBankNameByCode retrieves a bank name by its code and validates if the bank is enabled
+// Returns the bank name if found and enabled, or an error if not
+func (s *OrderService) getBankNameByCode(bankCode, mode string) (string, error) {
+	// Get the API key from config
+	apiKey := s.paymentConfig.APIKey
+
+	// Create form data for x-www-form-urlencoded request
+	formData := url.Values{}
+	formData.Set("jp_ag_token", "ZOO")
+	formData.Set("method", "getBankList")
+	if mode == "individual" {
+		formData.Set("mode", "01")
+	} else {
+		formData.Set("mode", "02")
+	}
+
+	// Create a new HTTP client
+	client := &http.Client{
+		Timeout: time.Second * 30,
+	}
+
+	// Create a new request
+	req, err := http.NewRequest("POST", "https://johorpay-stag.johor.gov.my/JP_gateway/getBankList", strings.NewReader(formData.Encode()))
+	if err != nil {
+		log.Printf("Error creating request: %v", err)
+		return "", fmt.Errorf("error creating request: %w", err)
+
+	}
+
+	// Add headers
+	req.Header.Add("jp-api-key", apiKey)
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	// Execute the request
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("Error executing request: %v", err)
+		return "", fmt.Errorf("error executing request: %w", err)
+
+	}
+	defer resp.Body.Close()
+
+	// Read the response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Error reading response body: %v", err)
+		return "", fmt.Errorf("error reading response body: %w", err)
+	}
+
+	// Parse the JSON response
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		log.Printf("Error parsing JSON: %v", err)
+		return "", fmt.Errorf("error parsing JSON: %w", err)
+	}
+
+	// Check if the request was successful
+	if success, ok := result["success"].(bool); ok && success {
+		// The response has a data field that contains a JSON string (not an object)
+		// We need to parse this string into an array of bank objects
+		if dataStr, ok := result["data"].(string); ok {
+			var banks []map[string]interface{}
+			if err := json.Unmarshal([]byte(dataStr), &banks); err != nil {
+				log.Printf("Error parsing bank data: %v", err)
+				return "", fmt.Errorf("error parsing bank data: %w", err)
+			}
+
+			// Look for the bank with the matching code
+			for _, bank := range banks {
+				if value, ok := bank["value"].(string); ok && value == bankCode {
+					// Check if the bank is enabled
+					if enabled, ok := bank["enabled"].(float64); ok && enabled == 1 {
+						// Return the bank name
+						if name, ok := bank["name"].(string); ok {
+							return name, nil
+						}
+					} else {
+						return "", fmt.Errorf("bank %s is disabled", bankCode)
+					}
+				}
+			}
+		}
+	}
+
+	return "", fmt.Errorf("failed to retrieve bank list")
+}
+
+// Utility functions for generating IDs and tokens
+
+func generateOrderNumber() string {
+	// Format: ORD-YYYYMMDDHHmmss-XXXX
+	timestamp := time.Now().Format("20060102150405")
+	random := fmt.Sprintf("%04d", secureRandom.Intn(10000))
+	return fmt.Sprintf("ORD-%s-%s", timestamp, random)
+}
+
+func generateBillId() string {
+	// Format: BILL-YYYYMMDDHHmmss-XXXX
+	timestamp := time.Now().Format("20060102150405")
+	random := fmt.Sprintf("%04d", secureRandom.Intn(10000))
+	return fmt.Sprintf("BILL-%s-%s", timestamp, random)
+}

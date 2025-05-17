@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checkout - J-Ticketing</title>
+  <link rel="stylesheet" href="/public/css/styles.css" />
+  <style>
+    /* Additional styles for order checkout */
+    .order-summary {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 4px;
+      border: 1px solid #eee;
+      margin-bottom: 20px;
+    }
+
+    .ticket-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+
+    .ticket-table th,
+    .ticket-table td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+
+    .ticket-table th {
+      font-weight: 600;
+      color: #444;
+    }
+
+    .ticket-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .total-row td {
+      font-weight: 600;
+      color: #333;
+      border-top: 2px solid #ddd;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .status-pending {
+      background-color: #ffeaa7;
+      color: #d68910;
+    }
+
+    .status-completed {
+      background-color: #d5f5e3;
+      color: #27ae60;
+    }
+
+    .status-failed {
+      background-color: #fadbd8;
+      color: #c0392b;
+    }
+
+    /* Loading spinner */
+    .loading-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(74, 105, 189, 0.3);
+      border-radius: 50%;
+      border-top-color: #4a69bd;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .loading-text {
+      font-size: 18px;
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .loading-subtext {
+      font-size: 14px;
+      color: #666;
+    }
+
+    /* Hidden form for submission */
+    #payment-form {
+      display: none;
+    }
+
+    /* Customer info section */
+    .customer-info {
+      margin-bottom: 20px;
+      padding: 15px;
+      border-radius: 4px;
+      background-color: #f8f9fa;
+      border: 1px solid #eee;
+    }
+
+    .customer-info h3 {
+      margin-bottom: 10px;
+      color: #444;
+    }
+
+    /* Ticket group details panel */
+    .ticket-group-info {
+      margin-bottom: 20px;
+      padding: 15px;
+      border-radius: 4px;
+      background-color: #f8f9fa;
+      border: 1px solid #eee;
+    }
+
+    .ticket-group-info h3 {
+      margin-bottom: 10px;
+      color: #444;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Order Checkout</h1>
+
+  <!-- Order Summary -->
+  <div id="order-details">
+    <h2>Order Summary</h2>
+    <div class="order-summary">
+      <div class="detail-item">
+        <span class="label">Order ID:</span>
+        <span class="value" id="order-id">-</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Transaction ID:</span>
+        <span class="value" id="transaction-id">-</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Status:</span>
+        <span class="value">
+              <span id="order-status" class="status status-pending">Pending</span>
+            </span>
+      </div>
+    </div>
+
+    <!-- Ticket Group Info -->
+    <div class="ticket-group-info">
+      <h3>Event Details</h3>
+      <div class="detail-item">
+        <span class="label">Event:</span>
+        <span class="value" id="ticket-group-name">-</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Date:</span>
+        <span class="value" id="event-date">-</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Location:</span>
+        <span class="value" id="event-location">-</span>
+      </div>
+    </div>
+
+    <!-- Customer Info -->
+    <div class="customer-info">
+      <h3>Customer Details</h3>
+      <div class="detail-item">
+        <span class="label">Name:</span>
+        <span class="value" id="customer-name">-</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Email:</span>
+        <span class="value" id="customer-email">-</span>
+      </div>
+      <div class="detail-item">
+        <span class="label">Contact:</span>
+        <span class="value" id="customer-contact">-</span>
+      </div>
+    </div>
+
+    <!-- Ticket Details Table -->
+    <h2>Ticket Details</h2>
+    <table class="ticket-table" id="ticket-table">
+      <thead>
+      <tr>
+        <th>Ticket Type</th>
+        <th>Price</th>
+        <th>Quantity</th>
+        <th>Subtotal</th>
+      </tr>
+      </thead>
+      <tbody id="ticket-table-body">
+      <!-- Will be populated by JavaScript -->
+      </tbody>
+      <tfoot>
+      <tr class="total-row">
+        <td colspan="3" style="text-align: right">Total:</td>
+        <td id="total-amount">RM 0.00</td>
+      </tr>
+      </tfoot>
+    </table>
+
+    <button id="proceed-payment" class="btn">Proceed to Payment</button>
+  </div>
+
+  <!-- Loading Container -->
+  <div id="loading-container" class="loading-container" style="display: none;">
+    <div class="spinner"></div>
+    <div class="loading-text">Connecting to payment gateway...</div>
+    <div class="loading-subtext">You will be redirected to the payment page shortly. Please do not refresh or close this page.</div>
+  </div>
+
+  <form id="payment-form" action="/payment/process" method="POST">
+    <input type="hidden" id="token-input" name="token" value="" />
+    <input type="hidden" id="orderNo-input" name="orderNo" value="" />
+    <input type="hidden" id="billId-input" name="billId" value="" />
+    <input type="hidden" id="productId-input" name="productId" value="" />
+    <input type="hidden" id="buyerName-input" name="buyerName" value="" />
+    <input type="hidden" id="buyerEmail-input" name="buyerEmail" value="" />
+    <input type="hidden" id="totalAmount-input" name="totalAmount" value="" />
+    <input type="hidden" id="productDesc-input" name="productDesc" value="" />
+    <input type="hidden" id="msgToken-input" name="msgToken" value="" />
+    <input type="hidden" id="bankCode-input" name="bankCode" value="" />
+  </form>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // Get URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderID = urlParams.get("orderID");
+    const paymentType = urlParams.get("paymentType") || "credit/debit";
+
+    // Elements
+    const orderDetailsEl = document.getElementById("order-details");
+    const loadingContainerEl = document.getElementById("loading-container");
+    const orderIdEl = document.getElementById("order-id");
+    const transactionIdEl = document.getElementById("transaction-id");
+    const orderStatusEl = document.getElementById("order-status");
+    const ticketGroupNameEl = document.getElementById("ticket-group-name");
+    const eventDateEl = document.getElementById("event-date");
+    const eventLocationEl = document.getElementById("event-location");
+    const customerNameEl = document.getElementById("customer-name");
+    const customerEmailEl = document.getElementById("customer-email");
+    const customerContactEl = document.getElementById("customer-contact");
+    const ticketTableBodyEl = document.getElementById("ticket-table-body");
+    const totalAmountEl = document.getElementById("total-amount");
+    const proceedButtonEl = document.getElementById("proceed-payment");
+    const paymentFormEl = document.getElementById("payment-form");
+    const tokenInputEl = document.getElementById("token-input");
+    const msgTokenInputEl = document.getElementById("msgToken-input");
+    const bankCodeInputEl = document.getElementById("bankCode-input");
+    const orderNoInputEl = document.getElementById("orderNo-input");
+    const billIdInputEl = document.getElementById("billId-input");
+    const productIdInputEl = document.getElementById("productId-input");
+    const buyerNameInputEl = document.getElementById("buyerName-input");
+    const buyerEmailInputEl = document.getElementById("buyerEmail-input");
+    const totalAmountInputEl = document.getElementById("totalAmount-input");
+    const productDescInputEl = document.getElementById("productDesc-input");
+
+    let orderData = null;
+
+    // Format currency
+    function formatCurrency(amount) {
+      return "RM " + parseFloat(amount).toFixed(2);
+    }
+
+    // Format date
+    function formatDate(dateStr) {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("en-MY", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+    }
+
+    // Generate token function
+    async function generateToken() {
+      try {
+        const response = await fetch("/api/generate-token", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to generate token");
+        }
+
+        const data = await response.json();
+
+        if (data.success && data.token) {
+          return data.token;
+        } else {
+          throw new Error(data.message || "Failed to get token");
+        }
+      } catch (error) {
+        console.error("Error generating token:", error);
+        throw error;
+      }
+    }
+
+// Load order details with better error logging
+    async function loadOrderDetails() {
+      if (!orderID) {
+        alert("Order ID is missing. Redirecting to home page.");
+        window.location.href = "/";
+        return;
+      }
+
+      // Show what URL we're trying to fetch
+      const apiUrl = `/api/orderTicketGroups/${orderID}`;
+      console.log("Fetching order details from:", apiUrl);
+
+      try {
+        // Fetch order details from API without auth token
+        const response = await fetch(apiUrl);
+
+        console.log("API Response status:", response.status);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Error response:", errorText);
+          throw new Error(`Server responded with status ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+        console.log("API Response data:", data);
+
+        if (data.respCode !== 2000 || !data.result) {
+          throw new Error(data.respDesc || "Invalid response");
+        }
+
+        orderData = data.result;
+
+        // Populate order details
+        populateOrderDetails(orderData);
+
+        // Also populate the hidden form fields
+        populatePaymentForm(orderData);
+      } catch (error) {
+        console.error("Error loading order:", error);
+        alert("Failed to load order details: " + error.message);
+      }
+    }
+
+    // Populate the payment form with order details
+    function populatePaymentForm(order) {
+      // Extract the order profile for easier access
+      const profile = order.orderProfile;
+
+      // Populate hidden form fields
+      orderNoInputEl.value = profile.orderNo || '';
+      billIdInputEl.value = profile.billId || '';
+      productIdInputEl.value = profile.productId || '';
+      buyerNameInputEl.value = profile.buyerName || '';
+      buyerEmailInputEl.value = profile.buyerEmail || '';
+      totalAmountInputEl.value = profile.totalAmount || '0';
+      productDescInputEl.value = profile.productDesc || '';
+      totalAmountInputEl.value = profile.totalAmount || 0;
+
+      // For FPX, also set the message token and bank code from the order if available
+      if (profile.msgToken) {
+        msgTokenInputEl.value = profile.msgToken;
+      }
+      if (profile.bankCode) {
+        bankCodeInputEl.value = profile.bankCode;
+      }
+    }
+
+    // Populate order details on the page
+    function populateOrderDetails(order) {
+      // Order summary
+      orderIdEl.textContent = order.orderProfile.orderNo || "-";
+      transactionIdEl.textContent = order.orderProfile.transactionId || "-";
+
+      // Order status
+      const status = order.orderProfile.transactionStatus || "PENDING";
+      orderStatusEl.textContent = status;
+      orderStatusEl.className = "status";
+
+      if (status === "COMPLETED") {
+        orderStatusEl.classList.add("status-completed");
+      } else if (status === "FAILED") {
+        orderStatusEl.classList.add("status-failed");
+      } else {
+        orderStatusEl.classList.add("status-pending");
+      }
+
+      // Ticket group info
+      ticketGroupNameEl.textContent = order.ticketProfile.groupName || "-";
+      eventLocationEl.textContent = order.ticketProfile.locationAddress || "-";
+
+      // Customer info
+      customerNameEl.textContent = order.orderProfile.buyerName || "-";
+      customerEmailEl.textContent = order.orderProfile.buyerEmail || "-";
+      customerContactEl.textContent = order.orderProfile.contactNo || "-";
+
+      // Date from the first ticket
+      if (
+              order.orderProfile.orderTicketInfo &&
+              order.orderProfile.orderTicketInfo.length > 0
+      ) {
+        const dateStr = order.orderProfile.orderTicketInfo[0].admitDate;
+        eventDateEl.textContent = formatDate(dateStr);
+      }
+
+      // Ticket details table
+      ticketTableBodyEl.innerHTML = "";
+      let totalAmount = 0;
+
+      // Group tickets by type
+      // const ticketGroups = {};
+      // order.orderProfile.orderTicketInfo.forEach((ticket) => {
+      //   if (!ticketGroups[ticket.itemId]) {
+      //     ticketGroups[ticket.itemId] = {
+      //       name: ticket.itemDesc1,
+      //       price: ticket.unitPrice,
+      //       quantity: ticket.quantityBought,
+      //       total: ticket.quantityBought * ticket.unitPrice,
+      //     };
+      //   } else {
+      //     ticketGroups[ticket.itemId].quantity += 1;
+      //     ticketGroups[ticket.itemId].total += ticket.unitPrice;
+      //   }
+      //   totalAmount += ticket.quantityBought * ticket.unitPrice;
+      // });
+
+      // Group tickets by type
+      const ticketGroups = {};
+      order.orderProfile.orderTicketInfo.forEach((ticket) => {
+        // Calculate this ticket's contribution to the total
+        const ticketTotal = ticket.unitPrice * ticket.quantityBought;
+        totalAmount += ticketTotal;
+
+        if (!ticketGroups[ticket.itemId]) {
+          // First ticket of this type - create new group
+          ticketGroups[ticket.itemId] = {
+            name: ticket.itemDesc1,
+            price: ticket.unitPrice,
+            quantity: ticket.quantityBought,
+            total: ticketTotal,
+          };
+        } else {
+          // Additional ticket of this type - add to existing group
+          ticketGroups[ticket.itemId].quantity += ticket.quantityBought;
+          ticketGroups[ticket.itemId].total += ticketTotal;
+        }
+      });
+
+      // Add rows to table
+      Object.values(ticketGroups).forEach((group) => {
+        const row = document.createElement("tr");
+
+        const nameCell = document.createElement("td");
+        nameCell.textContent = group.name;
+
+        const priceCell = document.createElement("td");
+        priceCell.textContent = formatCurrency(group.price);
+
+        const qtyCell = document.createElement("td");
+        qtyCell.textContent = group.quantity;
+
+        const totalCell = document.createElement("td");
+        totalCell.textContent = formatCurrency(group.total);
+
+        row.appendChild(nameCell);
+        row.appendChild(priceCell);
+        row.appendChild(qtyCell);
+        row.appendChild(totalCell);
+
+        ticketTableBodyEl.appendChild(row);
+      });
+
+      // Update total
+      totalAmountEl.textContent = formatCurrency(totalAmount);
+
+      // Update proceed button behavior
+      if (status === "COMPLETED") {
+        proceedButtonEl.textContent = "View E-Tickets";
+        proceedButtonEl.onclick = function () {
+          window.location.href = `/tickets.html?orderID=${order.orderProfile.orderTicketGroupId}`;
+        };
+      } else if (status === "FAILED") {
+        proceedButtonEl.textContent = "Try Again";
+        proceedButtonEl.onclick = function () {
+          window.location.reload();
+        };
+      } else {
+        proceedButtonEl.textContent = "Proceed to Payment";
+        proceedButtonEl.onclick = initiatePayment;
+      }
+    }
+
+    // Process payment
+    async function initiatePayment() {
+      // Show loading screen
+      orderDetailsEl.style.display = "none";
+      loadingContainerEl.style.display = "block";
+
+      try {
+        // Check if we have the order data
+        if (!orderData) {
+          throw new Error("Order data not available");
+        }
+
+        // First generate the token
+        tokenInputEl.value = await generateToken();
+
+        // Submit the form to redirect to payment gateway
+        paymentFormEl.submit();
+      } catch (error) {
+        console.error("Payment initiation failed:", error);
+        alert("Failed to initiate payment: " + error.message);
+
+        // Show order details again
+        orderDetailsEl.style.display = "block";
+        loadingContainerEl.style.display = "none";
+      }
+    }
+
+    // Get authentication token from storage
+    function getAuthToken() {
+      return localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || "";
+    }
+
+    // Load order details when page loads
+    loadOrderDetails();
+  });
+</script>
+</body>
+</html>

@@ -5,6 +5,8 @@ import (
 	dto "j-ticketing/internal/core/dto/ticket_group"
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
+	"j-ticketing/pkg/config"
+	"j-ticketing/pkg/external"
 	"strings"
 	"time"
 )
@@ -15,6 +17,8 @@ type TicketGroupService struct {
 	tagRepo          *repositories.TagRepository
 	groupGalleryRepo *repositories.GroupGalleryRepository
 	ticketDetailRepo *repositories.TicketDetailRepository
+	zooAPIClient     *external.ZooAPIClient
+	config           *config.Config
 }
 
 // NewTicketGroupService creates a new instance of TicketGroupService
@@ -23,12 +27,21 @@ func NewTicketGroupService(
 	tagRepo *repositories.TagRepository,
 	groupGalleryRepo *repositories.GroupGalleryRepository,
 	ticketDetailRepo *repositories.TicketDetailRepository,
+	cfg *config.Config,
 ) *TicketGroupService {
+	zooAPIClient := external.NewZooAPIClient(
+		cfg.ZooAPI.BaseURL,
+		cfg.ZooAPI.Username,
+		cfg.ZooAPI.Password,
+	)
+
 	return &TicketGroupService{
 		ticketGroupRepo:  ticketGroupRepo,
 		tagRepo:          tagRepo,
 		groupGalleryRepo: groupGalleryRepo,
 		ticketDetailRepo: ticketDetailRepo,
+		zooAPIClient:     zooAPIClient,
+		config:           cfg,
 	}
 }
 
@@ -149,7 +162,7 @@ func (s *TicketGroupService) buildTicketGroupResponse(ticketGroups []models.Tick
 }
 
 // GetTicketProfile retrieves a complete ticket profile by ticket group ID
-func (s *TicketGroupService) GetTicketProfile(ticketGroupId uint) (*dto.TicketProfileResponse, error) {
+func (s *TicketGroupService) GetTicketProfile(ticketGroupId uint) (*dto.TicketProfileResult, error) {
 	// 1. Get the ticket group
 	ticketGroup, err := s.ticketGroupRepo.FindByID(ticketGroupId)
 	if err != nil {
@@ -241,12 +254,8 @@ func (s *TicketGroupService) GetTicketProfile(ticketGroupId uint) (*dto.TicketPr
 	}
 
 	// 9. Prepare the complete response
-	response := &dto.TicketProfileResponse{
-		RespCode: 200,
-		RespDesc: "Success",
-		Result: dto.TicketProfileResult{
-			TicketProfile: *profile,
-		},
+	response := &dto.TicketProfileResult{
+		TicketProfile: *profile,
 	}
 
 	return response, nil
@@ -297,4 +306,63 @@ func (s *TicketGroupService) getTicketDetails(ticketGroupId uint) ([]dto.TicketD
 	}
 
 	return detailDTOs, nil
+}
+
+// GetTicketVariants retrieves ticket variants for a specific ticket group and date
+func (s *TicketGroupService) GetTicketVariants(ticketGroupId uint, date string) (*dto.TicketVariantResponse, error) {
+	// First, check if the ticket group exists
+	ticketGroup, err := s.ticketGroupRepo.FindByID(ticketGroupId)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get available ticket items from the external API
+	ticketItems, err := s.zooAPIClient.GetTicketItems(date)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if the ticket group has specific ticket IDs to filter
+	var allowedTicketIDs map[string]bool
+	if ticketGroup.TicketIds.Valid && ticketGroup.TicketIds.String != "" {
+		// Split the comma-separated list of ticket IDs
+		ticketIDsRaw := strings.Split(ticketGroup.TicketIds.String, ";")
+		allowedTicketIDs = make(map[string]bool)
+
+		for _, id := range ticketIDsRaw {
+			id = strings.TrimSpace(id)
+			if id != "" {
+				allowedTicketIDs[id] = true
+			}
+		}
+	}
+
+	// Convert the ticket items to DTOs, filtering by the allowed ticket IDs if necessary
+	ticketVariants := make([]dto.TicketVariantDTO, 0)
+	for _, item := range ticketItems {
+		// Skip if we have a filter and this item is not in the allowed list
+		if allowedTicketIDs != nil && !allowedTicketIDs[item.ItemId] {
+			continue
+		}
+
+		// Create the DTO
+		variant := dto.TicketVariantDTO{
+			TicketId:  item.ItemId,
+			UnitPrice: item.UnitPrice,
+			ItemDesc1: item.ItemDesc1,
+			ItemDesc2: item.ItemDescription,
+			ItemDesc3: item.ItemDesc2,
+			PrintType: item.PrintType,
+			Qty:       item.Qty,
+		}
+
+		ticketVariants = append(ticketVariants, variant)
+	}
+
+	// Create the response
+	response := &dto.TicketVariantResponse{
+		TicketVariants: ticketVariants,
+	}
+
+	return response, nil
 }

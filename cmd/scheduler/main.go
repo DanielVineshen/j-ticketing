@@ -27,16 +27,6 @@ func main() {
 	// 	log.Fatalf("Failed to connect to database: %v", err)
 	// }
 
-	// // Initialize repositories
-	// ticketGroupRepo := repositories.NewTicketGroupRepository(database)
-	// bannerRepo := repositories.NewBannerRepository(database)
-
-	// // Initialize services
-	// ticketGroupService := services.NewTicketGroupService(ticketGroupRepo, bannerRepo)
-
-	// // Initialize handlers
-	// ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService)
-
 	// Initialize logger
 	logger, err := zap.NewProduction()
 	if err != nil {
@@ -53,12 +43,9 @@ func main() {
 	app.Use(recover.New())
 	app.Use(cors.New())
 
-	// Setup routes
-	// routes.SetupRoutes(app, ticketGroupHandler)
-
 	// Start server
-	addr := fmt.Sprintf(":%s", cfg.Server.Port)
-	log.Printf("Server starting on %s", addr)
+	addr := fmt.Sprintf(":%s", cfg.Server.SchedulerPort)
+	log.Printf("Server starting on %s with version 0.1", addr)
 	if err := app.Listen(addr); err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}

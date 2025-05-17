@@ -1,0 +1,136 @@
+/* Base styles */
+* {
+margin: 0;
+padding: 0;
+box-sizing: border-box;
+}
+
+body {
+font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+line-height: 1.6;
+color: #333;
+background-color: #f8f9fa;
+}
+
+.container {
+max-width: 800px;
+margin: 40px auto;
+padding: 20px;
+background-color: #fff;
+border-radius: 8px;
+box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+margin-bottom: 20px;
+color: #333;
+text-align: center;
+}
+
+h2 {
+margin: 15px 0;
+color: #444;
+}
+
+/* Checkout info styles */
+.checkout-info {
+padding: 20px;
+}
+
+.payment-details {
+margin: 30px 0;
+background-color: #f8f9fa;
+padding: 20px;
+border-radius: 4px;
+border: 1px solid #eee;
+}
+
+.detail-item {
+display: flex;
+justify-content: space-between;
+margin-bottom: 10px;
+padding-bottom: 10px;
+border-bottom: 1px solid #eee;
+}
+
+.detail-item:last-child {
+border-bottom: none;
+}
+
+.label {
+font-weight: 600;
+}
+
+.btn {
+display: block;
+width: 100%;
+padding: 12px 24px;
+background-color: #4a69bd;
+color: #fff;
+border: none;
+border-radius: 4px;
+font-size: 16px;
+font-weight: 600;
+cursor: pointer;
+text-decoration: none;
+text-align: center;
+transition: background-color 0.3s;
+margin: 25px 0;
+}
+
+.btn:hover {
+background-color: #3c58a8;
+}
+
+.note {
+text-align: center;
+color: #666;
+font-size: 14px;
+margin-top: 20px;
+font-style: italic;
+}
+
+/* Home page styles */
+.intro-text {
+margin-bottom: 20px;
+text-align: center;
+}
+
+.action-buttons {
+text-align: center;
+margin: 30px 0;
+}
+
+/* Form input styles */
+input[type="text"] {
+width: 100%;
+padding: 8px 12px;
+border: 1px solid #ddd;
+border-radius: 4px;
+font-size: 14px;
+color: #333;
+}
+
+input[type="text"]:focus {
+outline: none;
+border-color: #4a69bd;
+box-shadow: 0 0 0 2px rgba(74, 105, 189, 0.2);
+}
+
+.detail-item {
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin-bottom: 15px;
+padding-bottom: 10px;
+border-bottom: 1px solid #eee;
+}
+
+.label {
+font-weight: 600;
+width: 140px;
+}
+
+.value {
+flex: 1;
+}

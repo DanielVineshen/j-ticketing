@@ -31,7 +31,7 @@ type OrderTicketGroup struct {
 	// Relationships with constraint:false to prevent auto-generation of constraints
 	TicketGroup      TicketGroup       `gorm:"foreignKey:TicketGroupId;references:TicketGroupId;constraint:false"`
 	Customer         Customer          `gorm:"foreignKey:CustId;references:CustId;constraint:false"`
-	OrderTicketInfos []OrderTicketInfo `gorm:"-"`
+	OrderTicketInfos []OrderTicketInfo `gorm:"foreignKey:OrderTicketGroupId"`
 }
 
 // TableName overrides the table name

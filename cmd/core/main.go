@@ -17,8 +17,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/joho/godotenv"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
@@ -28,10 +26,10 @@ import (
 
 func main() {
 	// Load environment variables
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("Warning: .env file not found, using default or environment values")
-	}
+	//err := godotenv.Load()
+	//if err != nil {
+	//	log.Println("Warning: .env file not found, using default or environment values")
+	//}
 
 	// Pre-processing for OAuth client ID - clean up any URL prefixes
 	if clientID := os.Getenv("CLIENT_ID"); strings.HasPrefix(clientID, "http://") || strings.HasPrefix(clientID, "https://") {
@@ -104,6 +102,9 @@ func main() {
 		}
 	}
 
+	// Initialize PDF service with logo path
+	//logoPath := filepath.Join("assets", "logo.png")
+
 	// Initialize repositories
 	ticketGroupRepo := repositories.NewTicketGroupRepository(database)
 	adminRepo := repositories.NewAdminRepository(database)
@@ -149,6 +150,8 @@ func main() {
 	authHandler := handlers.NewAuthHandler(authService, emailService) // Update auth handler with email service
 	orderHandler := handlers.NewOrderHandler(orderService, customerService)
 
+	simplePDFHandler := handlers.NewPDFHandler()
+
 	// Initialize logger
 	logger, err := zap.NewProduction()
 	if err != nil {
@@ -178,8 +181,9 @@ func main() {
 	routes.SetupTicketGroupRoutes(app, ticketGroupHandler, jwtService)
 	routes.SetupAuthRoutes(app, authHandler, jwtService)
 	routes.SetupOrderRoutes(app, orderHandler, jwtService)
-	routes.SetupPaymentRoutes(app, paymentConfig, orderTicketGroupRepo, orderTicketInfoRepo)
+	routes.SetupPaymentRoutes(app, paymentConfig, orderTicketGroupRepo, orderTicketInfoRepo, emailService)
 	routes.SetupViewRoutes(app)
+	routes.SetupTicketPDFRoutes(app, simplePDFHandler)
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.Server.CorePort)

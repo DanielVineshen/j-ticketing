@@ -2,7 +2,12 @@
 package email
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
+	"github.com/boombuler/barcode"
+	"github.com/boombuler/barcode/qr"
+	"image/png"
 	"j-ticketing/pkg/config"
 	"net/smtp"
 	"strings"
@@ -13,6 +18,7 @@ import (
 type EmailService interface {
 	SendEmail(to []string, subject, body string) error
 	SendPasswordResetEmail(to string, newPassword string) error
+	SendTicketsEmail(to string, customerName string, tickets []TicketInfo) error
 }
 
 type emailService struct {
@@ -62,6 +68,104 @@ func (s *emailService) SendPasswordResetEmail(to string, newPassword string) err
     </body>
     </html>
     `, newPassword, time.Now().Year())
+
+	return s.SendEmail([]string{to}, subject, body)
+}
+
+// TicketInfo represents a ticket with its QR code content and label
+type TicketInfo struct {
+	Content string
+	Label   string
+}
+
+// SendTicketsEmail sends an email with QR codes for tickets
+func (s *emailService) SendTicketsEmail(to string, customerName string, tickets []TicketInfo) error {
+	subject := "Your Zoo Johor Tickets"
+
+	// Begin building HTML content
+	var contentBuilder bytes.Buffer
+	contentBuilder.WriteString(`
+	<div class="content">
+		<p>Dear ` + customerName + `,</p>
+		<p>Thank you for your purchase. Below are your tickets for Zoo Johor:</p>
+		<div class="tickets">
+	`)
+
+	// Generate QR code for each ticket and add to email content
+	for _, ticket := range tickets {
+		// Generate QR code
+		qrCode, err := qr.Encode(ticket.Content, qr.M, qr.Auto)
+		if err != nil {
+			return fmt.Errorf("failed to generate QR code: %w", err)
+		}
+
+		// Scale QR code to appropriate size
+		qrCode, err = barcode.Scale(qrCode, 200, 200)
+		if err != nil {
+			return fmt.Errorf("failed to scale QR code: %w", err)
+		}
+
+		// Encode QR code as base64 string to embed in email
+		var qrBuffer bytes.Buffer
+		err = png.Encode(&qrBuffer, qrCode)
+		if err != nil {
+			return fmt.Errorf("failed to encode QR code as PNG: %w", err)
+		}
+
+		qrBase64 := base64.StdEncoding.EncodeToString(qrBuffer.Bytes())
+
+		// Add ticket with QR code to email content
+		contentBuilder.WriteString(`
+			<div class="ticket">
+				<div class="qr-code">
+					<img src="data:image/png;base64,` + qrBase64 + `" alt="QR Code" style="width: 150px; height: 150px;">
+				</div>
+				<div class="ticket-info">
+					<h3>` + ticket.Label + `</h3>
+					<p>Please scan this QR code at the entrance gate.</p>
+				</div>
+			</div>
+		`)
+	}
+
+	contentBuilder.WriteString(`
+		</div>
+		<p>Please show these QR codes at the entrance for scanning.</p>
+		<p>We hope you enjoy your visit to Zoo Johor!</p>
+	</div>
+	`)
+
+	// Complete HTML email body with nice formatting
+	body := fmt.Sprintf(`
+	<html>
+	<head>
+		<style>
+			body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
+			.container { max-width: 650px; margin: 0 auto; background-color: #f8f9fa; padding: 20px; border-radius: 5px; }
+			.header { background-color: #f4a261; color: white; padding: 15px; border-radius: 5px 5px 0 0; text-align: center; }
+			.content { padding: 20px; background-color: white; border-radius: 0 0 5px 5px; }
+			.tickets { margin: 20px 0; }
+			.ticket { border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 20px; display: flex; align-items: center; }
+			.ticket-info { margin-left: 20px; }
+			.qr-code { text-align: center; }
+			.qr-code img { border: 1px solid #eee; padding: 5px; }
+			.footer { margin-top: 20px; font-size: 12px; color: #666; text-align: center; }
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<div class="header">
+				<h2>Zoo Johor Tickets</h2>
+			</div>
+			%s
+			<div class="footer">
+				<p>This is an automated message, please do not reply to this email.</p>
+				<p>&copy; %d Zoo Johor</p>
+			</div>
+		</div>
+	</body>
+	</html>
+	`, contentBuilder.String(), time.Now().Year())
 
 	return s.SendEmail([]string{to}, subject, body)
 }

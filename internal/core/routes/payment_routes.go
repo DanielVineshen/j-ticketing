@@ -1,10 +1,12 @@
 package routes
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha512"
+	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -12,15 +14,57 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"io"
 	"j-ticketing/internal/core/dto/payment"
+	"j-ticketing/internal/db/models"
+	"j-ticketing/internal/db/repositories"
 	"log"
 	"net/http"
 	"net/url"
-	"os"
+	"strconv"
 	"strings"
 	"time"
 )
 
-func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
+type TransactionResponse struct {
+	IDTransaksi     string `json:"id_transaksi"`
+	OrderNo         string `json:"order_no"`
+	StatusTransaksi string `json:"status_transaksi"`
+	StatusMessage   string `json:"status_message"`
+	TarikhTransaksi string `json:"tarikh_transaksi"`
+	KodBank         string `json:"kod_bank"`
+	NamaBank        string `json:"nama_bank"`
+	JpMsgToken      string `json:"jp_msg_token"`
+}
+
+// First, define the request and response structures for the Johor Zoo API
+type ZooTicketItem struct {
+	ItemId string `json:"ItemId"`
+	Qty    int    `json:"Qty"`
+}
+
+type ZooTicketRequest struct {
+	TranDate    string          `json:"TranDate"`
+	ReferenceNo string          `json:"ReferenceNo"`
+	Items       []ZooTicketItem `json:"Items"`
+}
+
+type ZooTicketInfo struct {
+	TWBID       string `json:"TWBID"`
+	ItemId      string `json:"ItemId"`
+	EncryptedID string `json:"EncryptedID"`
+	AdmitDate   string `json:"AdmitDate"`
+	UnitPrice   string `json:"UnitPrice"`
+	ItemDesc    string `json:"ItemDesc"`
+	ItemDesc2   string `json:"ItemDesc2"`
+	ItemDesc3   string `json:"ItemDesc3"`
+}
+
+type ZooTicketResponse struct {
+	StatusCode    string          `json:"StatusCode"`
+	ReceiptNumber string          `json:"ReceiptNumber"`
+	Tickets       []ZooTicketInfo `json:"Tickets"`
+}
+
+func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, orderTicketGroupRepo *repositories.OrderTicketGroupRepository, orderTicketInfoRepo *repositories.OrderTicketInfoRepository) {
 	app.Post("/decrypt", func(c *fiber.Ctx) error {
 		// Original combined payload (IV:ciphertext)
 		payload := `5\/4g3kU5e3TeIHRBuODwaQ==:m o5UiCWiJedyfDIxY8IrF49tfd0qejW9Iv\/5XGKQZ7BZP4ahvwIO5zDxg0nEXL x HEsuhscS7g5t2T2Ip\/4xd5bJzmbMsHJsK29Qo224Fohzf9itYxvD8njnshKi1GcBEQNQbX1  F1VTzAskn84ARSI QWM Qepcerg59quUGL17xYGLo3hoKhUFnXFclcdCsL9iv19riJXpQ65n\/ 2ZvjXfbPv fUE4lRIYtP58qh9ABUUxSPUCNoyPp\/ CfuEVyNqvG T3fZeRB86AD1ujDtP4SAx\/cOLYrELKgqaE=`
@@ -106,148 +150,6 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
 
 	// Payment return handler (callback from payment gateway)
 	app.Get("/payment/return", func(c *fiber.Ctx) error {
-		// Log the entire request for debugging
-		log.Printf("============ PAYMENT RETURN RECEIVED ============")
-		log.Printf("Time: %s", time.Now().Format(time.RFC3339))
-
-		// Log request method and URL
-		log.Printf("Method: %s", c.Method())
-		log.Printf("Path: %s", c.Path())
-		log.Printf("Full URL: %s", c.BaseURL()+c.OriginalURL())
-
-		// Log all HTTP headers
-		log.Printf("------ Headers ------")
-		c.Request().Header.VisitAll(func(key, value []byte) {
-			log.Printf("%s: %s", string(key), string(value))
-		})
-
-		// Log all query parameters
-		log.Printf("------ Query Parameters ------")
-		queryParams := c.Queries()
-		for k, v := range queryParams {
-			log.Printf("%s: %s", k, v)
-		}
-
-		// Enhanced body logging
-		log.Printf("------ Request Body ------")
-
-		// Get raw body bytes
-		body := c.Body()
-		log.Printf("Body length: %d bytes", len(body))
-
-		if len(body) > 0 {
-			// Log raw body as string
-			bodyStr := string(body)
-			log.Printf("Raw body: %s", bodyStr)
-
-			// Log body as hex dump for binary inspection
-			log.Printf("Body hex dump:")
-			for i := 0; i < len(body); i += 16 {
-				end := i + 16
-				if end > len(body) {
-					end = len(body)
-				}
-				chunk := body[i:end]
-				hexStr := ""
-				asciiStr := ""
-
-				for _, b := range chunk {
-					hexStr += fmt.Sprintf("%02x ", b)
-					if b >= 32 && b <= 126 { // Printable ASCII
-						asciiStr += string(b)
-					} else {
-						asciiStr += "."
-					}
-				}
-
-				// Pad for alignment if needed
-				for j := len(chunk); j < 16; j++ {
-					hexStr += "   "
-				}
-
-				log.Printf("  %04x: %s | %s", i, hexStr, asciiStr)
-			}
-
-			// Try to parse as URL-encoded form data
-			contentType := c.Get("Content-Type")
-			if strings.Contains(contentType, "application/x-www-form-urlencoded") {
-				log.Printf("Detected form-urlencoded content type")
-
-				// Parse as form data
-				var form map[string][]string
-				if err := c.QueryParser(&form); err == nil {
-					log.Printf("Parsed form data:")
-					for k, v := range form {
-						log.Printf("  %s: %v", k, v)
-					}
-				} else {
-					log.Printf("Failed to parse form data: %v", err)
-
-					// Try manual parsing
-					formItems := strings.Split(bodyStr, "&")
-					log.Printf("Manual form parsing (%d items):", len(formItems))
-					for _, item := range formItems {
-						parts := strings.SplitN(item, "=", 2)
-						if len(parts) == 2 {
-							key, _ := url.QueryUnescape(parts[0])
-							value, _ := url.QueryUnescape(parts[1])
-							log.Printf("  %s: %s", key, value)
-						} else if len(parts) == 1 {
-							key, _ := url.QueryUnescape(parts[0])
-							log.Printf("  %s: (no value)", key)
-						}
-					}
-				}
-			}
-
-			// Try to parse as JSON
-			if strings.Contains(contentType, "application/json") ||
-				(bodyStr != "" && bodyStr[0] == '{' && bodyStr[len(bodyStr)-1] == '}') {
-				log.Printf("Attempting to parse as JSON")
-				var jsonData map[string]interface{}
-				if err := json.Unmarshal(body, &jsonData); err == nil {
-					jsonBytes, _ := json.MarshalIndent(jsonData, "", "  ")
-					log.Printf("Parsed JSON data:\n%s", string(jsonBytes))
-				} else {
-					log.Printf("Failed to parse as JSON: %v", err)
-				}
-			}
-
-			// Look for specific patterns in the body
-			if strings.Contains(bodyStr, ":") && strings.Contains(bodyStr, "==") {
-				log.Printf("Body appears to contain encoded/encrypted data (contains ':' and '==')")
-
-				// Split and log parts separately
-				parts := strings.Split(bodyStr, ":")
-				log.Printf("Found %d parts separated by ':'", len(parts))
-				for i, part := range parts {
-					log.Printf("Part %d: %s", i+1, part)
-
-					// Check if this part looks like Base64
-					if strings.Contains(part, "==") || strings.Contains(part, "=") {
-						log.Printf("Part %d appears to be Base64 encoded", i+1)
-					}
-				}
-			}
-		} else {
-			log.Printf("Body is empty")
-		}
-
-		// Log any cookies
-		log.Printf("------ Cookies ------")
-		cookieHeader := c.Get("Cookie")
-		log.Printf("Cookie header: %s", cookieHeader)
-
-		// Log any session data
-		log.Printf("------ Session/Store Data ------")
-
-		// Log IP address and user agent
-		log.Printf("------ Client Info ------")
-		log.Printf("IP: %s", c.IP())
-		log.Printf("User-Agent: %s", c.Get("User-Agent"))
-
-		log.Printf("============ END PAYMENT RETURN LOG ============")
-
 		// Get the payload and remove surrounding quotes first
 		payload := strings.Trim(c.Query("payload"), "\"")
 
@@ -318,17 +220,6 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
 		fmt.Println("\nDecrypted result:")
 		fmt.Println(result)
 
-		type TransactionResponse struct {
-			IDTransaksi     string `json:"id_transaksi"`
-			OrderNo         string `json:"order_no"`
-			StatusTransaksi string `json:"status_transaksi"`
-			StatusMessage   string `json:"status_message"`
-			TarikhTransaksi string `json:"tarikh_transaksi"`
-			KodBank         string `json:"kod_bank"`
-			NamaBank        string `json:"nama_bank"`
-			JpMsgToken      string `json:"jp_msg_token"`
-		}
-
 		// Then unmarshal the JSON into this struct
 		var transactionData TransactionResponse
 		jsonErr := json.Unmarshal([]byte(result), &transactionData)
@@ -338,25 +229,63 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
 			return jsonErr
 		}
 
-		// Extract and process payment status and other detailsø
+		// Update the order in the database
+		err = UpdateOrderFromPaymentResponse(transactionData.OrderNo, transactionData, *orderTicketGroupRepo)
+		if err != nil {
+			log.Printf("Error updating order: %v", err)
+			// Continue with the redirect even if the update fails
+			// This ensures the user sees a response, and we can fix the data later if needed
+		}
+
+		// Extract and process payment status and other details
 		status := transactionData.StatusTransaksi
 		log.Printf("Payment status detected: %s", status)
 
-		if status == "00" {
-			log.Printf("Redirecting to success page with transaction_id=%s, order_id=%s",
-				transactionData.IDTransaksi, transactionData.OrderNo)
-
-			return c.Redirect("/payment/success?transaction_id=" +
-				url.QueryEscape(transactionData.IDTransaksi) + "&order_id=" +
-				url.QueryEscape(transactionData.OrderNo))
-		} else {
-			log.Printf("Redirecting to failure page with error_code=%s, error_message=%s",
-				transactionData.StatusTransaksi, transactionData.StatusMessage)
-
-			return c.Redirect("/payment/failure?error_code=" +
-				url.QueryEscape(transactionData.StatusTransaksi) + "&error_message=" +
-				url.QueryEscape(transactionData.StatusMessage))
+		// Find the order first
+		order, err := orderTicketGroupRepo.FindByOrderNo(transactionData.OrderNo)
+		if err != nil {
+			log.Printf("Error finding order %s: %v", transactionData.OrderNo, err)
+			return err
 		}
+
+		if order == nil {
+			log.Printf("Order not found: %s", transactionData.OrderNo)
+			return fmt.Errorf("order not found: %s", transactionData.OrderNo)
+		}
+
+		// Determine the transaction status for the database
+		var dbStatus string
+		switch transactionData.StatusTransaksi {
+		case "00":
+			dbStatus = "success"
+		case "AP", "09", "99":
+			dbStatus = "pending"
+		default:
+			dbStatus = "failed"
+		}
+
+		// This would go after the database update but before the redirect
+		if dbStatus == "success" {
+			// Only call the Zoo API if payment was successful
+			err = PostToZooAPI(order, transactionData.OrderNo, *orderTicketInfoRepo)
+			if err != nil {
+				log.Printf("Error posting to Johor Zoo API: %v", err)
+				// Continue with redirect even if this fails, we can retry later
+			}
+		}
+
+		successURL := paymentConfig.FrontendBaseURL + "/paymentRedirect"
+
+		log.Printf("Redirecting to external success page: %s", successURL)
+
+		// Build the full URL with query parameters
+		redirectURL := fmt.Sprintf("%s?orderTicketGroupId=%s&transactionStatus=%s&orderNo=%s",
+			successURL,
+			url.QueryEscape(strconv.Itoa(int(order.OrderTicketGroupId))),
+			url.QueryEscape(dbStatus),
+			url.QueryEscape(transactionData.OrderNo))
+
+		return c.Redirect(redirectURL)
 	})
 
 	// Payment process - this will redirect to the payment gateway
@@ -368,17 +297,17 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
 		log.Printf("orderNo: %s", randomStr)
 
 		token := c.FormValue("token")
+		orderNo := c.FormValue("orderNo")
+		billId := c.FormValue("billId")
+		productId := c.FormValue("productId")
+		buyerName := c.FormValue("buyerName")
+		buyerEmail := c.FormValue("buyerEmail")
+		totalAmount := c.FormValue("totalAmount")
+		productDesc := c.FormValue("productDesc")
 		msgToken := c.FormValue("msgToken")
 		bankCode := c.FormValue("bankCode")
 
-		buyerName := "Test"
 		agToken := paymentConfig.AGToken
-		billId := randomStr
-		orderNo := randomStr
-		totalAmount := "99.99"
-		productId := "PROD-ID01"
-		productDesc := "PROD-DESC"
-		email := "test@gmail.com"
 		method := "getRedirectUrl"
 		redirectUrl := paymentConfig.BaseURL + "/payment/return"
 
@@ -409,7 +338,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
 		formData.Set("jp_total_amount", totalAmount)
 		formData.Set("jp_product_id", productId)
 		formData.Set("jp_product_desc", productDesc)
-		formData.Set("jp_email", email)
+		formData.Set("jp_email", buyerEmail)
 		formData.Set("method", method)
 		formData.Set("jp_redirect_url", redirectUrl)
 		formData.Set("jp_checksum", checksum)
@@ -524,7 +453,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
 
 		// Create a new HTTP client
 		client := &http.Client{
-			Timeout: time.Second * 10,
+			Timeout: time.Second * 30,
 		}
 
 		// Create a new request
@@ -607,6 +536,14 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
 			})
 		}
 
+		// Determine the mode value
+		var mode string
+		if request.Mode == "individual" || request.Mode == "01" {
+			mode = "01"
+		} else {
+			mode = "02"
+		}
+
 		// Get the API key from config
 		apiKey := paymentConfig.APIKey
 
@@ -614,11 +551,11 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
 		formData := url.Values{}
 		formData.Set("jp_ag_token", "ZOO")
 		formData.Set("method", "getBankList")
-		formData.Set("mode", request.Mode)
+		formData.Set("mode", mode)
 
 		// Create a new HTTP client
 		client := &http.Client{
-			Timeout: time.Second * 10,
+			Timeout: time.Second * 30,
 		}
 
 		// Create a new request
@@ -697,24 +634,6 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig) {
 	})
 }
 
-// Helper function to get environment variables with fallback
-func getEnv(key, fallback string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return fallback
-	}
-	return value
-}
-
-// Helper function to get environment variables with required check
-func getRequiredEnv(key string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		log.Fatalf("Error: Environment variable %s is required but not set", key)
-	}
-	return value
-}
-
 // GenerateRandom16 generates a cryptographically secure random string of 16 characters
 func GenerateRandom16() (string, error) {
 	// We need 12 bytes to get 16 characters in base64
@@ -732,35 +651,246 @@ func GenerateRandom16() (string, error) {
 	return randomString, nil
 }
 
-func Ase256Decode(cipherText string, encKey string, iv []byte) (decryptedString string) {
-	// Take first 32 characters of key (this matches PHP's behavior)
-	key := []byte(encKey[:32])
+func UpdateOrderFromPaymentResponse(orderNo string, transactionData TransactionResponse,
+	orderTicketGroupRepo repositories.OrderTicketGroupRepository) error {
 
-	// Decode base64 ciphertext
-	cipherData, err := base64.StdEncoding.DecodeString(cipherText)
+	// Find the order first
+	order, err := orderTicketGroupRepo.FindByOrderNo(orderNo)
 	if err != nil {
-		return ""
+		log.Printf("Error finding order %s: %v", orderNo, err)
+		return err
 	}
 
-	// Create cipher block
-	block, err := aes.NewCipher(key)
+	if order == nil {
+		log.Printf("Order not found: %s", orderNo)
+		return fmt.Errorf("order not found: %s", orderNo)
+	}
+
+	// Determine the transaction status for the database
+	var dbStatus string
+	switch transactionData.StatusTransaksi {
+	case "00":
+		dbStatus = "success"
+	case "AP", "09", "99":
+		dbStatus = "pending"
+	default:
+		dbStatus = "failed"
+	}
+
+	// Update order fields
+	order.TransactionId = transactionData.IDTransaksi
+	order.TransactionStatus = dbStatus
+	//order.TransactionDate = transactionData.TarikhTransaksi
+	order.StatusMessage = sql.NullString{String: transactionData.StatusMessage, Valid: transactionData.StatusMessage != ""}
+	order.UpdatedAt = time.Now()
+
+	// Save the updated order
+	err = orderTicketGroupRepo.Update(order)
 	if err != nil {
-		return ""
+		log.Printf("Error updating order: %v", err)
+		return err
 	}
 
-	// Create a buffer for decryption
-	plaintext := make([]byte, len(cipherData))
+	log.Printf("Successfully updated order %s with transaction ID %s and status %s",
+		orderNo, transactionData.IDTransaksi, dbStatus)
 
-	// Decrypt using CBC mode
-	mode := cipher.NewCBCDecrypter(block, iv)
-	mode.CryptBlocks(plaintext, cipherData)
+	return nil
+}
 
-	// Remove PKCS7 padding
-	paddingLen := int(plaintext[len(plaintext)-1])
-	if paddingLen > 0 && paddingLen <= aes.BlockSize {
-		plaintext = plaintext[:len(plaintext)-paddingLen]
+// Define the function to post to the Zoo API
+func PostToZooAPI(order *models.OrderTicketGroup, orderNo string, orderTicketInfoRepo repositories.OrderTicketInfoRepository) error {
+	// Get the order ticket items
+	orderTickets, err := orderTicketInfoRepo.FindByOrderTicketGroupID(order.OrderTicketGroupId)
+	if err != nil {
+		return fmt.Errorf("failed to get order tickets: %w", err)
 	}
 
-	// Return as string
-	return string(plaintext)
+	// Build the request
+	items := make([]ZooTicketItem, 0, len(orderTickets))
+	for _, ticket := range orderTickets {
+		items = append(items, ZooTicketItem{
+			ItemId: ticket.ItemId,
+			Qty:    ticket.QuantityBought,
+		})
+	}
+
+	// Format the admission date from the order
+	admissionDate := order.TransactionDate[:10]
+
+	// Create the request payload
+	payload := ZooTicketRequest{
+		TranDate:    admissionDate,
+		ReferenceNo: orderNo, // Use the order number as reference
+		Items:       items,
+	}
+
+	// Convert to JSON
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	// Get a fresh token from the token generation endpoint
+	token, err := generateZooAPIToken()
+	if err != nil {
+		return fmt.Errorf("failed to generate API token: %w", err)
+	}
+
+	// Create a new HTTP client
+	client := &http.Client{
+		Timeout: time.Second * 60,
+	}
+
+	// Create the request
+	req, err := http.NewRequest("POST", "https://eglobal2.ddns.net/johorzooapi/api/JohorZoo/PostOnlinePurchase", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Add headers
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", "Bearer "+token)
+
+	// Send the request
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read the response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Check if the response status is OK
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("API returned non-OK status: %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse the response
+	var zooResponse ZooTicketResponse
+	err = json.Unmarshal(body, &zooResponse)
+	if err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	// Check if the status code is OK
+	if zooResponse.StatusCode != "OK" {
+		return fmt.Errorf("API returned status code: %s", zooResponse.StatusCode)
+	}
+
+	// Update each ticket with the data from the API
+	// Create a map of tickets by item ID for quick lookup
+	ticketByItemId := make(map[string][]*models.OrderTicketInfo)
+	for i := range orderTickets {
+		ticketByItemId[orderTickets[i].ItemId] = append(ticketByItemId[orderTickets[i].ItemId], &orderTickets[i])
+	}
+
+	// Update the tickets with data from the response
+	for _, zooTicket := range zooResponse.Tickets {
+		// Get the list of tickets for this item ID
+		ticketsForItem, exists := ticketByItemId[zooTicket.ItemId]
+		if !exists || len(ticketsForItem) == 0 {
+			log.Printf("No matching tickets found for item ID: %s", zooTicket.ItemId)
+			continue
+		}
+
+		// Get the next ticket that hasn't been updated yet
+		var ticketToUpdate *models.OrderTicketInfo
+		for _, t := range ticketsForItem {
+			if t.EncryptedId == "" {
+				ticketToUpdate = t
+				break
+			}
+		}
+
+		if ticketToUpdate == nil {
+			log.Printf("All tickets for item ID %s have already been updated", zooTicket.ItemId)
+			continue
+		}
+
+		// Update the ticket with data from the Zoo API
+		ticketToUpdate.EncryptedId = zooTicket.EncryptedID
+		ticketToUpdate.AdmitDate = zooTicket.AdmitDate
+
+		// Parse unit price if needed
+		if unitPrice, err := strconv.ParseFloat(zooTicket.UnitPrice, 64); err == nil {
+			ticketToUpdate.UnitPrice = unitPrice
+		}
+
+		// Update the ticket in the database
+		err = orderTicketInfoRepo.Update(ticketToUpdate)
+		if err != nil {
+			log.Printf("Failed to update ticket %s: %v", ticketToUpdate.OrderTicketInfoId, err)
+			// Continue updating other tickets
+		}
+
+		// Remove this ticket from the list to ensure we don't update it again
+		for i, t := range ticketsForItem {
+			if t == ticketToUpdate {
+				ticketsForItem = append(ticketsForItem[:i], ticketsForItem[i+1:]...)
+				break
+			}
+		}
+		ticketByItemId[zooTicket.ItemId] = ticketsForItem
+	}
+
+	return nil
+}
+
+// Function to generate a token for the Zoo API
+func generateZooAPIToken() (string, error) {
+	// Create form data for x-www-form-urlencoded request
+	formData := url.Values{}
+	formData.Set("grant_type", "password")
+	formData.Set("UserName", "Tester")
+	formData.Set("Password", "TestingAbc123")
+
+	// Create a new HTTP client
+	client := &http.Client{
+		Timeout: time.Second * 30,
+	}
+
+	// Create a new request
+	req, err := http.NewRequest("POST", "https://eglobal2.ddns.net/johorzooapi/Token", strings.NewReader(formData.Encode()))
+	if err != nil {
+		return "", fmt.Errorf("error creating token request: %w", err)
+	}
+
+	// Add headers
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	// Execute the request
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("error executing token request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read the response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading token response: %w", err)
+	}
+
+	// Parse the JSON response
+	var tokenResponse struct {
+		AccessToken string `json:"access_token"`
+		TokenType   string `json:"token_type"`
+		ExpiresIn   int    `json:"expires_in"`
+	}
+
+	if err := json.Unmarshal(body, &tokenResponse); err != nil {
+		return "", fmt.Errorf("error parsing token JSON: %w", err)
+	}
+
+	// Check if we got an access token
+	if tokenResponse.AccessToken == "" {
+		return "", fmt.Errorf("no access token in response: %s", string(body))
+	}
+
+	// Return the access token
+	return tokenResponse.AccessToken, nil
 }

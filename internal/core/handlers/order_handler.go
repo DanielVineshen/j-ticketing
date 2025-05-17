@@ -3,25 +3,26 @@ package handlers
 
 import (
 	"fmt"
+	"github.com/gofiber/fiber/v2"
 	orderDto "j-ticketing/internal/core/dto/order"
 	services "j-ticketing/internal/core/services"
 	"j-ticketing/pkg/errors"
 	"j-ticketing/pkg/models"
 	"strconv"
 	"strings"
-
-	"github.com/gofiber/fiber/v2"
 )
 
 // OrderHandler handles HTTP requests for orders
 type OrderHandler struct {
-	orderService *services.OrderService
+	orderService    *services.OrderService
+	customerService services.CustomerService
 }
 
 // NewOrderHandler creates a new instance of OrderHandler
-func NewOrderHandler(orderService *services.OrderService) *OrderHandler {
+func NewOrderHandler(orderService *services.OrderService, customerService services.CustomerService) *OrderHandler {
 	return &OrderHandler{
-		orderService: orderService,
+		orderService:    orderService,
+		customerService: customerService,
 	}
 }
 
@@ -143,31 +144,78 @@ func (h *OrderHandler) GetOrderTicketGroup(c *fiber.Ctx) error {
 }
 
 // CreateOrderTicketGroup handles POST requests to create a new order
+//
+//	func (h *OrderHandler) CreateOrderTicketGroup(c *fiber.Ctx) error {
+//		// Get the customer ID from the context (set by auth middleware)
+//		custId, ok := c.Locals("userId").(string)
+//		if !ok {
+//			return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
+//				errors.USER_NOT_AUTHORIZED.Code, "User not authenticated", nil,
+//			))
+//		}
+//
+//		// Get the user type from the context
+//		userType, ok := c.Locals("userType").(string)
+//		if !ok {
+//			return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
+//				errors.USER_NOT_AUTHORIZED.Code, "User type not found", nil,
+//			))
+//		}
+//
+//		// Only customers can create orders
+//		if userType != "customer" {
+//			return c.Status(fiber.StatusForbidden).JSON(models.NewBaseErrorResponse(
+//				errors.USER_NOT_PERMITTED.Code, "Only customers can create orders", nil,
+//			))
+//		}
+//
+//		// Parse request body
+//		var req orderDto.CreateOrderRequest
+//		if err := c.BodyParser(&req); err != nil {
+//			return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+//				errors.INVALID_INPUT_FORMAT.Code, "Invalid request format", nil,
+//			))
+//		}
+//
+//		// Validate request
+//		if err := req.Validate(); err != nil {
+//			return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+//				errors.INVALID_INPUT_VALUES.Code, err.Error(), nil,
+//			))
+//		}
+//
+//		// Create the order
+//		orderID, err := h.orderService.CreateOrder(custId, &req)
+//		if err != nil {
+//			// Determine appropriate error code based on the error
+//			if strings.Contains(err.Error(), "not found") {
+//				return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(
+//					errors.ENTITY_NOT_FOUND_EXCEPTION.Code, err.Error(), nil,
+//				))
+//			} else if strings.Contains(err.Error(), "payment processing failed") {
+//				return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+//					errors.PROCESSING_ERROR.Code, err.Error(), nil,
+//				))
+//			} else {
+//				return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
+//					errors.PROCESSING_ERROR.Code, "Failed to create order: "+err.Error(), nil,
+//				))
+//			}
+//		}
+//
+//		// Generate the checkout URL
+//		checkoutURL := h.generateCheckoutURL(orderID, req.PaymentType)
+//
+//		// Return success response with redirect information
+//		return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(map[string]interface{}{
+//			"redirectURL": checkoutURL,
+//			"orderID":     orderID,
+//		}))
+//	}
+//
+// CreateOrderTicketGroup handles POST requests to create a new order
 func (h *OrderHandler) CreateOrderTicketGroup(c *fiber.Ctx) error {
-	// Get the customer ID from the context (set by auth middleware)
-	custId, ok := c.Locals("userId").(string)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
-			errors.USER_NOT_AUTHORIZED.Code, "User not authenticated", nil,
-		))
-	}
-
-	// Get the user type from the context
-	userType, ok := c.Locals("userType").(string)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
-			errors.USER_NOT_AUTHORIZED.Code, "User type not found", nil,
-		))
-	}
-
-	// Only customers can create orders
-	if userType != "customer" {
-		return c.Status(fiber.StatusForbidden).JSON(models.NewBaseErrorResponse(
-			errors.USER_NOT_PERMITTED.Code, "Only customers can create orders", nil,
-		))
-	}
-
-	// Parse request body
+	// Parse request body first so we can use the data either way
 	var req orderDto.CreateOrderRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
@@ -182,7 +230,56 @@ func (h *OrderHandler) CreateOrderTicketGroup(c *fiber.Ctx) error {
 		))
 	}
 
-	// Create the order
+	// Variable to hold the customer ID
+	var custId string
+
+	// Check if token exists (user is authenticated)
+	tokenUser, ok := c.Locals("userId").(string)
+	if ok && tokenUser != "" {
+		// Get the user type from the context
+		userType, userTypeOk := c.Locals("userType").(string)
+		if !userTypeOk {
+			return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
+				errors.USER_NOT_AUTHORIZED.Code, "User type not found", nil,
+			))
+		}
+
+		// Only customers can create orders
+		if userType != "customer" {
+			return c.Status(fiber.StatusForbidden).JSON(models.NewBaseErrorResponse(
+				errors.USER_NOT_PERMITTED.Code, "Only customers can create orders", nil,
+			))
+		}
+
+		// Use the authenticated user's ID
+		custId = tokenUser
+	} else {
+		// No token or not authenticated - check if a customer with this email exists
+		customer, err := h.customerService.GetCustomerByEmail(req.Email)
+		if err != nil {
+			// Customer doesn't exist, create a new one
+			newCustomer, err := h.customerService.RegisterCustomer(
+				req.Email,
+				"",
+				req.IdentificationNo,
+				req.FullName,
+				req.ContactNo,
+			)
+
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
+					errors.PROCESSING_ERROR.Code, "Failed to create customer: "+err.Error(), nil,
+				))
+			}
+
+			custId = newCustomer.CustId
+		} else {
+			// Customer exists, use their ID
+			custId = customer.CustId
+		}
+	}
+
+	// Create the order using the custId we determined
 	orderID, err := h.orderService.CreateOrder(custId, &req)
 	if err != nil {
 		// Determine appropriate error code based on the error

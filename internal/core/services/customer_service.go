@@ -19,6 +19,7 @@ type CustomerService interface {
 	DisableCustomer(id string) error
 	EnableCustomer(id string) error
 	ListCustomers() ([]models.Customer, error)
+	GetCustomerByEmail(email string) (*models.Customer, error)
 }
 
 type customerService struct {
@@ -32,6 +33,11 @@ func NewCustomerService(customerRepo repositories.CustomerRepository) CustomerSe
 	}
 }
 
+func (s *customerService) GetCustomerByEmail(email string) (*models.Customer, error) {
+	// This simply calls the repository's FindByEmail method
+	return s.customerRepo.FindByEmail(email)
+}
+
 // RegisterCustomer registers a new customer
 func (s *customerService) RegisterCustomer(email, password, identificationNo, fullName, contactNo string) (*models.Customer, error) {
 	// Check if email already exists
@@ -40,10 +46,28 @@ func (s *customerService) RegisterCustomer(email, password, identificationNo, fu
 		return nil, fmt.Errorf("email already exists")
 	}
 
-	// Hash the password
-	hashedPassword, err := bcryptPassword.HashPassword(password)
-	if err != nil {
-		return nil, err
+	// Initialize password as a null string
+	var passwordField sql.NullString
+
+	// Only hash and set password if it's provided
+	if password != "" {
+		// Hash the password
+		hashedPassword, err := bcryptPassword.HashPassword(password)
+		if err != nil {
+			return nil, err
+		}
+
+		// Set the password field with the hashed password
+		passwordField = sql.NullString{
+			String: hashedPassword,
+			Valid:  true,
+		}
+	} else {
+		// If no password is provided, leave it as NULL in the database
+		passwordField = sql.NullString{
+			String: "",
+			Valid:  false,
+		}
 	}
 
 	// Generate a unique customer ID
@@ -57,7 +81,7 @@ func (s *customerService) RegisterCustomer(email, password, identificationNo, fu
 	customer := &models.Customer{
 		CustId:           custID,
 		Email:            email,
-		Password:         sql.NullString{String: hashedPassword, Valid: hashedPassword != ""},
+		Password:         passwordField,
 		IdentificationNo: identificationNo,
 		FullName:         fullName,
 		ContactNo:        sql.NullString{String: contactNo, Valid: contactNo != ""},

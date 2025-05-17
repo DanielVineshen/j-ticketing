@@ -59,6 +59,15 @@ func main() {
 		log.Println("Create constraints is enabled")
 	}
 
+	// Initialize payment config
+	paymentConfig := payment.PaymentConfig{
+		GatewayURL:      getRequiredEnv("PAYMENT_GATEWAY_URL"),
+		APIKey:          getRequiredEnv("JP_API_KEY"),
+		BaseURL:         getRequiredEnv("BASE_URL"),
+		AGToken:         getRequiredEnv("AG_TOKEN"),
+		FrontendBaseURL: getRequiredEnv("FRONTEND_BASE_URL"),
+	}
+
 	// Initialize database connection with auto-migration control
 	dbConfig := &db.DBConfig{
 		AutoMigrate:       autoMigrate,
@@ -130,12 +139,15 @@ func main() {
 		tagRepo,
 		groupGalleryRepo,
 		ticketDetailRepo,
+		&paymentConfig,
+		ticketGroupService,
 	)
+	customerService := service.NewCustomerService(customerRepo)
 
 	// Initialize handlers
 	ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService)
 	authHandler := handlers.NewAuthHandler(authService, emailService) // Update auth handler with email service
-	orderHandler := handlers.NewOrderHandler(orderService)
+	orderHandler := handlers.NewOrderHandler(orderService, customerService)
 
 	// Initialize logger
 	logger, err := zap.NewProduction()
@@ -162,19 +174,11 @@ func main() {
 	// // Apply audit logging middleware (if needed)
 	// app.Use(middleware.AuditMiddleware(auditLogRepo))
 
-	// Initialize payment config
-	paymentConfig := payment.PaymentConfig{
-		GatewayURL: getRequiredEnv("PAYMENT_GATEWAY_URL"),
-		APIKey:     getRequiredEnv("JP_API_KEY"),
-		BaseURL:    getRequiredEnv("BASE_URL"),
-		AGToken:    getRequiredEnv("AG_TOKEN"),
-	}
-
 	// Setup routes
 	routes.SetupTicketGroupRoutes(app, ticketGroupHandler, jwtService)
 	routes.SetupAuthRoutes(app, authHandler, jwtService)
 	routes.SetupOrderRoutes(app, orderHandler, jwtService)
-	routes.SetupPaymentRoutes(app, paymentConfig)
+	routes.SetupPaymentRoutes(app, paymentConfig, orderTicketGroupRepo, orderTicketInfoRepo)
 	routes.SetupViewRoutes(app)
 
 	// Start server

@@ -2,6 +2,7 @@
 package repositories
 
 import (
+	"errors"
 	"j-ticketing/internal/db/models"
 
 	"gorm.io/gorm"
@@ -52,6 +53,21 @@ func (r *OrderTicketGroupRepository) FindWithDetails(id uint) (*models.OrderTick
 		return nil, result.Error
 	}
 	return &orderTicketGroup, nil
+}
+
+// FindByOrderNo finds a order ticket group by its order number
+func (r *OrderTicketGroupRepository) FindByOrderNo(orderNo string) (*models.OrderTicketGroup, error) {
+	var order models.OrderTicketGroup
+
+	result := r.db.Where("order_no = ?", orderNo).First(&order)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil // No error, but order not found
+		}
+		return nil, result.Error
+	}
+
+	return &order, nil
 }
 
 // Create creates a new order ticket group

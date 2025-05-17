@@ -1,0 +1,75 @@
+# stages:
+#   - build_staging
+#   - build_production
+
+# variables:
+#   CONTAINER_CORE_IMAGE: ${CI_REGISTRY_IMAGE}/core:${CI_COMMIT_BRANCH}_${CI_COMMIT_SHORT_SHA}
+#   CONTAINER_SCHEDULER_IMAGE: ${CI_REGISTRY_IMAGE}/scheduler:${CI_COMMIT_BRANCH}_${CI_COMMIT_SHORT_SHA}
+
+# build_scheduler_staging:
+#   stage: build_staging
+#   script:
+#     - echo "Building image..."
+#     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+#     - docker build -f Dockerfile.core --build-arg VITE_API_BASE_URL=$VITE_API_BASE_URL --build-arg VITE_PAYMENT_GATEWAY_BASE_URL=$VITE_PAYMENT_GATEWAY_BASE_URL -t $CONTAINER_CORE_IMAGE .
+#     - docker push $CONTAINER_CORE_IMAGE
+#     - docker tag ${CONTAINER_CORE_IMAGE} ${CI_REGISTRY_IMAGE}/core:${CI_COMMIT_REF_SLUG}
+#     - docker push ${CI_REGISTRY_IMAGE}/core:${CI_COMMIT_REF_SLUG}
+#   tags:
+#     - mashup-runner 
+#   environment:
+#     name: Staging
+#   only:
+#     - dev 
+
+
+# build_scheduler_staging:
+#   stage: build_staging
+#   script:
+#     - echo "Building image..."
+#     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+#     - docker build -f Dockerfile.scheduler --build-arg VITE_API_BASE_URL=$VITE_API_BASE_URL --build-arg VITE_PAYMENT_GATEWAY_BASE_URL=$VITE_PAYMENT_GATEWAY_BASE_URL -t $CONTAINER_SCHEDULER_IMAGE .
+#     - docker push $CONTAINER_SCHEDULER_IMAGE
+#     - docker tag ${CONTAINER_SCHEDULER_IMAGE} ${CI_REGISTRY_IMAGE}/scheduler:${CI_COMMIT_REF_SLUG}
+#     - docker push ${CI_REGISTRY_IMAGE}/scheduler:${CI_COMMIT_REF_SLUG}
+#   tags:
+#     - mashup-runner 
+#   environment:
+#     name: Staging
+#   only:
+#     - dev 
+
+
+
+# build_core_production:
+#   stage: build_production
+#   script:
+#     - echo "Building image..."
+#     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+#     - docker build -f Dockerfile.core --build-arg VITE_API_BASE_URL=$VITE_API_BASE_URL --build-arg VITE_PAYMENT_GATEWAY_BASE_URL=$VITE_PAYMENT_GATEWAY_BASE_URL -t $CONTAINER_CORE_IMAGE .
+#     - docker push $CONTAINER_CORE_IMAGE
+#     - docker tag ${CONTAINER_CORE_IMAGE} ${CI_REGISTRY_IMAGE}/core:${CI_COMMIT_REF_SLUG}
+#     - docker push ${CI_REGISTRY_IMAGE}/core:${CI_COMMIT_REF_SLUG}
+#   tags:
+#     - mashup-runner 
+#   environment:
+#     name: Production
+#   only:
+#     - main
+
+
+# build_scheduler_production:
+#   stage: build_production
+#   script:
+#     - echo "Building image..."
+#     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+#     - docker build -f Dockerfile.scheduler --build-arg VITE_API_BASE_URL=$VITE_API_BASE_URL --build-arg VITE_PAYMENT_GATEWAY_BASE_URL=$VITE_PAYMENT_GATEWAY_BASE_URL -t $CONTAINER_SCHEDULER_IMAGE .
+#     - docker push $CONTAINER_SCHEDULER_IMAGE
+#     - docker tag ${CONTAINER_SCHEDULER_IMAGE} ${CI_REGISTRY_IMAGE}/scheduler:${CI_COMMIT_REF_SLUG}
+#     - docker push ${CI_REGISTRY_IMAGE}/scheduler:${CI_COMMIT_REF_SLUG}
+#   tags:
+#     - mashup-runner 
+#   environment:
+#     name: Production
+#   only:
+#     - main

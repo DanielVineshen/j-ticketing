@@ -1,0 +1,55 @@
+variables:
+  TARGET_DIR_STAGING: "ticket-iac/overlays/dev/ticket-cms"
+  TARGET_DIR_PROD: "ticket-iac/overlays/prod/ticket-cms"
+  IMAGE_TAG: ${CI_COMMIT_REF_SLUG}_${CI_COMMIT_SHORT_SHA}  # Update with your desired image tag
+  KUSTOMIZE_DOCKER_IMG: registry.k8s.io/kustomize/kustomize:v5.0.0
+
+update_image_tag_staging:
+  stage: update_image_tag_staging
+  script:
+    # Pull kustomize docker image
+    - docker pull $KUSTOMIZE_DOCKER_IMG
+    # Remove ticket-iac folder if it stills exists
+    - rm -rf ticket-iac
+    # Clone the repository using GitLab CI/CD token
+    - git clone -b update_queue https://pipeline-at:${PIPELINE_AT}@$TICKET_IAC_REPO_URL
+    # Change directory to the target directory
+    - cd $TARGET_DIR_STAGING
+    # Use kustomize edit to set new image tag
+    - docker run --rm -v $(pwd)/kustomization.yaml:/app/kustomization.yaml registry.k8s.io/kustomize/kustomize:v5.0.0 edit set image ${CI_REGISTRY_IMAGE}:$IMAGE_TAG
+    # Commit the changes
+    - git add .
+    - git commit -m "[Staging] Update image tag to ${CI_REGISTRY_IMAGE}:$IMAGE_TAG"
+    # Push the changes to the remote repository
+    - git push origin HEAD
+  tags:
+    - mashup-runner
+  environment:
+    name: Staging
+  only:
+    - staging
+
+update_image_tag_production:
+  stage: update_image_tag_production
+  script:
+     # Pull kustomize docker image
+    - docker pull $KUSTOMIZE_DOCKER_IMG
+    # Remove ticket-iac folder if it stills exists
+    - rm -rf ticket-iac
+    # Clone the repository using GitLab CI/CD token
+    - git clone -b update_queue https://pipeline-at:${PIPELINE_AT}@$TICKET_IAC_REPO_URL
+    # Change directory to the target directory
+    - cd $TARGET_DIR_PROD
+    # Use kustomize edit to set new image tag
+    - docker run --rm -v $(pwd)/kustomization.yaml:/app/kustomization.yaml registry.k8s.io/kustomize/kustomize:v5.0.0 edit set image ${CI_REGISTRY_IMAGE}:$IMAGE_TAG
+    # Commit the changes
+    - git add .
+    - git commit -m "[Production] Update image tag to ${CI_REGISTRY_IMAGE}:$IMAGE_TAG"
+    # Push the changes to the remote repository
+    - git push origin HEAD
+  tags:
+    - mashup-runner
+  environment:
+    name: Production
+  only:
+    - main

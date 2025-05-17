@@ -20,7 +20,7 @@ WORKDIR /app
 COPY --from=builder /app/core-server .
 
 # Expose the port the API runs on
-EXPOSE 8080
+EXPOSE 8081
 
 # Run the binary
 CMD ["./core-server"]

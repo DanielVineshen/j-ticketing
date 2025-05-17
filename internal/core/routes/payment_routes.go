@@ -274,7 +274,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, ord
 			}
 		}
 
-		successURL := paymentConfig.FrontendBaseURL + "paymentRedirect"
+		successURL := paymentConfig.FrontendBaseURL + "/paymentRedirect"
 
 		log.Printf("Redirecting to external success page: %s", successURL)
 

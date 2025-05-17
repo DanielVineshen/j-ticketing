@@ -8,9 +8,7 @@ variables:
     - rm -rf ticket-iac
     - git clone -b update_queue https://pipeline-at:${PIPELINE_AT}@$TICKET_IAC_REPO_URL
     - cd $TARGET_DIR
-    - docker run --rm -v $(pwd)/kustomization.yaml:/app/kustomization.yaml $KUSTOMIZE_DOCKER_IMG edit set image \
-        registry.mashup.castis.io/malaysia/ticketing/core=registry.mashup.castis.io/malaysia/ticketing/core:$IMAGE_TAG \
-        registry.mashup.castis.io/malaysia/ticketing/scheduler=registry.mashup.castis.io/malaysia/ticketing/scheduler:$IMAGE_TAG
+    - docker run --rm -v $(pwd)/kustomization.yaml:/app/kustomization.yaml $KUSTOMIZE_DOCKER_IMG edit set image registry.mashup.castis.io/malaysia/ticketing/core=registry.mashup.castis.io/malaysia/ticketing/core:$IMAGE_TAG registry.mashup.castis.io/malaysia/ticketing/scheduler=registry.mashup.castis.io/malaysia/ticketing/scheduler:$IMAGE_TAG
     - git add .
     - git commit -m "[$ENV_NAME] Update core & scheduler tag to $IMAGE_TAG"
     - git push origin HEAD

@@ -350,8 +350,8 @@ func (s *TicketGroupService) GetTicketVariants(ticketGroupId uint, date string) 
 			TicketId:  item.ItemId,
 			UnitPrice: item.UnitPrice,
 			ItemDesc1: item.ItemDesc1,
-			ItemDesc2: item.ItemDesc2,
-			ItemDesc3: item.ItemDescription, // Use ItemDescription as ItemDesc3
+			ItemDesc2: item.ItemDescription,
+			ItemDesc3: item.ItemDesc2,
 			PrintType: item.PrintType,
 			Qty:       item.Qty,
 		}

@@ -430,20 +430,42 @@
       let totalAmount = 0;
 
       // Group tickets by type
+      // const ticketGroups = {};
+      // order.orderProfile.orderTicketInfo.forEach((ticket) => {
+      //   if (!ticketGroups[ticket.itemId]) {
+      //     ticketGroups[ticket.itemId] = {
+      //       name: ticket.itemDesc1,
+      //       price: ticket.unitPrice,
+      //       quantity: ticket.quantityBought,
+      //       total: ticket.quantityBought * ticket.unitPrice,
+      //     };
+      //   } else {
+      //     ticketGroups[ticket.itemId].quantity += 1;
+      //     ticketGroups[ticket.itemId].total += ticket.unitPrice;
+      //   }
+      //   totalAmount += ticket.quantityBought * ticket.unitPrice;
+      // });
+
+      // Group tickets by type
       const ticketGroups = {};
       order.orderProfile.orderTicketInfo.forEach((ticket) => {
+        // Calculate this ticket's contribution to the total
+        const ticketTotal = ticket.unitPrice * ticket.quantityBought;
+        totalAmount += ticketTotal;
+
         if (!ticketGroups[ticket.itemId]) {
+          // First ticket of this type - create new group
           ticketGroups[ticket.itemId] = {
             name: ticket.itemDesc1,
             price: ticket.unitPrice,
             quantity: ticket.quantityBought,
-            total: ticket.quantityBought * ticket.unitPrice,
+            total: ticketTotal,
           };
         } else {
-          ticketGroups[ticket.itemId].quantity += 1;
-          ticketGroups[ticket.itemId].total += ticket.unitPrice;
+          // Additional ticket of this type - add to existing group
+          ticketGroups[ticket.itemId].quantity += ticket.quantityBought;
+          ticketGroups[ticket.itemId].total += ticketTotal;
         }
-        totalAmount += ticket.quantityBought * ticket.unitPrice;
       });
 
       // Add rows to table

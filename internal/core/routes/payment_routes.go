@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -13,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"io"
 	"j-ticketing/internal/core/dto/payment"
+	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
 	"log"
 	"net/http"
@@ -33,7 +35,36 @@ type TransactionResponse struct {
 	JpMsgToken      string `json:"jp_msg_token"`
 }
 
-func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, orderTicketGroupRepo *repositories.OrderTicketGroupRepository) {
+// First, define the request and response structures for the Johor Zoo API
+type ZooTicketItem struct {
+	ItemId string `json:"ItemId"`
+	Qty    int    `json:"Qty"`
+}
+
+type ZooTicketRequest struct {
+	TranDate    string          `json:"TranDate"`
+	ReferenceNo string          `json:"ReferenceNo"`
+	Items       []ZooTicketItem `json:"Items"`
+}
+
+type ZooTicketInfo struct {
+	TWBID       string `json:"TWBID"`
+	ItemId      string `json:"ItemId"`
+	EncryptedID string `json:"EncryptedID"`
+	AdmitDate   string `json:"AdmitDate"`
+	UnitPrice   string `json:"UnitPrice"`
+	ItemDesc    string `json:"ItemDesc"`
+	ItemDesc2   string `json:"ItemDesc2"`
+	ItemDesc3   string `json:"ItemDesc3"`
+}
+
+type ZooTicketResponse struct {
+	StatusCode    string          `json:"StatusCode"`
+	ReceiptNumber string          `json:"ReceiptNumber"`
+	Tickets       []ZooTicketInfo `json:"Tickets"`
+}
+
+func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, orderTicketGroupRepo *repositories.OrderTicketGroupRepository, orderTicketInfoRepo *repositories.OrderTicketInfoRepository) {
 	app.Post("/decrypt", func(c *fiber.Ctx) error {
 		// Original combined payload (IV:ciphertext)
 		payload := `5\/4g3kU5e3TeIHRBuODwaQ==:m o5UiCWiJedyfDIxY8IrF49tfd0qejW9Iv\/5XGKQZ7BZP4ahvwIO5zDxg0nEXL x HEsuhscS7g5t2T2Ip\/4xd5bJzmbMsHJsK29Qo224Fohzf9itYxvD8njnshKi1GcBEQNQbX1  F1VTzAskn84ARSI QWM Qepcerg59quUGL17xYGLo3hoKhUFnXFclcdCsL9iv19riJXpQ65n\/ 2ZvjXfbPv fUE4lRIYtP58qh9ABUUxSPUCNoyPp\/ CfuEVyNqvG T3fZeRB86AD1ujDtP4SAx\/cOLYrELKgqaE=`
@@ -233,6 +264,16 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, ord
 			dbStatus = "failed"
 		}
 
+		// This would go after the database update but before the redirect
+		if dbStatus == "success" {
+			// Only call the Zoo API if payment was successful
+			err = PostToZooAPI(order, transactionData.OrderNo, *orderTicketInfoRepo)
+			if err != nil {
+				log.Printf("Error posting to Johor Zoo API: %v", err)
+				// Continue with redirect even if this fails, we can retry later
+			}
+		}
+
 		successURL := paymentConfig.FrontendBaseURL + "/paymentRedirect"
 
 		log.Printf("Redirecting to external success page: %s", successURL)
@@ -412,7 +453,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, ord
 
 		// Create a new HTTP client
 		client := &http.Client{
-			Timeout: time.Second * 10,
+			Timeout: time.Second * 30,
 		}
 
 		// Create a new request
@@ -514,7 +555,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, ord
 
 		// Create a new HTTP client
 		client := &http.Client{
-			Timeout: time.Second * 10,
+			Timeout: time.Second * 30,
 		}
 
 		// Create a new request
@@ -654,4 +695,202 @@ func UpdateOrderFromPaymentResponse(orderNo string, transactionData TransactionR
 		orderNo, transactionData.IDTransaksi, dbStatus)
 
 	return nil
+}
+
+// Define the function to post to the Zoo API
+func PostToZooAPI(order *models.OrderTicketGroup, orderNo string, orderTicketInfoRepo repositories.OrderTicketInfoRepository) error {
+	// Get the order ticket items
+	orderTickets, err := orderTicketInfoRepo.FindByOrderTicketGroupID(order.OrderTicketGroupId)
+	if err != nil {
+		return fmt.Errorf("failed to get order tickets: %w", err)
+	}
+
+	// Build the request
+	items := make([]ZooTicketItem, 0, len(orderTickets))
+	for _, ticket := range orderTickets {
+		items = append(items, ZooTicketItem{
+			ItemId: ticket.ItemId,
+			Qty:    ticket.QuantityBought,
+		})
+	}
+
+	// Format the admission date from the order
+	admissionDate := order.TransactionDate[:10]
+
+	// Create the request payload
+	payload := ZooTicketRequest{
+		TranDate:    admissionDate,
+		ReferenceNo: orderNo, // Use the order number as reference
+		Items:       items,
+	}
+
+	// Convert to JSON
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	// Get a fresh token from the token generation endpoint
+	token, err := generateZooAPIToken()
+	if err != nil {
+		return fmt.Errorf("failed to generate API token: %w", err)
+	}
+
+	// Create a new HTTP client
+	client := &http.Client{
+		Timeout: time.Second * 60,
+	}
+
+	// Create the request
+	req, err := http.NewRequest("POST", "https://eglobal2.ddns.net/johorzooapi/api/JohorZoo/PostOnlinePurchase", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Add headers
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", "Bearer "+token)
+
+	// Send the request
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read the response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Check if the response status is OK
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("API returned non-OK status: %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse the response
+	var zooResponse ZooTicketResponse
+	err = json.Unmarshal(body, &zooResponse)
+	if err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	// Check if the status code is OK
+	if zooResponse.StatusCode != "OK" {
+		return fmt.Errorf("API returned status code: %s", zooResponse.StatusCode)
+	}
+
+	// Update each ticket with the data from the API
+	// Create a map of tickets by item ID for quick lookup
+	ticketByItemId := make(map[string][]*models.OrderTicketInfo)
+	for i := range orderTickets {
+		ticketByItemId[orderTickets[i].ItemId] = append(ticketByItemId[orderTickets[i].ItemId], &orderTickets[i])
+	}
+
+	// Update the tickets with data from the response
+	for _, zooTicket := range zooResponse.Tickets {
+		// Get the list of tickets for this item ID
+		ticketsForItem, exists := ticketByItemId[zooTicket.ItemId]
+		if !exists || len(ticketsForItem) == 0 {
+			log.Printf("No matching tickets found for item ID: %s", zooTicket.ItemId)
+			continue
+		}
+
+		// Get the next ticket that hasn't been updated yet
+		var ticketToUpdate *models.OrderTicketInfo
+		for _, t := range ticketsForItem {
+			if t.EncryptedId == "" {
+				ticketToUpdate = t
+				break
+			}
+		}
+
+		if ticketToUpdate == nil {
+			log.Printf("All tickets for item ID %s have already been updated", zooTicket.ItemId)
+			continue
+		}
+
+		// Update the ticket with data from the Zoo API
+		ticketToUpdate.EncryptedId = zooTicket.EncryptedID
+		ticketToUpdate.AdmitDate = zooTicket.AdmitDate
+
+		// Parse unit price if needed
+		if unitPrice, err := strconv.ParseFloat(zooTicket.UnitPrice, 64); err == nil {
+			ticketToUpdate.UnitPrice = unitPrice
+		}
+
+		// Update the ticket in the database
+		err = orderTicketInfoRepo.Update(ticketToUpdate)
+		if err != nil {
+			log.Printf("Failed to update ticket %s: %v", ticketToUpdate.OrderTicketInfoId, err)
+			// Continue updating other tickets
+		}
+
+		// Remove this ticket from the list to ensure we don't update it again
+		for i, t := range ticketsForItem {
+			if t == ticketToUpdate {
+				ticketsForItem = append(ticketsForItem[:i], ticketsForItem[i+1:]...)
+				break
+			}
+		}
+		ticketByItemId[zooTicket.ItemId] = ticketsForItem
+	}
+
+	return nil
+}
+
+// Function to generate a token for the Zoo API
+func generateZooAPIToken() (string, error) {
+	// Create form data for x-www-form-urlencoded request
+	formData := url.Values{}
+	formData.Set("grant_type", "password")
+	formData.Set("UserName", "Tester")
+	formData.Set("Password", "TestingAbc123")
+
+	// Create a new HTTP client
+	client := &http.Client{
+		Timeout: time.Second * 30,
+	}
+
+	// Create a new request
+	req, err := http.NewRequest("POST", "https://eglobal2.ddns.net/johorzooapi/Token", strings.NewReader(formData.Encode()))
+	if err != nil {
+		return "", fmt.Errorf("error creating token request: %w", err)
+	}
+
+	// Add headers
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	// Execute the request
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("error executing token request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read the response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading token response: %w", err)
+	}
+
+	// Parse the JSON response
+	var tokenResponse struct {
+		AccessToken string `json:"access_token"`
+		TokenType   string `json:"token_type"`
+		ExpiresIn   int    `json:"expires_in"`
+	}
+
+	if err := json.Unmarshal(body, &tokenResponse); err != nil {
+		return "", fmt.Errorf("error parsing token JSON: %w", err)
+	}
+
+	// Check if we got an access token
+	if tokenResponse.AccessToken == "" {
+		return "", fmt.Errorf("no access token in response: %s", string(body))
+	}
+
+	// Return the access token
+	return tokenResponse.AccessToken, nil
 }

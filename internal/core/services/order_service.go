@@ -2,10 +2,7 @@
 package service
 
 import (
-	"crypto/rand"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -416,9 +413,6 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 	// Process tickets
 	orderTicketInfos := make([]models.OrderTicketInfo, 0, len(req.Tickets))
 
-	// Create a map to group tickets by ItemId
-	ticketInfoMap := make(map[string]*models.OrderTicketInfo)
-
 	for _, ticket := range req.Tickets {
 		// Get the ticket variant details
 		variant, exists := ticketVariantMap[ticket.TicketId]
@@ -430,15 +424,12 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 		// Use the unit price from the variant
 		unitPrice := variant.UnitPrice
 
-		// Update total amount
-		totalAmount += unitPrice * float64(ticket.Qty)
+		// Create multiple entries for tickets with quantity > 1
+		for i := 0; i < ticket.Qty; i++ {
+			// Update total amount for each individual ticket
+			totalAmount += unitPrice
 
-		// Check if we already have an entry for this ticket ID
-		if existingTicket, found := ticketInfoMap[ticket.TicketId]; found {
-			// Update the quantity of the existing entry
-			existingTicket.QuantityBought += ticket.Qty
-		} else {
-			// Create a new ticket info entry with the full quantity
+			// Create a new ticket info entry for each quantity
 			orderTicketInfo := models.OrderTicketInfo{
 				OrderTicketGroupId: orderTicketGroup.OrderTicketGroupId,
 				ItemId:             ticket.TicketId,
@@ -446,7 +437,7 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 				ItemDesc1:          variant.ItemDesc1,              // Use description from API
 				ItemDesc2:          variant.ItemDesc2,              // Use description from API
 				PrintType:          variant.PrintType,              // Use print type from API
-				QuantityBought:     ticket.Qty,                     // Set the quantity from the request
+				QuantityBought:     1,                              // Fixed quantity of 1
 				EncryptedId:        "",                             // You'll need to set this appropriately
 				AdmitDate:          orderDate.Format("2006-01-02"), // Format the date consistently
 				Variant:            "default",
@@ -454,14 +445,9 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 				UpdatedAt:          time.Now(),
 			}
 
-			// Add to the map
-			ticketInfoMap[ticket.TicketId] = &orderTicketInfo
+			// Add directly to the slice
+			orderTicketInfos = append(orderTicketInfos, orderTicketInfo)
 		}
-	}
-
-	// Convert the map to a slice
-	for _, ticketInfo := range ticketInfoMap {
-		orderTicketInfos = append(orderTicketInfos, *ticketInfo)
 	}
 
 	// Update total amount in order ticket group
@@ -501,7 +487,7 @@ func (s *OrderService) getBankNameByCode(bankCode, mode string) (string, error) 
 
 	// Create a new HTTP client
 	client := &http.Client{
-		Timeout: time.Second * 10,
+		Timeout: time.Second * 30,
 	}
 
 	// Create a new request
@@ -570,13 +556,6 @@ func (s *OrderService) getBankNameByCode(bankCode, mode string) (string, error) 
 	return "", fmt.Errorf("failed to retrieve bank list")
 }
 
-func (s *OrderService) calculateTicketPrice(ticketId string, ticketGroupId uint) float64 {
-	// This would typically query a ticket price repository
-	// For now, returning a placeholder price
-	// Implement actual price lookup logic
-	return 50.00
-}
-
 // Utility functions for generating IDs and tokens
 
 func generateOrderNumber() string {
@@ -586,36 +565,9 @@ func generateOrderNumber() string {
 	return fmt.Sprintf("ORD-%s-%s", timestamp, random)
 }
 
-func generateTransactionId() string {
-	// Format: TXN-YYYYMMDDHHmmss-XXXX
-	timestamp := time.Now().Format("20060102150405")
-	random := fmt.Sprintf("%04d", secureRandom.Intn(10000))
-	return fmt.Sprintf("TXN-%s-%s", timestamp, random)
-}
-
-func generateMessageToken() string {
-	// Generate a random token
-	b := make([]byte, 16)
-	_, err := rand.Read(b)
-	if err != nil {
-		// Fallback to math/rand if crypto/rand fails
-		binary.BigEndian.PutUint64(b, uint64(secureRandom.Int63()))
-		binary.BigEndian.PutUint64(b[8:], uint64(secureRandom.Int63()))
-	}
-	return fmt.Sprintf("%x", b)
-}
-
 func generateBillId() string {
 	// Format: BILL-YYYYMMDDHHmmss-XXXX
 	timestamp := time.Now().Format("20060102150405")
 	random := fmt.Sprintf("%04d", secureRandom.Intn(10000))
 	return fmt.Sprintf("BILL-%s-%s", timestamp, random)
-}
-
-func generateEncryptedId(orderGroupId uint, ticketId string, index int) string {
-	// This would typically use a proper encryption algorithm
-	// For simplicity, using a hash-based approach
-	data := fmt.Sprintf("%d:%s:%d:%d", orderGroupId, ticketId, index, time.Now().UnixNano())
-	hash := sha256.Sum256([]byte(data))
-	return fmt.Sprintf("%x", hash)
 }

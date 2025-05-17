@@ -123,11 +123,12 @@ func main() {
 		&paymentConfig,
 		ticketGroupService,
 	)
+	customerService := service.NewCustomerService(customerRepo)
 
 	// Initialize handlers
 	ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService)
 	authHandler := handlers.NewAuthHandler(authService, emailService) // Update auth handler with email service
-	orderHandler := handlers.NewOrderHandler(orderService)
+	orderHandler := handlers.NewOrderHandler(orderService, customerService)
 
 	// Initialize logger
 	logger, err := zap.NewProduction()

@@ -210,22 +210,6 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, ord
 		status := transactionData.StatusTransaksi
 		log.Printf("Payment status detected: %s", status)
 
-		//if status == "00" {
-		//	log.Printf("Redirecting to success page with transaction_id=%s, order_id=%s",
-		//		transactionData.IDTransaksi, transactionData.OrderNo)
-		//
-		//	return c.Redirect("/payment/success?transaction_id=" +
-		//		url.QueryEscape(transactionData.IDTransaksi) + "&order_id=" +
-		//		url.QueryEscape(transactionData.OrderNo))
-		//} else {
-		//	log.Printf("Redirecting to failure page with error_code=%s, error_message=%s",
-		//		transactionData.StatusTransaksi, transactionData.StatusMessage)
-		//
-		//	return c.Redirect("/payment/failure?error_code=" +
-		//		url.QueryEscape(transactionData.StatusTransaksi) + "&error_message=" +
-		//		url.QueryEscape(transactionData.StatusMessage))
-		//}
-
 		// Find the order first
 		order, err := orderTicketGroupRepo.FindByOrderNo(transactionData.OrderNo)
 		if err != nil {
@@ -261,34 +245,6 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, ord
 			url.QueryEscape(transactionData.OrderNo))
 
 		return c.Redirect(redirectURL)
-
-		//if status == "00" {
-		//	// Get success URL from config with fallback
-		//	successURL := paymentConfig.FrontendBaseURL + "/payment/success"
-		//
-		//	log.Printf("Redirecting to external success page: %s", successURL)
-		//
-		//	// Build the full URL with query parameters
-		//	redirectURL := fmt.Sprintf("%s?transaction_id=%s&order_id=%s",
-		//		successURL,
-		//		url.QueryEscape(transactionData.IDTransaksi),
-		//		url.QueryEscape(transactionData.OrderNo))
-		//
-		//	return c.Redirect(redirectURL)
-		//} else {
-		//	// Get failure URL from config with fallback
-		//	failureURL := paymentConfig.FrontendBaseURL + "/payment/failure"
-		//
-		//	log.Printf("Redirecting to external failure page: %s", failureURL)
-		//
-		//	// Build the full URL with query parameters
-		//	redirectURL := fmt.Sprintf("%s?error_code=%s&error_message=%s",
-		//		failureURL,
-		//		url.QueryEscape(transactionData.StatusTransaksi),
-		//		url.QueryEscape(transactionData.StatusMessage))
-		//
-		//	return c.Redirect(redirectURL)
-		//}
 	})
 
 	// Payment process - this will redirect to the payment gateway

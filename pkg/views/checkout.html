@@ -496,7 +496,7 @@
       totalAmountEl.textContent = formatCurrency(totalAmount);
 
       // Update proceed button behavior
-      if (status === "COMPLETED") {
+        if (status === "COMPLETED") {
         proceedButtonEl.textContent = "View E-Tickets";
         proceedButtonEl.onclick = function () {
           window.location.href = `/tickets.html?orderID=${order.orderProfile.orderTicketGroupId}`;

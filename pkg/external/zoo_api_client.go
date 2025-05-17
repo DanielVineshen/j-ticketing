@@ -43,7 +43,7 @@ func NewZooAPIClient(baseURL, username, password string) *ZooAPIClient {
 	if baseURL != "" && !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
 		baseURL = "https://" + baseURL
 	}
-	
+
 	return &ZooAPIClient{
 		baseURL:    baseURL,
 		username:   username,
@@ -94,7 +94,7 @@ func (c *ZooAPIClient) GetTicketItems(date string) ([]TicketItem, error) {
 	}
 
 	// Create the request
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/JohorZoo/GetOnlineItem2?TranDate=%s", c.baseURL, date), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/JohorZoo/GetOnlineItem?TranDate=%s", c.baseURL, date), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ticket items request: %w", err)
 	}

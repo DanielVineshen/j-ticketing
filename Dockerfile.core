@@ -19,8 +19,26 @@ WORKDIR /app
 # Copy the binary from the builder stage
 COPY --from=builder /app/core-server .
 
+# Copy the views directory
+COPY --from=builder /app/pkg/views /app/pkg/views
+
+# Copy the public directory with CSS files
+COPY --from=builder /app/pkg/public /app/pkg/public
+
+# Create necessary directories if they don't exist in the source
+RUN mkdir -p /app/pkg/views
+
+# Create necessary directories if they don't exist in the source
+RUN mkdir -p /app/pkg/public/css
+
 # Expose the port the API runs on
 EXPOSE 8080
+
+# Set environment variable for views path
+ENV VIEWS_PATH=/app/pkg/views
+
+# Set environment variables for paths
+ENV PUBLIC_PATH=/app/pkg/public
 
 # Run the binary
 CMD ["./core-server"]

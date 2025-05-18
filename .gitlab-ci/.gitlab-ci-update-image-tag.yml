@@ -1,0 +1,38 @@
+variables:
+  IMAGE_TAG: ${CI_COMMIT_REF_SLUG}_${CI_COMMIT_SHORT_SHA}
+  KUSTOMIZE_DOCKER_IMG: registry.k8s.io/kustomize/kustomize:v5.0.0
+
+.update_image_tag_template: &update_image_tag_template
+  script:
+    - docker pull $KUSTOMIZE_DOCKER_IMG
+    - rm -rf ticket-iac
+    - git clone -b update_queue https://pipeline-at:${PIPELINE_AT}@$TICKET_IAC_REPO_URL
+    - cd $TARGET_DIR
+    - docker run --rm -v $(pwd)/kustomization.yaml:/app/kustomization.yaml $KUSTOMIZE_DOCKER_IMG edit set image registry.mashup.castis.io/malaysia/ticketing/core=registry.mashup.castis.io/malaysia/ticketing/core:$IMAGE_TAG registry.mashup.castis.io/malaysia/ticketing/scheduler=registry.mashup.castis.io/malaysia/ticketing/scheduler:$IMAGE_TAG
+    - git add .
+    - git commit -m "[$ENV_NAME] Update core & scheduler tag to $IMAGE_TAG"
+    - git push origin HEAD
+  tags:
+    - mashup-runner
+
+update_image_tag_staging:
+  <<: *update_image_tag_template
+  stage: update_image_tag_staging
+  variables:
+    TARGET_DIR: ticket-iac/overlays/dev/ticketing
+    ENV_NAME: Staging
+  environment:
+    name: Staging
+  only:
+    - dev
+
+update_image_tag_production:
+  <<: *update_image_tag_template
+  stage: update_image_tag_production
+  variables:
+    TARGET_DIR: ticket-iac/overlays/prod/ticketing
+    ENV_NAME: Production
+  environment:
+    name: Production
+  only:
+    - main

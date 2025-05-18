@@ -1,33 +1,12 @@
 variables:
-  IMAGE_REGISTRY: ${CI_REGISTRY_IMAGE}
-  CONTAINER_CORE_IMAGE: ${CI_REGISTRY_IMAGE}/core:${CI_COMMIT_BRANCH}_${CI_COMMIT_SHORT_SHA}
-  CONTAINER_SCHEDULER_IMAGE: ${CI_REGISTRY_IMAGE}/scheduler:${CI_COMMIT_BRANCH}_${CI_COMMIT_SHORT_SHA}
+  GIT_STRATEGY: clone
 
 stages:
-  - build
-  - staging_environment
-  - production_environment
+  - build_staging
+  - build_production
+  - update_image_tag_staging
+  - update_image_tag_production
 
-build_core_image:
-  stage: build
-  script:
-    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $IMAGE_REGISTRY
-    - docker pull $CONTAINER_CORE_IMAGE || true
-    - docker build -f Dockerfile.core --cache-from=$CONTAINER_CORE_IMAGE -t $CONTAINER_CORE_IMAGE .
-    - docker push $CONTAINER_CORE_IMAGE
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "dev"'
-  tags:
-    - mashup-runner
-
-build_scheduler_image:
-  stage: build
-  script:
-    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $IMAGE_REGISTRY
-    - docker pull $CONTAINER_SCHEDULER_IMAGE || true
-    - docker build -f Dockerfile.scheduler --cache-from=$CONTAINER_SCHEDULER_IMAGE -t $CONTAINER_SCHEDULER_IMAGE .
-    - docker push $CONTAINER_SCHEDULER_IMAGE
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "dev"'
-  tags:
-    - mashup-runner
+include:
+  - local: ".gitlab-ci/.gitlab-ci-build.yml"
+  - local: ".gitlab-ci/.gitlab-ci-update-image-tag.yml"

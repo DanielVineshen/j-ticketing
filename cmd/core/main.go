@@ -167,7 +167,7 @@ func main() {
 	// Middleware
 	app.Use(recover.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:8080,http://127.0.0.1:3000,http://139.59.253.119:3000",
+		AllowOrigins:     "http://localhost:8080,http://127.0.0.1:3000,http://139.59.253.119:3000,https://eticket.johor.gov.my",
 		AllowMethods:     "GET,POST,PUT,DELETE",
 		AllowHeaders:     "Origin,Content-Type,Accept,Authorization",
 		AllowCredentials: true,

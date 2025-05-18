@@ -230,18 +230,6 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, ord
 			return jsonErr
 		}
 
-		// Update the order in the database
-		err = UpdateOrderFromPaymentResponse(transactionData.OrderNo, transactionData, *orderTicketGroupRepo)
-		if err != nil {
-			log.Printf("Error updating order: %v", err)
-			// Continue with the redirect even if the update fails
-			// This ensures the user sees a response, and we can fix the data later if needed
-		}
-
-		// Extract and process payment status and other details
-		status := transactionData.StatusTransaksi
-		log.Printf("Payment status detected: %s", status)
-
 		// Find the order first
 		order, err := orderTicketGroupRepo.FindByOrderNo(transactionData.OrderNo)
 		if err != nil {
@@ -256,6 +244,18 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, ord
 
 		var dbStatus = order.TransactionStatus
 		if order.TransactionStatus != "success" {
+			// Update the order in the database
+			err = UpdateOrderFromPaymentResponse(transactionData.OrderNo, transactionData, *orderTicketGroupRepo)
+			if err != nil {
+				log.Printf("Error updating order: %v", err)
+				// Continue with the redirect even if the update fails
+				// This ensures the user sees a response, and we can fix the data later if needed
+			}
+
+			// Extract and process payment status and other details
+			status := transactionData.StatusTransaksi
+			log.Printf("Payment status detected: %s", status)
+
 			// Determine the transaction status for the database
 			switch transactionData.StatusTransaksi {
 			case "00":
@@ -884,7 +884,8 @@ func PostToZooAPI(order *models.OrderTicketGroup, orderNo string, orderTicketInf
 		}
 
 		// Update the ticket with data from the Zoo API
-		ticketToUpdate.EncryptedId = zooTicket.EncryptedID
+		//ticketToUpdate.EncryptedId = zooTicket.EncryptedID
+		ticketToUpdate.EncryptedId = "STF020"
 		ticketToUpdate.AdmitDate = zooTicket.AdmitDate
 
 		// Parse unit price if needed

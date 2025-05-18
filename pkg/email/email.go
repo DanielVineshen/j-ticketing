@@ -147,7 +147,8 @@ func (s *emailService) SendTicketsEmail(to string, customerName string, orderOve
 	// Generate QR code for each ticket and add to email content
 	for _, ticket := range tickets {
 		// Generate QR code
-		qrCode, err := qr.Encode(ticket.Content, qr.M, qr.Auto)
+		//qrCode, err := qr.Encode(ticket.Content, qr.M, qr.Auto)
+		qrCode, err := qr.Encode("STF020", qr.M, qr.Auto) // HARDCODED VALUE FOR NOW
 		if err != nil {
 			return fmt.Errorf("failed to generate QR code: %w", err)
 		}

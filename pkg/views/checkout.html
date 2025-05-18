@@ -190,10 +190,10 @@
         <span class="label">Email:</span>
         <span class="value" id="customer-email">-</span>
       </div>
-      <div class="detail-item">
-        <span class="label">Contact:</span>
-        <span class="value" id="customer-contact">-</span>
-      </div>
+<!--      <div class="detail-item">-->
+<!--        <span class="label">Contact:</span>-->
+<!--        <span class="value" id="customer-contact">-</span>-->
+<!--      </div>-->
     </div>
 
     <!-- Ticket Details Table -->
@@ -260,7 +260,7 @@
     const eventLocationEl = document.getElementById("event-location");
     const customerNameEl = document.getElementById("customer-name");
     const customerEmailEl = document.getElementById("customer-email");
-    const customerContactEl = document.getElementById("customer-contact");
+    // const customerContactEl = document.getElementById("customer-contact");
     const ticketTableBodyEl = document.getElementById("ticket-table-body");
     const totalAmountEl = document.getElementById("total-amount");
     const proceedButtonEl = document.getElementById("proceed-payment");
@@ -329,7 +329,7 @@
       }
 
       // Show what URL we're trying to fetch
-      const apiUrl = `/api/orderTicketGroups/${orderID}`;
+      const apiUrl = `/api/orderTicketGroup?orderTicketGroupId=${orderID}`;
       console.log("Fetching order details from:", apiUrl);
 
       try {
@@ -414,7 +414,7 @@
       // Customer info
       customerNameEl.textContent = order.orderProfile.buyerName || "-";
       customerEmailEl.textContent = order.orderProfile.buyerEmail || "-";
-      customerContactEl.textContent = order.orderProfile.contactNo || "-";
+      // customerContactEl.textContent = order.orderProfile.contactNo || "-";
 
       // Date from the first ticket
       if (

@@ -148,7 +148,7 @@ func main() {
 	// Initialize handlers
 	ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService)
 	authHandler := handlers.NewAuthHandler(authService, emailService) // Update auth handler with email service
-	orderHandler := handlers.NewOrderHandler(orderService, customerService)
+	orderHandler := handlers.NewOrderHandler(orderService, customerService, jwtService)
 
 	simplePDFHandler := handlers.NewPDFHandler()
 
@@ -181,7 +181,7 @@ func main() {
 	routes.SetupTicketGroupRoutes(app, ticketGroupHandler, jwtService)
 	routes.SetupAuthRoutes(app, authHandler, jwtService)
 	routes.SetupOrderRoutes(app, orderHandler, jwtService)
-	routes.SetupPaymentRoutes(app, paymentConfig, orderTicketGroupRepo, orderTicketInfoRepo, emailService)
+	routes.SetupPaymentRoutes(app, paymentConfig, orderTicketGroupRepo, orderTicketInfoRepo, emailService, ticketGroupRepo)
 	routes.SetupViewRoutes(app)
 	routes.SetupTicketPDFRoutes(app, simplePDFHandler)
 

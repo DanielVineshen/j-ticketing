@@ -7,6 +7,7 @@ import (
 	orderDto "j-ticketing/internal/core/dto/order"
 	services "j-ticketing/internal/core/services"
 	"j-ticketing/pkg/errors"
+	"j-ticketing/pkg/jwt"
 	"j-ticketing/pkg/models"
 	"strconv"
 	"strings"
@@ -16,13 +17,15 @@ import (
 type OrderHandler struct {
 	orderService    *services.OrderService
 	customerService services.CustomerService
+	jwtService      jwt.JWTService
 }
 
 // NewOrderHandler creates a new instance of OrderHandler
-func NewOrderHandler(orderService *services.OrderService, customerService services.CustomerService) *OrderHandler {
+func NewOrderHandler(orderService *services.OrderService, customerService services.CustomerService, jwtService jwt.JWTService) *OrderHandler {
 	return &OrderHandler{
 		orderService:    orderService,
 		customerService: customerService,
+		jwtService:      jwtService,
 	}
 }
 
@@ -105,7 +108,7 @@ func (h *OrderHandler) GetOrderTicketGroup(c *fiber.Ctx) error {
 	//}
 
 	// Parse the order ticket group ID from the request
-	orderTicketGroupIdStr := c.Params("id")
+	orderTicketGroupIdStr := c.Query("orderTicketGroupId")
 	if orderTicketGroupIdStr == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
 			errors.INVALID_INPUT_FORMAT.Code, "Missing order ticket group ID", nil,
@@ -230,31 +233,39 @@ func (h *OrderHandler) CreateOrderTicketGroup(c *fiber.Ctx) error {
 		))
 	}
 
+	authHeader := c.Get("Authorization")
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	claims, err := h.jwtService.ValidateToken(token)
+
 	// Variable to hold the customer ID
 	var custId string
 
 	// Check if token exists (user is authenticated)
-	tokenUser, ok := c.Locals("userId").(string)
-	if ok && tokenUser != "" {
-		// Get the user type from the context
-		userType, userTypeOk := c.Locals("userType").(string)
-		if !userTypeOk {
-			return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
-				errors.USER_NOT_AUTHORIZED.Code, "User type not found", nil,
-			))
-		}
+	if err == nil && claims.UserID != "" {
+		custId = claims.UserID
 
-		// Only customers can create orders
-		if userType != "customer" {
+		customer, err := h.customerService.GetCustomerByID(claims.UserID)
+		if err == nil {
+			req.Email = customer.Email
+			req.FullName = customer.FullName
+			if customer.ContactNo.Valid {
+				req.ContactNo = customer.ContactNo.String
+			} else {
+				req.ContactNo = "" // Empty string for NULL values
+			}
+		} else {
 			return c.Status(fiber.StatusForbidden).JSON(models.NewBaseErrorResponse(
-				errors.USER_NOT_PERMITTED.Code, "Only customers can create orders", nil,
+				errors.USER_NOT_AUTHORIZED.Code, errors.USER_NOT_AUTHORIZED.Message, nil,
+			))
+		}
+	} else {
+		// Check if any of the required fields are empty strings
+		if req.Email == "" || req.IdentificationNo == "" || req.FullName == "" || req.ContactNo == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+				errors.INVALID_INPUT_VALUES.Code, "All customer information (email, identification number, full name, and contact number) must be provided", nil,
 			))
 		}
 
-		// Use the authenticated user's ID
-		custId = tokenUser
-	} else {
-		// No token or not authenticated - check if a customer with this email exists
 		customer, err := h.customerService.GetCustomerByEmail(req.Email)
 		if err != nil {
 			// Customer doesn't exist, create a new one
@@ -274,7 +285,6 @@ func (h *OrderHandler) CreateOrderTicketGroup(c *fiber.Ctx) error {
 
 			custId = newCustomer.CustId
 		} else {
-			// Customer exists, use their ID
 			custId = customer.CustId
 		}
 	}

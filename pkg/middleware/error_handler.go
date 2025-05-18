@@ -27,10 +27,8 @@ func GlobalErrorHandler(logger *zap.Logger) fiber.ErrorHandler {
 
 		// Generate error code for 500 errors for tracking
 		errorCode := ""
-		if status == fiber.StatusInternalServerError {
-			errorCode = generateErrorCode()
-			logger.Error("Error code: "+errorCode+" for error:", zap.Error(err))
-		}
+		errorCode = generateErrorCode()
+		logger.Error("Error code: "+errorCode+" for error:", zap.Error(err))
 
 		// Check for specific error types
 		switch e := err.(type) {

@@ -17,4 +17,5 @@ func SetupTicketGroupRoutes(app *fiber.App, ticketGroupHandler *handlers.TicketG
 	ticketGroup.Get("/", ticketGroupHandler.GetTicketGroups)
 	ticketGroup.Get("/ticketProfile", ticketGroupHandler.GetTicketProfile)
 	ticketGroup.Get("/ticketVariants", ticketGroupHandler.GetTicketVariants)
+	ticketGroup.Get("/attachment/:uniqueExtension", ticketGroupHandler.GetTicketGroupImage)
 }

@@ -55,3 +55,14 @@ func (r *GroupGalleryRepository) Update(groupGallery *models.GroupGallery) error
 func (r *GroupGalleryRepository) Delete(id uint) error {
 	return r.db.Delete(&models.GroupGallery{}, id).Error
 }
+
+// GetContentTypeByUniqueExtension finds the content type for a ticket group by unique extension
+func (r *GroupGalleryRepository) GetContentTypeByUniqueExtension(uniqueExtension string) (string, error) {
+	var contentType string
+	result := r.db.Model(&models.GroupGallery{}).
+		Select("content_type").
+		Where("unique_extension = ?", uniqueExtension).
+		First(&contentType)
+
+	return contentType, result.Error
+}

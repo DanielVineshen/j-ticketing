@@ -94,6 +94,7 @@ func (s *PaymentService) PostToZooAPI(orderNo string) ([]email.OrderInfo, []emai
 	}
 
 	ticketGroupName := order.TicketGroup.GroupName
+	fmt.Printf(ticketGroupName)
 
 	// Get the order ticket items
 	orderTickets, err := s.orderTicketInfoRepo.FindByOrderTicketGroupID(order.OrderTicketGroupId)

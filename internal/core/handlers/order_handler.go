@@ -298,8 +298,8 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 	}
 
 	// TODO - complete qr code & email logic
-	//// Only call the Zoo API if payment was successful
-	//orderItems, ticketInfos, err = PostToZooAPI(order, transactionData.OrderNo, *orderTicketInfoRepo)
+	// Only call the Zoo API if payment was successful
+	//orderItems, ticketInfos, err = routes.PostToZooAPI(order, orderID, *orderTicketInfoRepo)
 	//if err != nil {
 	//	log.Printf("Error posting to Johor Zoo API: %v", err)
 	//	// Continue with redirect even if this fails, we can retry later

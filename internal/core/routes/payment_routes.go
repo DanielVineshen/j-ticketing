@@ -256,7 +256,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, pay
 	})
 
 	// Payment failure
-	paymentGroup.Get("/payment/failure", func(c *fiber.Ctx) error {
+	paymentGroup.Get("/failure", func(c *fiber.Ctx) error {
 		errorCode := c.Query("error_code")
 		errorMessage := c.Query("error_message")
 

@@ -179,7 +179,7 @@ func main() {
 	addr := fmt.Sprintf(":%s", cfg.Server.CorePort)
 	slogger.Info("Server starting",
 		"address", addr,
-		"version", "0.2")
+		"version", "0.2.1")
 
 	if err := app.Listen(addr); err != nil {
 		slogger.Error("Error starting server", "error", err)

@@ -7,6 +7,7 @@ import (
 	"j-ticketing/internal/db/repositories"
 	"j-ticketing/pkg/config"
 	"j-ticketing/pkg/external"
+	"log"
 	"strings"
 	"time"
 )
@@ -30,7 +31,7 @@ func NewTicketGroupService(
 	cfg *config.Config,
 ) *TicketGroupService {
 	zooAPIClient := external.NewZooAPIClient(
-		cfg.ZooAPI.BaseURL,
+		cfg.ZooAPI.ZooBaseURL,
 		cfg.ZooAPI.Username,
 		cfg.ZooAPI.Password,
 	)
@@ -43,6 +44,14 @@ func NewTicketGroupService(
 		zooAPIClient:     zooAPIClient,
 		config:           cfg,
 	}
+}
+
+func (s *TicketGroupService) GetTicketGroup(ticketGroupId uint) (*models.TicketGroup, error) {
+	ticketGroup, err := s.ticketGroupRepo.FindByID(ticketGroupId)
+	if err != nil {
+		log.Printf("Error finding ticket group %s: %v", ticketGroupId, err)
+	}
+	return ticketGroup, err
 }
 
 // GetAllTicketGroups retrieves all ticket groups with their associated tags

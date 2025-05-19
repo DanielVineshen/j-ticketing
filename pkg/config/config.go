@@ -34,9 +34,9 @@ type EmailConfig struct {
 
 // Zoo API configuration
 type ZooAPIConfig struct {
-	BaseURL  string
-	Username string
-	Password string
+	ZooBaseURL string
+	Username   string
+	Password   string
 }
 
 type Config struct {
@@ -124,11 +124,11 @@ func LoadConfig() (*Config, error) {
 	config.Email.RefreshToken = getEnv("REFRESH_TOKEN", "")
 
 	// Zoo API config
-	baseURL := getEnv("ZOO_API_BASE_URL", "https://eglobal2.ddns.net/johorzooapi")
-	if !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
-		baseURL = "https://" + baseURL
+	zooBaseURL := getEnv("ZOO_API_BASE_URL", "https://eglobal2.ddns.net/johorzooapi")
+	if !strings.HasPrefix(zooBaseURL, "http://") && !strings.HasPrefix(zooBaseURL, "https://") {
+		zooBaseURL = "https://" + zooBaseURL
 	}
-	config.ZooAPI.BaseURL = baseURL
+	config.ZooAPI.ZooBaseURL = zooBaseURL
 	config.ZooAPI.Username = getEnv("ZOO_API_USERNAME", "")
 	config.ZooAPI.Password = getEnv("ZOO_API_PASSWORD", "")
 

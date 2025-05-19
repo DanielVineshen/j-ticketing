@@ -614,7 +614,7 @@ func (s *OrderService) getBankNameByCode(bankCode, mode string) (string, error) 
 	}
 
 	// Create a new request
-	req, err := http.NewRequest("POST", "https://johorpay-stag.johor.gov.my/JP_gateway/getBankList", strings.NewReader(formData.Encode()))
+	req, err := http.NewRequest("POST", s.paymentConfig.GatewayURL+"/JP_gateway/getBankList", strings.NewReader(formData.Encode()))
 	if err != nil {
 		log.Printf("Error creating request: %v", err)
 		return "", fmt.Errorf("error creating request: %w", err)

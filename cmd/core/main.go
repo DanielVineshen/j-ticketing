@@ -118,6 +118,16 @@ func main() {
 	orderTicketInfoRepo := repositories.NewOrderTicketInfoRepository(database)
 
 	// Initialize services
+	paymentService := service.NewPaymentService(
+		orderTicketGroupRepo,
+		orderTicketInfoRepo,
+		ticketGroupRepo,
+		tagRepo,
+		groupGalleryRepo,
+		ticketDetailRepo,
+		&paymentConfig,
+		cfg,
+	)
 	ticketGroupService := service.NewTicketGroupService(
 		ticketGroupRepo,
 		tagRepo,
@@ -150,6 +160,7 @@ func main() {
 	ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService)
 	authHandler := handlers.NewAuthHandler(authService, emailService)
 	orderHandler := handlers.NewOrderHandler(orderService, customerService, jwtService)
+	paymentHandler := handlers.NewPaymentHandler(paymentService, paymentConfig, emailService, ticketGroupService)
 	simplePDFHandler := handlers.NewPDFHandler()
 
 	// Create Fiber app with adapted error handler for slog
@@ -171,7 +182,7 @@ func main() {
 	routes.SetupTicketGroupRoutes(app, ticketGroupHandler, jwtService)
 	routes.SetupAuthRoutes(app, authHandler, jwtService)
 	routes.SetupOrderRoutes(app, orderHandler, jwtService)
-	routes.SetupPaymentRoutes(app, paymentConfig, orderTicketGroupRepo, orderTicketInfoRepo, emailService, ticketGroupRepo)
+	routes.SetupPaymentRoutes(app, paymentConfig, paymentHandler)
 	routes.SetupViewRoutes(app)
 	routes.SetupTicketPDFRoutes(app, simplePDFHandler)
 

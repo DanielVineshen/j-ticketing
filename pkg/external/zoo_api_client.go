@@ -99,12 +99,12 @@ func (c *ZooAPIClient) GetTicketItems(ticketGroupName string, date string) ([]Ti
 		return nil, fmt.Errorf("failed to get token: %w", err)
 	}
 
-	var value string
-	if ticketGroupName == "Zoo Johor" {
-		value = "GetOnlineItem"
-	} else {
-		value = "GetOnlineItem2" // Used for botani
-	}
+	var value = "GetOnlineItem2"
+	//if ticketGroupName == "Zoo Johor" {
+	//	value = "GetOnlineItem"
+	//} else {
+	//	value = "GetOnlineItem2" // Used for botani
+	//}
 
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/JohorZoo/%s?TranDate=%s", c.baseURL, value, date), nil)
 	if err != nil {

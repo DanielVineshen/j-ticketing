@@ -13,6 +13,10 @@ type TokenRepository interface {
 	FindByUserIdAndRefreshToken(userID, access string) (*models.Token, error)
 	FindByUserIdAndAccessToken(userID, access string) (*models.Token, error)
 	DeleteByUserIdAndAccessToken(userID, accessToken string) error
+	CountByUserId(userID string) (int64, error)
+	FindOldestByUserId(userID string) (*models.Token, error)
+	DeleteToken(token *models.Token) error
+	UpdateToken(token *models.Token) error
 }
 
 type tokenRepository struct {
@@ -54,4 +58,31 @@ func (r *tokenRepository) FindByUserIdAndAccessToken(userID, accessToken string)
 // DeleteByUserIdAndAccessToken deletes a token by user ID and access token
 func (r *tokenRepository) DeleteByUserIdAndAccessToken(userID, accessToken string) error {
 	return r.db.Where("user_id = ? AND access_token = ?", userID, accessToken).Delete(&models.Token{}).Error
+}
+
+// CountByUserId counts the number of tokens for a user
+func (r *tokenRepository) CountByUserId(userID string) (int64, error) {
+	var count int64
+	err := r.db.Model(&models.Token{}).Where("user_id = ?", userID).Count(&count).Error
+	return count, err
+}
+
+// FindOldestByUserId finds the oldest token for a user
+func (r *tokenRepository) FindOldestByUserId(userID string) (*models.Token, error) {
+	var token models.Token
+	err := r.db.Where("user_id = ?", userID).Order("created_at ASC").First(&token).Error
+	if err != nil {
+		return nil, err
+	}
+	return &token, nil
+}
+
+// DeleteToken deletes a token
+func (r *tokenRepository) DeleteToken(token *models.Token) error {
+	return r.db.Delete(token).Error
+}
+
+// UpdateToken updates a token in the database
+func (r *tokenRepository) UpdateToken(token *models.Token) error {
+	return r.db.Save(token).Error
 }

@@ -195,7 +195,7 @@ func (s *authService) ValidateToken(token string) (bool, error) {
 
 // RefreshToken refreshes an access token using a refresh token
 func (s *authService) RefreshToken(refreshToken string) (*dto.TokenResponse, error) {
-	// Validate refresh token
+	// Validate refresh token cryptographically
 	claims, err := s.jwtService.ValidateToken(refreshToken)
 	if err != nil {
 		return nil, err
@@ -205,7 +205,7 @@ func (s *authService) RefreshToken(refreshToken string) (*dto.TokenResponse, err
 	lookupID := claims.Username
 
 	// Check if refresh token exists in database
-	_, err = s.tokenRepo.FindByUserIdAndRefreshToken(lookupID, refreshToken)
+	dbToken, err := s.tokenRepo.FindByUserIdAndRefreshToken(lookupID, refreshToken)
 	if err != nil {
 		return nil, errors.New("invalid refresh token")
 	}
@@ -216,6 +216,15 @@ func (s *authService) RefreshToken(refreshToken string) (*dto.TokenResponse, err
 		return nil, err
 	}
 
+	// Update the token in the database
+	dbToken.AccessToken = accessToken
+	dbToken.UpdatedAt = time.Now()
+	if err := s.tokenRepo.UpdateToken(dbToken); err != nil {
+		log.Printf("Error updating token: %v", err)
+		// Continue anyway since we have generated the new token
+	}
+
+	// Continue with the rest of your existing code to return the TokenResponse
 	if claims.UserType == "admin" {
 		// Find admin by username
 		admin, err := s.adminRepo.FindByUsername(claims.Username)
@@ -273,6 +282,33 @@ func (s *authService) RefreshToken(refreshToken string) (*dto.TokenResponse, err
 
 // SaveToken saves a token to the database
 func (s *authService) SaveToken(userID, userType, accessToken, refreshToken, ipAddress, userAgent string) error {
+	// Check how many tokens the user already has
+	count, err := s.tokenRepo.CountByUserId(userID)
+	if err != nil {
+		log.Printf("Error counting tokens for user %s: %v", userID, err)
+		// Continue anyway
+	}
+
+	log.Printf("The count is: %v", count)
+
+	// If user has 3 or more tokens, delete the oldest one
+	if count >= 3 {
+		oldestToken, err := s.tokenRepo.FindOldestByUserId(userID)
+		if err != nil {
+			log.Printf("Error finding oldest token for user %s: %v", userID, err)
+			// Continue anyway
+		} else {
+			// Delete the oldest token
+			if err := s.tokenRepo.DeleteToken(oldestToken); err != nil {
+				log.Printf("Error deleting oldest token for user %s: %v", userID, err)
+				// Continue anyway
+			} else {
+				log.Printf("Deleted oldest token for user %s", userID)
+			}
+		}
+	}
+
+	// Create the new token
 	token := &coremodels.Token{
 		UserId:       userID,
 		UserType:     userType,

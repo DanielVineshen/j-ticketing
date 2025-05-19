@@ -11,6 +11,7 @@ import (
 	services "j-ticketing/internal/core/services"
 	"j-ticketing/pkg/email"
 	"log"
+	logger "log/slog"
 	"net/url"
 	"strconv"
 	"strings"
@@ -131,10 +132,14 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 }
 
 func (h *PaymentHandler) PaymentRedirect(c *fiber.Ctx) error {
+	logger.Info("Payment redirect was triggered by JohorPay!")
+
 	transactionData, err := h.decipherPayload(c)
 	if err != nil {
 		return err
 	}
+
+	logger.Info("With transaction data: %v", transactionData)
 
 	// Find the order first
 	order, err := h.paymentService.FindByOrderNo(transactionData.OrderNo)

@@ -36,7 +36,6 @@ type TransactionResponse struct {
 	JpMsgToken      string `json:"jp_msg_token"`
 }
 
-// First, define the request and response structures for the Johor Zoo API
 type ZooTicketItem struct {
 	ItemId string `json:"ItemId"`
 	Qty    int    `json:"Qty"`
@@ -789,7 +788,6 @@ func UpdateOrderFromPaymentResponse(orderNo string, transactionData TransactionR
 	// Update order fields
 	order.TransactionId = transactionData.IDTransaksi
 	order.TransactionStatus = dbStatus
-	//order.TransactionDate = transactionData.TarikhTransaksi
 	order.StatusMessage = sql.NullString{String: transactionData.StatusMessage, Valid: transactionData.StatusMessage != ""}
 	order.UpdatedAt = time.Now()
 
@@ -865,7 +863,12 @@ func PostToZooAPI(order *models.OrderTicketGroup, orderNo string, orderTicketInf
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Printf("Error closing response body: %v", err)
+		}
+	}(resp.Body)
 
 	// Read the response
 	body, err := io.ReadAll(resp.Body)

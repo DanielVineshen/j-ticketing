@@ -326,7 +326,7 @@ func (s *TicketGroupService) GetTicketVariants(ticketGroupId uint, date string) 
 	}
 
 	// Get available ticket items from the external API
-	ticketItems, err := s.zooAPIClient.GetTicketItems(date)
+	ticketItems, err := s.zooAPIClient.GetTicketItems(ticketGroup.GroupName, date)
 	if err != nil {
 		return nil, err
 	}

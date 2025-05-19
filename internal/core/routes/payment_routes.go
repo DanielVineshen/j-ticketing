@@ -23,9 +23,9 @@ import (
 )
 
 func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, paymentHandler *handlers.PaymentHandler) {
-	orderGroup := app.Group("/payment")
+	paymentGroup := app.Group("/payment")
 
-	app.Get("/payment/decrypt", func(c *fiber.Ctx) error {
+	paymentGroup.Get("/decrypt", func(c *fiber.Ctx) error {
 
 		// Original combined payload (IV:ciphertext)
 		payload := c.Query("payload")
@@ -110,10 +110,13 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, pay
 	})
 
 	// Payment return handler (callback from payment gateway)
-	orderGroup.Get("/return", paymentHandler.PaymentReturn)
+	paymentGroup.Get("/return", paymentHandler.PaymentReturn)
+
+	// Payment return handler (callback from payment gateway)
+	paymentGroup.Get("/redirect", paymentHandler.PaymentRedirect)
 
 	// Payment process - this will redirect to the payment gateway
-	app.Post("/payment/process", func(c *fiber.Ctx) error {
+	paymentGroup.Post("/process", func(c *fiber.Ctx) error {
 		randomStr, err := GenerateRandom16()
 		if err != nil {
 			// handle error
@@ -241,7 +244,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, pay
 	})
 
 	// Payment success
-	app.Get("/payment/success", func(c *fiber.Ctx) error {
+	paymentGroup.Get("/success", func(c *fiber.Ctx) error {
 		orderID := c.Query("order_id")
 		transactionID := c.Query("transaction_id")
 
@@ -253,7 +256,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, pay
 	})
 
 	// Payment failure
-	app.Get("/payment/failure", func(c *fiber.Ctx) error {
+	paymentGroup.Get("/payment/failure", func(c *fiber.Ctx) error {
 		errorCode := c.Query("error_code")
 		errorMessage := c.Query("error_message")
 
@@ -265,7 +268,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, pay
 	})
 
 	// API endpoint to generate a token
-	app.Post("/payment/generateToken", func(c *fiber.Ctx) error {
+	paymentGroup.Post("/generateToken", func(c *fiber.Ctx) error {
 		// Get the API key from config
 		apiKey := paymentConfig.APIKey
 
@@ -347,7 +350,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, pay
 	})
 
 	// API endpoint to get bank list
-	app.Post("/payment/bankList", func(c *fiber.Ctx) error {
+	paymentGroup.Post("/bankList", func(c *fiber.Ctx) error {
 		// Parse request body
 		var request struct {
 			Mode string `json:"mode"`

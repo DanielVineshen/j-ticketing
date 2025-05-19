@@ -291,7 +291,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, ord
 					OrderNumber:  order.OrderNo,
 				}
 
-				err = emailService.SendTicketsEmail(order.BuyerEmail, order.BuyerName, orderOverview, orderItems, ticketInfos)
+				err = emailService.SendTicketsEmail(order.BuyerEmail, orderOverview, orderItems, ticketInfos)
 				if err != nil {
 					log.Printf("Failed to send tickets email to %s: %v", order.BuyerEmail, err)
 					// Continue anyway since the password has been reset
@@ -686,21 +686,58 @@ func ConvertZooTicketsToTicketInfo(zooTickets []ZooTicketInfo) []email.TicketInf
 }
 
 // ConvertZooTicketsToOrderItems converts tickets from Zoo API format to OrderInfo format for emails
+// with grouping by ItemId to combine identical tickets
 func ConvertZooTicketsToOrderItems(zooTickets []ZooTicketInfo) []email.OrderInfo {
-	orderItems := make([]email.OrderInfo, 0, len(zooTickets))
+	// Use a map to group tickets by ItemId
+	ticketGroups := make(map[string]*struct {
+		Count     int
+		ItemDesc  string
+		UnitPrice string
+		EntryDate string
+	})
 
+	// Group tickets by ItemId and count them
 	for _, ticket := range zooTickets {
-		// Create TicketInfo with EncryptedID as QR code content
-		ticketInfo := email.OrderInfo{
-			Description:  ticket.ItemDesc2,
-			Quantity:     "1",
-			Price:        fmt.Sprintf("%.2f", parseFloat(ticket.UnitPrice)),
-			EntryDate:    ticket.AdmitDate,
-			OrderNumber:  "test",
-			PurchaseDate: "test",
+		itemId := ticket.ItemId
+
+		// If this is the first ticket with this ItemId, initialize the group
+		if _, exists := ticketGroups[itemId]; !exists {
+			ticketGroups[itemId] = &struct {
+				Count     int
+				ItemDesc  string
+				UnitPrice string
+				EntryDate string
+			}{
+				Count:     0,
+				ItemDesc:  ticket.ItemDesc2,
+				UnitPrice: ticket.UnitPrice,
+				EntryDate: ticket.AdmitDate,
+			}
 		}
 
-		orderItems = append(orderItems, ticketInfo)
+		// Increment the count for this ItemId
+		ticketGroups[itemId].Count++
+	}
+
+	// Convert the grouped tickets to OrderInfo objects
+	orderItems := make([]email.OrderInfo, 0, len(ticketGroups))
+
+	for _, group := range ticketGroups {
+		// Only create order items for groups with at least one ticket
+		if group.Count > 0 {
+			// Format the price with 2 decimal places
+			price := fmt.Sprintf("%.2f", parseFloat(group.UnitPrice))
+
+			// Create an OrderInfo for this group
+			orderInfo := email.OrderInfo{
+				Description: group.ItemDesc,
+				Quantity:    strconv.Itoa(group.Count), // Convert count to string
+				Price:       price,
+				EntryDate:   group.EntryDate,
+			}
+
+			orderItems = append(orderItems, orderInfo)
+		}
 	}
 
 	return orderItems
@@ -972,6 +1009,7 @@ func generateZooAPIToken() (string, error) {
 	return tokenResponse.AccessToken, nil
 }
 
+// Helper function to safely parse a string to float
 func parseFloat(s string) float64 {
 	f, err := strconv.ParseFloat(s, 64)
 	if err != nil {

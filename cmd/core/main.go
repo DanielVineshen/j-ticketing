@@ -2,6 +2,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"j-ticketing/internal/core/dto/payment"
 	"j-ticketing/internal/core/handlers"
@@ -16,6 +17,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"syscall"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -35,7 +37,10 @@ func main() {
 	if clientID := os.Getenv("CLIENT_ID"); strings.HasPrefix(clientID, "http://") || strings.HasPrefix(clientID, "https://") {
 		cleanClientID := strings.TrimPrefix(strings.TrimPrefix(clientID, "http://"), "https://")
 		log.Printf("Warning: CLIENT_ID contains URL prefix. Using cleaned value: %s...", cleanClientID[:min(10, len(cleanClientID))])
-		os.Setenv("CLIENT_ID", cleanClientID)
+		err := os.Setenv("CLIENT_ID", cleanClientID)
+		if err != nil {
+			return
+		}
 	}
 
 	// Load configuration
@@ -79,12 +84,12 @@ func main() {
 	}
 
 	// If auto-migration is disabled, run explicit migrations instead
-	if !autoMigrate {
-		log.Println("Running explicit SQL migrations...")
-		if err := db.RunMigrations(database); err != nil {
-			log.Printf("Warning: Migration error: %v", err)
-		}
-	}
+	//if !autoMigrate {
+	//	log.Println("Running explicit SQL migrations...")
+	//	if err := db.RunMigrations(database); err != nil {
+	//		log.Printf("Warning: Migration error: %v", err)
+	//	}
+	//}
 
 	// Initialize JWT service
 	jwtService := jwt.NewJWTService(cfg)
@@ -101,9 +106,6 @@ func main() {
 			log.Println("OAuth2 token test succeeded - email service should work correctly")
 		}
 	}
-
-	// Initialize PDF service with logo path
-	//logoPath := filepath.Join("assets", "logo.png")
 
 	// Initialize repositories
 	ticketGroupRepo := repositories.NewTicketGroupRepository(database)
@@ -129,7 +131,7 @@ func main() {
 		adminRepo,
 		customerRepo,
 		tokenRepo,
-		emailService, // Add email service to auth service
+		emailService,
 		cfg.JWT.AccessTokenTTL,
 		cfg.JWT.RefreshTokenTTL,
 	)
@@ -147,21 +149,28 @@ func main() {
 
 	// Initialize handlers
 	ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService)
-	authHandler := handlers.NewAuthHandler(authService, emailService) // Update auth handler with email service
+	authHandler := handlers.NewAuthHandler(authService, emailService)
 	orderHandler := handlers.NewOrderHandler(orderService, customerService, jwtService)
 
 	simplePDFHandler := handlers.NewPDFHandler()
 
-	// Initialize logger
-	logger, err := zap.NewProduction()
+	// Initialize loggerProd
+	loggerProd, err := zap.NewProduction()
 	if err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
+		log.Fatalf("Failed to initialize loggerProd: %v", err)
 	}
-	defer logger.Sync()
+	defer func(loggerProd *zap.Logger) {
+		err := loggerProd.Sync()
+		if err != nil {
+			if !errors.Is(err, syscall.ENOTTY) && !errors.Is(err, syscall.EINVAL) {
+				log.Printf("Failed to sync loggerProd: %v", err)
+			}
+		}
+	}(loggerProd)
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
-		ErrorHandler: middleware.GlobalErrorHandler(logger),
+		ErrorHandler: middleware.GlobalErrorHandler(loggerProd),
 	})
 
 	// Middleware
@@ -174,9 +183,6 @@ func main() {
 	}))
 	app.Static("/public", "./pkg/public")
 
-	// // Apply audit logging middleware (if needed)
-	// app.Use(middleware.AuditMiddleware(auditLogRepo))
-
 	// Setup routes
 	routes.SetupTicketGroupRoutes(app, ticketGroupHandler, jwtService)
 	routes.SetupAuthRoutes(app, authHandler, jwtService)
@@ -187,19 +193,10 @@ func main() {
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.Server.CorePort)
-	log.Printf("Server starting on %s with version 0.1", addr)
+	log.Printf("Server starting on %s with version 0.2", addr)
 	if err := app.Listen(addr); err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}
-}
-
-// Helper function to get environment variables with fallback
-func getEnv(key, fallback string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return fallback
-	}
-	return value
 }
 
 // Helper function to get environment variables with required check
@@ -213,16 +210,8 @@ func getRequiredEnv(key string) string {
 
 // Helper function to test OAuth2 token acquisition
 func testOAuth2(emailService email.EmailService) error {
-	// We'll just use SendEmail to a fake recipient, but with a flag to just test token acquisition
-	// This implementation depends on your EmailService interface
-	// For now, we'll return nil to indicate success
+	// Use SendEmail to a fake recipient, but with a flag to just test token acquisition
+	// Return nil to indicate success
+	// Temporary implementation, requires proper email to ensure it works
 	return nil
-}
-
-// min returns the minimum of two integers
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

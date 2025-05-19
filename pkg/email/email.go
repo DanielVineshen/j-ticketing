@@ -19,7 +19,7 @@ import (
 type EmailService interface {
 	SendEmail(to []string, subject, body string) error
 	SendPasswordResetEmail(to string, newPassword string) error
-	SendTicketsEmail(to string, customerName string, orderOverview OrderOverview, orderItems []OrderInfo, tickets []TicketInfo) error
+	SendTicketsEmail(to string, orderOverview OrderOverview, orderItems []OrderInfo, tickets []TicketInfo) error
 }
 
 type emailService struct {
@@ -73,25 +73,53 @@ func (s *emailService) SendPasswordResetEmail(to string, newPassword string) err
 	return s.SendEmail([]string{to}, subject, body)
 }
 
-// SendTicketsEmail sends an email with QR codes for tickets with improved design
-func (s *emailService) SendTicketsEmail(to string, customerName string, orderOverview OrderOverview, orderItems []OrderInfo, tickets []TicketInfo) error {
-	fmt.Printf("EXISTING orderOverview object: %+v\n", orderOverview)
-	fmt.Printf("EXISTING orderItems object: %+v\n", orderItems)
-	fmt.Printf("EXISTING tickets object: %+v\n", tickets)
+// OrderInfo represents information about the overall order
+type OrderOverview struct {
+	TicketGroup  string
+	FullName     string
+	PurchaseDate string
+	EntryDate    string
+	Quatity      string
+	OrderNumber  string
+}
 
-	subject := "Your " + orderOverview.TicketGroup + " tickets"
+// OrderInfo represents information about a single order item
+type OrderInfo struct {
+	Description string
+	Quantity    string
+	Price       string
+	EntryDate   string
+}
+
+// TicketInfo represents information for a single ticket
+type TicketInfo struct {
+	Label   string
+	Content string
+}
+
+// SendTicketsEmail sends an email with QR codes for tickets
+func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, orderItems []OrderInfo, tickets []TicketInfo) error {
+	subject := "Your " + orderOverview.TicketGroup + " Tickets"
 
 	var logoBase64 string
+	var address string
+	var contactNo string
+	var email string
 	if orderOverview.TicketGroup == "Zoo Johor" {
 		logoBase64 = zooLogo
+		address = "Jalan Gertak Merah, Taman Istana<br>80000 Johor Bahru, Johor<br>General Line: +07-223 0404"
+		contactNo = "+07-223 0404"
+		email = "zoojohor@johor.gov.my"
 	} else {
 		logoBase64 = botaniLogo
+		address = "Taman Botani Diraja Johor<br>80000 Johor Bahru, Johor<br>General Line: +07-485 8101"
+		contactNo = "+07-485 8101"
+		email = "botani.johor@gmail.com"
 	}
 
 	// Begin building HTML content
 	var contentBuilder bytes.Buffer
 
-	// Main content with customer information
 	contentBuilder.WriteString(`
     <div class="content">
         <p>Dear ` + orderOverview.FullName + `,</p>
@@ -471,9 +499,7 @@ func (s *emailService) SendTicketsEmail(to string, customerName string, orderOve
             <img src="data:image/png;base64,%s" alt="`+orderOverview.TicketGroup+` Logo" class="logo">
             <div class="company-info">
                 <p><strong>`+orderOverview.TicketGroup+`</strong><br>
-                Jalan Gertak Merah, Taman Istana<br>
-                80000 Johor Bahru, Johor<br>
-                General Line: +07-223 0404</p>
+				`+address+`</p>
             </div>
         </div>
         
@@ -481,7 +507,7 @@ func (s *emailService) SendTicketsEmail(to string, customerName string, orderOve
         
         <div class="footer">
             <p>This is an automated message, please do not reply to this email.</p>
-            <p>Contact us: +07-2230404 | zoojohor@johor.gov.my</p>
+            <p>Contact us: `+contactNo+` | `+email+`</p>
             <p>&copy; %d `+orderOverview.TicketGroup+`</p>
         </div>
     </div>
@@ -490,32 +516,6 @@ func (s *emailService) SendTicketsEmail(to string, customerName string, orderOve
 `, logoBase64, contentBuilder.String(), time.Now().Year())
 
 	return s.SendEmail([]string{to}, subject, body)
-}
-
-// OrderInfo represents information about a single order item
-type OrderOverview struct {
-	TicketGroup  string
-	FullName     string
-	PurchaseDate string
-	EntryDate    string
-	Quatity      string
-	OrderNumber  string
-}
-
-// OrderInfo represents information about a single order item
-type OrderInfo struct {
-	Description  string
-	Quantity     string
-	Price        string
-	EntryDate    string
-	OrderNumber  string
-	PurchaseDate string
-}
-
-// TicketInfo represents information for a single ticket
-type TicketInfo struct {
-	Label   string
-	Content string
 }
 
 // NewEmailService creates a new email service

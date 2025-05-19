@@ -3,11 +3,17 @@ package utils
 import (
 	"fmt"
 	"time"
+
+	// Import the timezone database to embed it in the binary
+	_ "time/tzdata"
 )
 
 const (
 	// Malaysia timezone
 	MalaysiaTimezone = "Asia/Kuala_Lumpur"
+
+	// Malaysia UTC offset in hours (UTC+8)
+	MalaysiaOffsetHours = 8
 
 	// Common date formats
 	FullDateTimeFormat = "2006-01-02 15:04:05" // yyyy-MM-dd HH:mm:ss
@@ -15,11 +21,24 @@ const (
 	MonthYearFormat    = "2006-01"             // yyyy-MM
 )
 
+// getMalaysiaLocation returns the Malaysia timezone location with a fallback mechanism
+func getMalaysiaLocation() (*time.Location, error) {
+	// Try to load from the embedded timezone database first
+	location, err := time.LoadLocation(MalaysiaTimezone)
+	if err == nil {
+		return location, nil
+	}
+
+	// If that fails, use a fixed UTC+8 offset as fallback
+	// Create a fixed location based on name and offset
+	return time.FixedZone("Malaysia", MalaysiaOffsetHours*60*60), nil
+}
+
 // ToMalaysiaTime converts UTC time to Malaysia timezone
 func ToMalaysiaTime(utcTime time.Time) (time.Time, error) {
-	location, err := time.LoadLocation(MalaysiaTimezone)
+	location, err := getMalaysiaLocation()
 	if err != nil {
-		return time.Time{}, fmt.Errorf("failed to load Malaysia timezone: %w", err)
+		return time.Time{}, fmt.Errorf("failed to determine Malaysia timezone: %w", err)
 	}
 	return utcTime.In(location), nil
 }

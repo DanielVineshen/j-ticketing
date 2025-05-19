@@ -162,7 +162,7 @@ func main() {
 	// Initialize handlers
 	ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService)
 	authHandler := handlers.NewAuthHandler(authService, emailService)
-	orderHandler := handlers.NewOrderHandler(orderService, customerService, jwtService)
+	orderHandler := handlers.NewOrderHandler(orderService, customerService, jwtService, paymentService, emailService, ticketGroupService, paymentConfig)
 	paymentHandler := handlers.NewPaymentHandler(paymentService, paymentConfig, emailService, ticketGroupService)
 	bannerHandler := handlers.NewBannerImageHandler(bannerService)
 	groupGalleryHandler := handlers.NewGroupGalleryHandler(groupGalleryService)

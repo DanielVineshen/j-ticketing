@@ -12,6 +12,7 @@ import (
 	ticketGroupDto "j-ticketing/internal/core/dto/ticket_group"
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
+	"j-ticketing/pkg/utils"
 	"log"
 	mathrand "math/rand"
 	"net/http"
@@ -357,6 +358,13 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 		mode = "02"
 	}
 
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		// Handle the error appropriately
+		// Perhaps log it, or return it from your function
+		return 0, err // or handle differently based on your application's needs
+	}
+
 	// Create order ticket group
 	orderTicketGroup := &models.OrderTicketGroup{
 		TicketGroupId:     req.TicketGroupId,
@@ -364,7 +372,7 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 		TransactionId:     "",
 		OrderNo:           orderNo,
 		TransactionStatus: "initiate", // Initial status
-		TransactionDate:   time.Now().Format("2006-01-02 15:04:05"),
+		TransactionDate:   malaysiaTime,
 		MsgToken:          mode,
 		BillId:            generateBillId(),
 		ProductId:         fmt.Sprintf("TG%d", req.TicketGroupId),
@@ -517,6 +525,13 @@ func (s *OrderService) CreateFreeOrder(custId string, req *orderDto.CreateFreeOr
 	// Generate order number and transaction ID
 	orderNo := generateOrderNumber()
 
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		// Handle the error appropriately
+		// Perhaps log it, or return it from your function
+		return nil, err // or handle differently based on your application's needs
+	}
+
 	// Create order ticket group
 	orderTicketGroup := &models.OrderTicketGroup{
 		TicketGroupId:     req.TicketGroupId,
@@ -524,7 +539,7 @@ func (s *OrderService) CreateFreeOrder(custId string, req *orderDto.CreateFreeOr
 		TransactionId:     "",
 		OrderNo:           orderNo,
 		TransactionStatus: "success",
-		TransactionDate:   time.Now().Format("2006-01-02 15:04:05"),
+		TransactionDate:   malaysiaTime,
 		MsgToken:          "",
 		BillId:            generateBillId(),
 		ProductId:         fmt.Sprintf("TG%d", req.TicketGroupId),

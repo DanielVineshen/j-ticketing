@@ -8,6 +8,8 @@ import (
 	"j-ticketing/pkg/config"
 	"j-ticketing/pkg/external"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -374,4 +376,28 @@ func (s *TicketGroupService) GetTicketVariants(ticketGroupId uint, date string) 
 	}
 
 	return response, nil
+}
+
+// GetImageInfo retrieves information about a ticket group image based on its unique extension
+func (s *TicketGroupService) GetImageInfo(uniqueExtension string) (string, string, error) {
+	// Get content type from ticket group repository
+	contentType, err := s.ticketGroupRepo.GetContentTypeByUniqueExtension(uniqueExtension)
+	if err != nil {
+		return "", "", err
+	}
+
+	if contentType == "" {
+		return "", "", err
+	}
+
+	// Get storage path from environment variable
+	storagePath := os.Getenv("TICKET_GROUP_STORAGE_PATH")
+
+	// Validate that the file exists
+	filePath := filepath.Join(storagePath, uniqueExtension)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return "", "", err
+	}
+
+	return contentType, filePath, nil
 }

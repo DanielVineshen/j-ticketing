@@ -2,7 +2,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"j-ticketing/internal/core/dto/payment"
 	"j-ticketing/internal/core/handlers"
@@ -14,31 +13,36 @@ import (
 	"j-ticketing/pkg/email"
 	"j-ticketing/pkg/jwt"
 	"j-ticketing/pkg/middleware"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
-	"syscall"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
-	"go.uber.org/zap"
-	"gorm.io/gorm/logger"
+	gormLogger "gorm.io/gorm/logger"
 )
 
 func main() {
-	// Load environment variables
-	//err := godotenv.Load()
-	//if err != nil {
-	//	log.Println("Warning: .env file not found, using default or environment values")
-	//}
+	// Initialize slogger first so we can use it throughout
+	slogger := initLogger()
 
 	// Pre-processing for OAuth client ID - clean up any URL prefixes
 	if clientID := os.Getenv("CLIENT_ID"); strings.HasPrefix(clientID, "http://") || strings.HasPrefix(clientID, "https://") {
 		cleanClientID := strings.TrimPrefix(strings.TrimPrefix(clientID, "http://"), "https://")
-		log.Printf("Warning: CLIENT_ID contains URL prefix. Using cleaned value: %s...", cleanClientID[:min(10, len(cleanClientID))])
+		truncatedID := cleanClientID
+		if len(cleanClientID) > 10 {
+			truncatedID = cleanClientID[:10]
+		}
+
+		slogger.Info("CLIENT_ID contains URL prefix, using cleaned value",
+			"original", clientID,
+			"cleaned", truncatedID)
+
 		err := os.Setenv("CLIENT_ID", cleanClientID)
 		if err != nil {
+			slogger.Error("Failed to set cleaned CLIENT_ID", "error", err)
 			return
 		}
 	}
@@ -46,64 +50,59 @@ func main() {
 	// Load configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		slogger.Error("Failed to load configuration", "error", err)
+		os.Exit(1)
 	}
 
 	// Control auto-migration from environment variable
 	autoMigrate := false
 	if os.Getenv("AUTO_MIGRATE") == "true" {
 		autoMigrate = true
-		log.Println("Auto-migration is enabled")
+		slogger.Info("Auto-migration is enabled")
 	}
 
 	createConstraints := false
 	if os.Getenv("CREATE_CONSTRAINTS") == "true" {
 		createConstraints = true
-		log.Println("Create constraints is enabled")
+		slogger.Info("Create constraints is enabled")
 	}
 
 	// Initialize payment config
 	paymentConfig := payment.PaymentConfig{
-		GatewayURL:      getRequiredEnv("PAYMENT_GATEWAY_URL"),
-		APIKey:          getRequiredEnv("JP_API_KEY"),
-		BaseURL:         getRequiredEnv("BASE_URL"),
-		AGToken:         getRequiredEnv("AG_TOKEN"),
-		FrontendBaseURL: getRequiredEnv("FRONTEND_BASE_URL"),
+		GatewayURL:      getRequiredEnv("PAYMENT_GATEWAY_URL", slogger),
+		APIKey:          getRequiredEnv("JP_API_KEY", slogger),
+		BaseURL:         getRequiredEnv("BASE_URL", slogger),
+		AGToken:         getRequiredEnv("AG_TOKEN", slogger),
+		FrontendBaseURL: getRequiredEnv("FRONTEND_BASE_URL", slogger),
 	}
 
 	// Initialize database connection with auto-migration control
 	dbConfig := &db.DBConfig{
 		AutoMigrate:       autoMigrate,
 		CreateConstraints: createConstraints,
-		LogLevel:          logger.Info,
+		LogLevel:          gormLogger.Info,
 	}
 
 	database, err := db.GetDBConnection(cfg, dbConfig)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		slogger.Error("Failed to connect to database", "error", err)
+		os.Exit(1)
 	}
-
-	// If auto-migration is disabled, run explicit migrations instead
-	//if !autoMigrate {
-	//	log.Println("Running explicit SQL migrations...")
-	//	if err := db.RunMigrations(database); err != nil {
-	//		log.Printf("Warning: Migration error: %v", err)
-	//	}
-	//}
 
 	// Initialize JWT service
 	jwtService := jwt.NewJWTService(cfg)
 
 	// Initialize email service
 	emailService := email.NewEmailService(cfg)
+
 	// Test the email connection if we're using OAuth2
 	if cfg.Email.ClientID != "" && cfg.Email.ClientSecret != "" && cfg.Email.RefreshToken != "" {
-		log.Println("Testing OAuth2 token acquisition...")
+		slogger.Info("Testing OAuth2 token acquisition...")
 		if err := testOAuth2(emailService); err != nil {
-			log.Printf("OAuth2 token test failed: %v", err)
-			log.Println("Email sending with OAuth2 might not work correctly")
+			slogger.Warn("OAuth2 token test failed, email sending with OAuth2 might not work correctly",
+				"error", err)
 		} else {
-			log.Println("OAuth2 token test succeeded - email service should work correctly")
+			slogger.Info("OAuth2 token test succeeded - email service should work correctly")
 		}
 	}
 
@@ -151,26 +150,11 @@ func main() {
 	ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService)
 	authHandler := handlers.NewAuthHandler(authService, emailService)
 	orderHandler := handlers.NewOrderHandler(orderService, customerService, jwtService)
-
 	simplePDFHandler := handlers.NewPDFHandler()
 
-	// Initialize loggerProd
-	loggerProd, err := zap.NewProduction()
-	if err != nil {
-		log.Fatalf("Failed to initialize loggerProd: %v", err)
-	}
-	defer func(loggerProd *zap.Logger) {
-		err := loggerProd.Sync()
-		if err != nil {
-			if !errors.Is(err, syscall.ENOTTY) && !errors.Is(err, syscall.EINVAL) {
-				log.Printf("Failed to sync loggerProd: %v", err)
-			}
-		}
-	}(loggerProd)
-
-	// Create Fiber app
+	// Create Fiber app with adapted error handler for slog
 	app := fiber.New(fiber.Config{
-		ErrorHandler: middleware.GlobalErrorHandler(loggerProd),
+		ErrorHandler: middleware.GlobalErrorHandler(slogger),
 	})
 
 	// Middleware
@@ -193,17 +177,60 @@ func main() {
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.Server.CorePort)
-	log.Printf("Server starting on %s with version 0.2", addr)
+	slogger.Info("Server starting",
+		"address", addr,
+		"version", "0.2")
+
 	if err := app.Listen(addr); err != nil {
-		log.Fatalf("Error starting server: %v", err)
+		slogger.Error("Error starting server", "error", err)
+		os.Exit(1)
 	}
 }
 
+// initLogger sets up an slog slogger with appropriate configuration
+func initLogger() *slog.Logger {
+	// Determine if we're in development mode
+	isDev := os.Getenv("APP_ENV") != "production"
+
+	var handler slog.Handler
+	if isDev {
+		// Development slogger: Text format with source location
+		opts := &slog.HandlerOptions{
+			Level:     slog.LevelDebug,
+			AddSource: true,
+		}
+		handler = slog.NewTextHandler(os.Stdout, opts)
+	} else {
+		// Production slogger: JSON format
+		opts := &slog.HandlerOptions{
+			Level: slog.LevelInfo,
+			// Custom time format similar to ISO8601
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				if a.Key == slog.TimeKey {
+					if t, ok := a.Value.Any().(time.Time); ok {
+						a.Value = slog.StringValue(t.Format(time.RFC3339))
+					}
+				}
+				return a
+			},
+		}
+		handler = slog.NewJSONHandler(os.Stdout, opts)
+	}
+
+	slogger := slog.New(handler)
+
+	// Set as default slogger too (optional)
+	slog.SetDefault(slogger)
+
+	return slogger
+}
+
 // Helper function to get environment variables with required check
-func getRequiredEnv(key string) string {
+func getRequiredEnv(key string, slogger *slog.Logger) string {
 	value := os.Getenv(key)
 	if value == "" {
-		log.Fatalf("Error: Environment variable %s is required but not set", key)
+		slogger.Error("Required environment variable not set", "variable", key)
+		os.Exit(1)
 	}
 	return value
 }

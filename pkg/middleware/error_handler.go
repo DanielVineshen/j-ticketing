@@ -7,16 +7,16 @@ import (
 	"fmt"
 	"j-ticketing/pkg/errors"
 	"j-ticketing/pkg/models"
+	"log/slog"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
-	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 // GlobalErrorHandler is a middleware that handles errors globally
-func GlobalErrorHandler(logger *zap.Logger) fiber.ErrorHandler {
+func GlobalErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 	return func(c *fiber.Ctx, err error) error {
 		// Default to internal server error
 		status := fiber.StatusInternalServerError
@@ -26,9 +26,10 @@ func GlobalErrorHandler(logger *zap.Logger) fiber.ErrorHandler {
 		}
 
 		// Generate error code for 500 errors for tracking
-		errorCode := ""
-		errorCode = generateErrorCode()
-		logger.Error("Error code: "+errorCode+" for error:", zap.Error(err))
+		errorCode := generateErrorCode()
+		logger.Error("Error occurred",
+			"code", errorCode,
+			"error", err)
 
 		// Check for specific error types
 		switch e := err.(type) {
@@ -145,7 +146,7 @@ func GlobalErrorHandler(logger *zap.Logger) fiber.ErrorHandler {
 
 		default:
 			// Handle unknown errors
-			logger.Error("Unhandled error:", zap.Error(err))
+			logger.Error("Unhandled error", "error", err)
 			response.RespDesc = response.RespDesc + " - " + errorCode
 		}
 

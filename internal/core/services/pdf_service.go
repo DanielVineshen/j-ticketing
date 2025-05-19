@@ -1,4 +1,4 @@
-package handlers
+package service
 
 import (
 	"bytes"
@@ -9,21 +9,22 @@ import (
 
 	"github.com/boombuler/barcode"
 	"github.com/boombuler/barcode/qr"
-	"github.com/gofiber/fiber/v2"
 	"github.com/jung-kurt/gofpdf"
+	"j-ticketing/pkg/email"
 )
 
-// PDFHandler handles generating a PDF ticket
-type PDFHandler struct {
+// PDFService handles PDF generation functionality
+type PDFService struct {
+	// Add any dependencies you might need here
 }
 
-// NewPDFHandler creates a new PDF handler
-func NewPDFHandler() *PDFHandler {
-	return &PDFHandler{}
+// NewPDFService creates a new PDF service instance
+func NewPDFService() *PDFService {
+	return &PDFService{}
 }
 
-// / GenerateTicketPDF generates a PDF ticket with QR codes
-func (h *PDFHandler) GenerateTicketPDF(c *fiber.Ctx) error {
+// GenerateTicketPDF generates a PDF ticket with QR codes
+func (s *PDFService) GenerateTicketPDF(ticketGroupName string, tickets []email.TicketInfo) ([]byte, string, error) {
 	// Create a new PDF with portrait orientation, mm unit, A4 format
 	pdf := gofpdf.New("P", "mm", "A4", "")
 
@@ -34,21 +35,8 @@ func (h *PDFHandler) GenerateTicketPDF(c *fiber.Ctx) error {
 	pdf.SetFont("Arial", "B", 16)
 
 	// Add title
-	pdf.Cell(190, 10, "Zoo Johor Tickets")
+	pdf.Cell(190, 10, ticketGroupName+" Tickets")
 	pdf.Ln(20)
-
-	// QR code content
-	tickets := []struct {
-		Content string
-		Label   string
-	}{
-		{"TICKET-ADULT-001", "Adult Ticket #001"},
-		{"TICKET-ADULT-002", "Adult Ticket #002"},
-		{"TICKET-CHILD-001", "Child Ticket #001"},
-		{"TICKET-CHILD-002", "Child Ticket #002"},
-		{"TICKET-SENIOR-001", "Senior Ticket #001"},
-		{"TICKET-SENIOR-002", "Senior Ticket #002"},
-	}
 
 	// QR code settings
 	qrSize := 40.0      // Size of QR code in mm
@@ -79,17 +67,13 @@ func (h *PDFHandler) GenerateTicketPDF(c *fiber.Ctx) error {
 			// Generate QR code image
 			qrCode, err := qr.Encode(ticket.Content, qr.M, qr.Auto)
 			if err != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": "Failed to generate QR code: " + err.Error(),
-				})
+				return nil, "", fmt.Errorf("failed to generate QR code: %w", err)
 			}
 
 			// Scale the QR code
 			qrCode, err = barcode.Scale(qrCode, 256, 256)
 			if err != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": "Failed to scale QR code: " + err.Error(),
-				})
+				return nil, "", fmt.Errorf("failed to scale QR code: %w", err)
 			}
 
 			// Convert to RGBA to ensure compatibility
@@ -104,9 +88,7 @@ func (h *PDFHandler) GenerateTicketPDF(c *fiber.Ctx) error {
 			var qrBuffer bytes.Buffer
 			err = png.Encode(&qrBuffer, rgba)
 			if err != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": "Failed to encode QR code: " + err.Error(),
-				})
+				return nil, "", fmt.Errorf("failed to encode QR code as PNG: %w", err)
 			}
 
 			// Register the in-memory image with gofpdf
@@ -129,18 +111,12 @@ func (h *PDFHandler) GenerateTicketPDF(c *fiber.Ctx) error {
 	var buffer bytes.Buffer
 	err := pdf.Output(&buffer)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to generate PDF: " + err.Error(),
-		})
+		return nil, "", fmt.Errorf("failed to generate PDF: %w", err)
 	}
-
-	// Set appropriate headers for PDF download
-	c.Set("Content-Type", "application/pdf")
 
 	// Generate a filename with the current timestamp
 	filename := fmt.Sprintf("tickets_with_qrcodes_%s.pdf", time.Now().Format("20060102_150405"))
-	c.Set("Content-Disposition", "attachment; filename="+filename)
 
-	// Send the PDF content
-	return c.Send(buffer.Bytes())
+	// Return the PDF bytes and filename
+	return buffer.Bytes(), filename, nil
 }

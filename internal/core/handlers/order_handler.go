@@ -5,27 +5,40 @@ import (
 	"fmt"
 	"github.com/gofiber/fiber/v2"
 	orderDto "j-ticketing/internal/core/dto/order"
+	"j-ticketing/internal/core/dto/payment"
 	services "j-ticketing/internal/core/services"
+	"j-ticketing/pkg/email"
 	"j-ticketing/pkg/errors"
 	"j-ticketing/pkg/jwt"
 	"j-ticketing/pkg/models"
+	"log"
 	"strconv"
 	"strings"
 )
 
 // OrderHandler handles HTTP requests for orders
 type OrderHandler struct {
-	orderService    *services.OrderService
-	customerService services.CustomerService
-	jwtService      jwt.JWTService
+	orderService       *services.OrderService
+	customerService    services.CustomerService
+	jwtService         jwt.JWTService
+	paymentService     *services.PaymentService
+	emailService       email.EmailService
+	ticketGroupService *services.TicketGroupService
+	paymentConfig      payment.PaymentConfig
+	pdfService         *services.PDFService
 }
 
 // NewOrderHandler creates a new instance of OrderHandler
-func NewOrderHandler(orderService *services.OrderService, customerService services.CustomerService, jwtService jwt.JWTService) *OrderHandler {
+func NewOrderHandler(orderService *services.OrderService, customerService services.CustomerService, jwtService jwt.JWTService, paymentService *services.PaymentService, emailService email.EmailService, ticketGroupService *services.TicketGroupService, paymentConfig payment.PaymentConfig, pdfService *services.PDFService) *OrderHandler {
 	return &OrderHandler{
-		orderService:    orderService,
-		customerService: customerService,
-		jwtService:      jwtService,
+		orderService:       orderService,
+		customerService:    customerService,
+		jwtService:         jwtService,
+		paymentService:     paymentService,
+		emailService:       emailService,
+		ticketGroupService: ticketGroupService,
+		paymentConfig:      paymentConfig,
+		pdfService:         pdfService,
 	}
 }
 
@@ -283,7 +296,7 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 	}
 
 	// Create the order using the custId we determined
-	orderID, err := h.orderService.CreateFreeOrder(custId, &req)
+	orderTicketGroup, err := h.orderService.CreateFreeOrder(custId, &req)
 	if err != nil {
 		// Determine appropriate error code based on the error
 		if strings.Contains(err.Error(), "not found") {
@@ -297,45 +310,73 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 		}
 	}
 
-	// TODO - complete qr code & email logic
 	// Only call the Zoo API if payment was successful
-	//orderItems, ticketInfos, err = routes.PostToZooAPI(order, orderID, *orderTicketInfoRepo)
-	//if err != nil {
-	//	log.Printf("Error posting to Johor Zoo API: %v", err)
-	//	// Continue with redirect even if this fails, we can retry later
-	//}
-	//
-	//ticketGroup, err := ticketGroupRepo.FindByID(order.TicketGroupId)
-	//if err != nil {
-	//	log.Printf("Error finding ticket group %s: %v", order.TicketGroupId, err)
-	//}
-	//
-	//orderOverview := email.OrderOverview{
-	//	TicketGroup:  ticketGroup.GroupName,
-	//	FullName:     order.BuyerName,
-	//	PurchaseDate: order.TransactionDate,
-	//	EntryDate:    orderItems[0].EntryDate,
-	//	Quatity:      orderItems[0].Description,
-	//	OrderNumber:  order.OrderNo,
-	//}
-	//
-	//err = emailService.SendTicketsEmail(order.BuyerEmail, orderOverview, orderItems, ticketInfos)
-	//if err != nil {
-	//	log.Printf("Failed to send tickets email to %s: %v", order.BuyerEmail, err)
-	//	// Continue anyway since the password has been reset
-	//}
-	//order.IsEmailSent = true
-	//// Save the updated order
-	//err = orderTicketGroupRepo.Update(order)
-	//if err != nil {
-	//	log.Printf("Error updating order: %v", err)
-	//	return err
-	//}
+	orderItems, ticketInfos, err := h.paymentService.PostToZooAPI(orderTicketGroup.OrderNo)
+	if err != nil {
+		log.Printf("Error posting to Johor Zoo API: %v", err)
+		// Continue with redirect even if this fails, we can retry later
+	}
+
+	ticketGroup, err := h.ticketGroupService.GetTicketGroup(orderTicketGroup.TicketGroupId)
+	if err != nil {
+		log.Printf("Error finding ticket group %s: %v", orderTicketGroup.TicketGroupId, err)
+	}
+
+	orderOverview := email.OrderOverview{
+		TicketGroup:  ticketGroup.GroupName,
+		FullName:     orderTicketGroup.BuyerName,
+		PurchaseDate: orderTicketGroup.TransactionDate,
+		EntryDate:    orderItems[0].EntryDate,
+		Quatity:      orderItems[0].Description,
+		OrderNumber:  orderTicketGroup.OrderNo,
+	}
+
+	pdfBytes, pdfFilename, err := h.pdfService.GenerateTicketPDF(ticketGroup.GroupName, ticketInfos)
+	if err != nil {
+		log.Printf("Error generating PDF: %v", err)
+	}
+
+	// Create attachment if PDF was successfully generated
+	var pdfAttachment email.Attachment
+	if err == nil && pdfBytes != nil {
+		pdfAttachment = email.Attachment{
+			Name:    pdfFilename,
+			Content: pdfBytes,
+			Type:    "application/pdf",
+		}
+	}
+
+	err = h.emailService.SendTicketsEmail(orderTicketGroup.BuyerEmail, orderOverview, orderItems, ticketInfos, []email.Attachment{pdfAttachment})
+	if err != nil {
+		log.Printf("Failed to send tickets email to %s: %v", orderTicketGroup.BuyerEmail, err)
+		// Continue anyway since the password has been reset
+	}
+	orderTicketGroup.IsEmailSent = true
+	// Save the updated order
+	err = h.paymentService.UpdateOrderTicketGroup(orderTicketGroup)
+	if err != nil {
+		return err
+	}
 
 	// Return success response with redirect information
-	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(map[string]interface{}{
-		"orderID": orderID,
+	return c.Status(fiber.StatusOK).JSON(models.NewBaseSuccessResponse(map[string]interface{}{
+		"orderTicketGroupId": orderTicketGroup.OrderTicketGroupId,
+		"transactionStatus":  orderTicketGroup.TransactionStatus,
+		"orderNo":            orderTicketGroup.OrderNo,
 	}))
+
+	//successURL := h.paymentConfig.FrontendBaseURL + "/paymentRedirect"
+	//
+	//// Build the full URL with query parameters
+	//redirectURL := fmt.Sprintf("%s?orderTicketGroupId=%s&transactionStatus=%s&orderNo=%s",
+	//	successURL,
+	//	url.QueryEscape(strconv.Itoa(int(orderTicketGroup.OrderTicketGroupId))),
+	//	url.QueryEscape(orderTicketGroup.TransactionStatus),
+	//	url.QueryEscape(orderTicketGroup.OrderNo))
+	//
+	//log.Printf("Complete redirect URL: %s", redirectURL)
+	//
+	//return c.Redirect(redirectURL)
 }
 
 // Generate the checkout URL based on order ID and payment type

@@ -55,3 +55,14 @@ func (r *TicketGroupRepository) FindActiveTicketGroups() ([]models.TicketGroup, 
 	result := r.db.Where("is_active = ?", true).Find(&ticketGroups)
 	return ticketGroups, result.Error
 }
+
+// GetContentTypeByUniqueExtension finds the content type for a group gallery by unique extension
+func (r *TicketGroupRepository) GetContentTypeByUniqueExtension(uniqueExtension string) (string, error) {
+	var contentType string
+	result := r.db.Model(&models.TicketGroup{}).
+		Select("content_type").
+		Where("unique_extension = ?", uniqueExtension).
+		First(&contentType)
+
+	return contentType, result.Error
+}

@@ -111,8 +111,8 @@ func (s *PaymentService) PostToZooAPI(orderNo string) ([]email.OrderInfo, []emai
 		})
 	}
 
-	// Format the admission date from the order
-	admissionDate := order.TransactionDate[:10]
+	// Get the first order ticket info to know the admit date
+	admissionDate := orderTickets[0].AdmitDate
 
 	// Create the request payload
 	payload := payment.ZooTicketRequest{

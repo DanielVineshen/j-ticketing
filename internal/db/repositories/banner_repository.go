@@ -45,3 +45,14 @@ func (r *BannerRepository) FindByTicketGroupID(ticketGroupID uint) ([]models.Ban
 	result := r.db.Where("ticket_group_id = ?", ticketGroupID).Find(&banners)
 	return banners, result.Error
 }
+
+// GetContentTypeByUniqueExtension finds the content type for a banner by unique extension
+func (r *BannerRepository) GetContentTypeByUniqueExtension(uniqueExtension string) (string, error) {
+	var contentType string
+	result := r.db.Model(&models.Banner{}).
+		Select("content_type").
+		Where("unique_extension = ?", uniqueExtension).
+		First(&contentType)
+
+	return contentType, result.Error
+}

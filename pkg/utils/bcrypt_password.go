@@ -1,5 +1,5 @@
-// FILE: internal/auth/utils/password.go
-package util
+// FILE: j-ticketing/internal/pkg/utils/password_generator.go
+package utils
 
 import (
 	"crypto/rand"

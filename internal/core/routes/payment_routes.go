@@ -1,3 +1,5 @@
+// File: j-ticketing/internal/core/routes/payment_routes.go
+
 package routes
 
 import (
@@ -17,6 +19,7 @@ import (
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
 	"j-ticketing/pkg/email"
+	"j-ticketing/pkg/utils"
 	"log"
 	"net/http"
 	"net/url"
@@ -65,9 +68,10 @@ type ZooTicketResponse struct {
 }
 
 func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, orderTicketGroupRepo *repositories.OrderTicketGroupRepository, orderTicketInfoRepo *repositories.OrderTicketInfoRepository, emailService email.EmailService, ticketGroupRepo *repositories.TicketGroupRepository) {
-	app.Post("/decrypt", func(c *fiber.Ctx) error {
+	app.Get("/payment/decrypt", func(c *fiber.Ctx) error {
+
 		// Original combined payload (IV:ciphertext)
-		payload := `5\/4g3kU5e3TeIHRBuODwaQ==:m o5UiCWiJedyfDIxY8IrF49tfd0qejW9Iv\/5XGKQZ7BZP4ahvwIO5zDxg0nEXL x HEsuhscS7g5t2T2Ip\/4xd5bJzmbMsHJsK29Qo224Fohzf9itYxvD8njnshKi1GcBEQNQbX1  F1VTzAskn84ARSI QWM Qepcerg59quUGL17xYGLo3hoKhUFnXFclcdCsL9iv19riJXpQ65n\/ 2ZvjXfbPv fUE4lRIYtP58qh9ABUUxSPUCNoyPp\/ CfuEVyNqvG T3fZeRB86AD1ujDtP4SAx\/cOLYrELKgqaE=`
+		payload := c.Query("payload")
 
 		// Split the payload into IV and ciphertext components
 		parts := strings.SplitN(payload, ":", 2)
@@ -467,7 +471,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, ord
 	})
 
 	// API endpoint to generate a token
-	app.Post("/api/generate-token", func(c *fiber.Ctx) error {
+	app.Post("/payment/generateToken", func(c *fiber.Ctx) error {
 		// Get the API key from config
 		apiKey := paymentConfig.APIKey
 
@@ -549,7 +553,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, ord
 	})
 
 	// API endpoint to get bank list
-	app.Post("/api/bank-list", func(c *fiber.Ctx) error {
+	app.Post("/payment/bankList", func(c *fiber.Ctx) error {
 		// Parse request body
 		var request struct {
 			Mode string `json:"mode"`
@@ -725,7 +729,7 @@ func ConvertZooTicketsToOrderItems(zooTickets []ZooTicketInfo) []email.OrderInfo
 		// Only create order items for groups with at least one ticket
 		if group.Count > 0 {
 			// Format the price with 2 decimal places
-			price := fmt.Sprintf("%.2f", parseFloat(group.UnitPrice))
+			price := fmt.Sprintf("%.2f", utils.ParseFloat(group.UnitPrice))
 
 			// Create an OrderInfo for this group
 			orderInfo := email.OrderInfo{
@@ -1010,13 +1014,4 @@ func generateZooAPIToken() (string, error) {
 
 	// Return the access token
 	return tokenResponse.AccessToken, nil
-}
-
-// Helper function to safely parse a string to float
-func parseFloat(s string) float64 {
-	f, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0.0 // Return default value if parsing fails
-	}
-	return f
 }

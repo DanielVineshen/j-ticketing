@@ -296,7 +296,7 @@
     // Generate token function
     async function generateToken() {
       try {
-        const response = await fetch("/api/generate-token", {
+        const response = await fetch("/payment/generateToken", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

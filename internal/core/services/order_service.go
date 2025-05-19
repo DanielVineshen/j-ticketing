@@ -375,6 +375,7 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 		BuyerName:         req.FullName,
 		BuyerEmail:        req.Email,
 		ProductDesc:       ticketGroup.GroupName,
+		IsEmailSent:       false,
 		CreatedAt:         time.Now(),
 		UpdatedAt:         time.Now(),
 	}
@@ -467,7 +468,129 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 	return orderTicketGroup.OrderTicketGroupId, nil
 }
 
-// Helper functions for order creation
+// CreateOrder creates a new free order ticket group and returns the order ID
+func (s *OrderService) CreateFreeOrder(custId string, req *orderDto.CreateFreeOrderRequest) (uint, error) {
+	// Validate ticket group exists
+	ticketGroup, err := s.ticketGroupRepo.FindByID(req.TicketGroupId)
+	if err != nil {
+		return 0, fmt.Errorf("ticket group not found: %w", err)
+	}
+
+	// Ensure ticket group is active
+	if !ticketGroup.IsActive {
+		return 0, errors.New("ticket group is not active")
+	}
+
+	// Parse and validate date
+	orderDate, err := time.Parse("2006-01-02", req.Date)
+	if err != nil {
+		return 0, fmt.Errorf("invalid date format: %w", err)
+	}
+
+	// Retrieve available ticket variants for validation and pricing
+	ticketVariantsResponse, err := s.ticketGroupService.GetTicketVariants(req.TicketGroupId, req.Date)
+	if err != nil {
+		return 0, fmt.Errorf("failed to retrieve ticket variants: %w", err)
+	}
+
+	// Create a map for easier lookup of ticket variants
+	ticketVariantMap := make(map[string]ticketGroupDto.TicketVariantDTO)
+	for _, variant := range ticketVariantsResponse.TicketVariants {
+		ticketVariantMap[variant.TicketId] = variant
+	}
+
+	// Validate that all requested tickets exist in available variants
+	for _, ticket := range req.Tickets {
+		if _, exists := ticketVariantMap[ticket.TicketId]; !exists {
+			return 0, fmt.Errorf("ticket ID %s is not available for this group and date", ticket.TicketId)
+		}
+	}
+
+	// Generate order number and transaction ID
+	orderNo := generateOrderNumber()
+
+	// Calculate total amount based on tickets
+	var totalAmount float64 = 0
+
+	// Create order ticket group
+	orderTicketGroup := &models.OrderTicketGroup{
+		TicketGroupId:     req.TicketGroupId,
+		CustId:            custId,
+		TransactionId:     "",
+		OrderNo:           orderNo,
+		TransactionStatus: "success",
+		TransactionDate:   time.Now().Format("2006-01-02 15:04:05"),
+		MsgToken:          "",
+		BillId:            generateBillId(),
+		ProductId:         fmt.Sprintf("TG%d", req.TicketGroupId),
+		TotalAmount:       0,
+		BuyerName:         req.FullName,
+		BuyerEmail:        req.Email,
+		ProductDesc:       ticketGroup.GroupName,
+		IsEmailSent:       false,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+	}
+
+	// Process tickets
+	orderTicketInfos := make([]models.OrderTicketInfo, 0, len(req.Tickets))
+
+	for _, ticket := range req.Tickets {
+		// Get the ticket variant details
+		variant, exists := ticketVariantMap[ticket.TicketId]
+		if !exists {
+			// This should never happen as we've already validated all tickets
+			return 0, fmt.Errorf("unexpected error: ticket ID %s not found", ticket.TicketId)
+		}
+
+		// Use the unit price from the variant
+		unitPrice := variant.UnitPrice
+
+		// Create multiple entries for tickets with quantity > 1
+		for i := 0; i < ticket.Qty; i++ {
+			// Update total amount for each individual ticket
+			totalAmount += unitPrice
+
+			// Create a new ticket info entry for each quantity
+			orderTicketInfo := models.OrderTicketInfo{
+				OrderTicketGroupId: orderTicketGroup.OrderTicketGroupId,
+				ItemId:             ticket.TicketId,
+				UnitPrice:          unitPrice,
+				ItemDesc1:          variant.ItemDesc1,              // Use description from API
+				ItemDesc2:          variant.ItemDesc2,              // Use description from API
+				PrintType:          variant.PrintType,              // Use print type from API
+				QuantityBought:     1,                              // Fixed quantity of 1
+				EncryptedId:        "",                             // You'll need to set this appropriately
+				AdmitDate:          orderDate.Format("2006-01-02"), // Format the date consistently
+				Variant:            "default",
+				CreatedAt:          time.Now(),
+				UpdatedAt:          time.Now(),
+			}
+
+			// Add directly to the slice
+			orderTicketInfos = append(orderTicketInfos, orderTicketInfo)
+		}
+	}
+
+	if totalAmount > 0 {
+		return 0, fmt.Errorf("failed to create order: total amount for tickets exceed 0")
+	}
+
+	// Save order ticket group to get the ID
+	err = s.orderTicketGroupRepo.Create(orderTicketGroup)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create order: %w", err)
+	}
+
+	// Save all ticket info entries
+	err = s.orderTicketInfoRepo.BatchCreate(orderTicketInfos)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create order tickets: %w", err)
+	}
+
+	// Return the order ID
+	return orderTicketGroup.OrderTicketGroupId, nil
+}
 
 // getBankNameByCode retrieves a bank name by its code and validates if the bank is enabled
 // Returns the bank name if found and enabled, or an error if not

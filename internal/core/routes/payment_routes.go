@@ -248,7 +248,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, ord
 		var dbStatus = order.TransactionStatus
 		if order.TransactionStatus != "success" {
 			// Update the order in the database
-			err = UpdateOrderFromPaymentResponse(transactionData.OrderNo, transactionData, *orderTicketGroupRepo)
+			err = UpdateOrderFromPaymentResponse(transactionData.OrderNo, transactionData, order, orderTicketGroupRepo)
 			if err != nil {
 				log.Printf("Error updating order: %v", err)
 				// Continue with the redirect even if the update fails
@@ -298,6 +298,13 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, ord
 				if err != nil {
 					log.Printf("Failed to send tickets email to %s: %v", order.BuyerEmail, err)
 					// Continue anyway since the password has been reset
+				}
+				order.IsEmailSent = true
+				// Save the updated order
+				err = orderTicketGroupRepo.Update(order)
+				if err != nil {
+					log.Printf("Error updating order: %v", err)
+					return err
 				}
 			}
 		}
@@ -763,20 +770,8 @@ func GenerateRandom16() (string, error) {
 	return randomString, nil
 }
 
-func UpdateOrderFromPaymentResponse(orderNo string, transactionData TransactionResponse,
-	orderTicketGroupRepo repositories.OrderTicketGroupRepository) error {
-
-	// Find the order first
-	order, err := orderTicketGroupRepo.FindByOrderNo(orderNo)
-	if err != nil {
-		log.Printf("Error finding order %s: %v", orderNo, err)
-		return err
-	}
-
-	if order == nil {
-		log.Printf("Order not found: %s", orderNo)
-		return fmt.Errorf("order not found: %s", orderNo)
-	}
+func UpdateOrderFromPaymentResponse(orderNo string, transactionData TransactionResponse, order *models.OrderTicketGroup,
+	orderTicketGroupRepo *repositories.OrderTicketGroupRepository) error {
 
 	// Determine the transaction status for the database
 	var dbStatus string
@@ -792,11 +787,12 @@ func UpdateOrderFromPaymentResponse(orderNo string, transactionData TransactionR
 	// Update order fields
 	order.TransactionId = transactionData.IDTransaksi
 	order.TransactionStatus = dbStatus
+	order.BankCurrentStatus = transactionData.StatusTransaksi
 	order.StatusMessage = sql.NullString{String: transactionData.StatusMessage, Valid: transactionData.StatusMessage != ""}
 	order.UpdatedAt = time.Now()
 
 	// Save the updated order
-	err = orderTicketGroupRepo.Update(order)
+	err := orderTicketGroupRepo.Update(order)
 	if err != nil {
 		log.Printf("Error updating order: %v", err)
 		return err

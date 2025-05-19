@@ -51,3 +51,5 @@
 # Go Coverage results
 coverage.txt
 coverage.html
+
+tmp

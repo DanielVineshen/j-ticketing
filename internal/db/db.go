@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"j-ticketing/internal/db/migrations"
-	"j-ticketing/internal/db/models" // Update this import path if needed
+	"j-ticketing/internal/db/models"
 	"j-ticketing/pkg/config"
 
 	"gorm.io/driver/mysql"

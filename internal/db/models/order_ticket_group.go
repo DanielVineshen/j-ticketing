@@ -14,6 +14,7 @@ type OrderTicketGroup struct {
 	TransactionId      string         `gorm:"column:transaction_id;type:varchar(255);not null"`
 	OrderNo            string         `gorm:"column:order_no;type:varchar(255);not null"`
 	TransactionStatus  string         `gorm:"column:transaction_status;type:varchar(255);not null"`
+	BankCurrentStatus  string         `gorm:"column:bank_current_status;type:varchar(255);null"`
 	StatusMessage      sql.NullString `gorm:"column:status_message;type:varchar(255);null"`
 	TransactionDate    string         `gorm:"column:transaction_date;type:varchar(255);not null"`
 	BankCode           sql.NullString `gorm:"column:bank_code;type:varchar(255);null"`
@@ -25,6 +26,7 @@ type OrderTicketGroup struct {
 	BuyerName          string         `gorm:"column:buyer_name;type:varchar(255);not null"`
 	BuyerEmail         string         `gorm:"column:buyer_email;type:varchar(255);not null"`
 	ProductDesc        string         `gorm:"column:product_desc;type:varchar(255);not null"`
+	IsEmailSent        bool           `gorm:"column:is_email_sent;type:boolean;default:false;not null"`
 	CreatedAt          time.Time      `gorm:"column:created_at;type:datetime;not null"`
 	UpdatedAt          time.Time      `gorm:"column:updated_at;type:datetime;not null"`
 

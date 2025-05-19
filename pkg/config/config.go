@@ -2,7 +2,7 @@
 package config
 
 import (
-	"fmt"
+	logger "log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -65,7 +65,7 @@ type Config struct {
 // LoadConfig loads configuration from environment variables
 func LoadConfig() (*Config, error) {
 	if err := godotenv.Load(); err != nil {
-		fmt.Println("Warning: .env file not found")
+		logger.Info("Warning: .env file not found")
 	}
 
 	config := &Config{}
@@ -101,13 +101,13 @@ func LoadConfig() (*Config, error) {
 	port := config.Email.Port
 	if port == "465" {
 		config.Email.UseSSL = true
-		fmt.Println("Using SSL mode for email (port 465)")
+		logger.Info("Using SSL mode for email (port 465)")
 	} else {
 		config.Email.UseSSL = getEnvBool("EMAIL_USE_SSL", false)
 		if port == "587" && !config.Email.UseSSL {
-			fmt.Println("Using STARTTLS mode for email (port 587)")
+			logger.Info("Using STARTTLS mode for email (port 587)")
 		} else if port == "587" && config.Email.UseSSL {
-			fmt.Println("Warning: Port 587 typically uses STARTTLS, not SSL. Consider setting EMAIL_USE_SSL=false")
+			logger.Info("Warning: Port 587 typically uses STARTTLS, not SSL. Consider setting EMAIL_USE_SSL=false")
 		}
 	}
 
@@ -115,7 +115,7 @@ func LoadConfig() (*Config, error) {
 	clientID := getEnv("CLIENT_ID", "")
 	// Check if client ID has a URL prefix and remove it
 	if strings.HasPrefix(clientID, "http://") || strings.HasPrefix(clientID, "https://") {
-		fmt.Println("Warning: CLIENT_ID contains a URL prefix. Removing prefix for OAuth2 authentication.")
+		logger.Info("Warning: CLIENT_ID contains a URL prefix. Removing prefix for OAuth2 authentication.")
 		// Remove http:// or https:// prefix
 		clientID = strings.TrimPrefix(strings.TrimPrefix(clientID, "http://"), "https://")
 	}

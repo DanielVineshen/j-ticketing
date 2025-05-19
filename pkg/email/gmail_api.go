@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	logger "log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -57,7 +58,12 @@ func SendDirectGmailEmail(
 	if err != nil {
 		return fmt.Errorf("error making request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			logger.Error("Failed to close response body", "error", err)
+		}
+	}(resp.Body)
 
 	// Check the response
 	responseBody, err := io.ReadAll(resp.Body)
@@ -69,13 +75,13 @@ func SendDirectGmailEmail(
 		return fmt.Errorf("error sending email via Gmail API: %s", responseBody)
 	}
 
-	fmt.Println("Email sent successfully via Gmail API!")
+	logger.Info("Email sent successfully via Gmail API!")
 	return nil
 }
 
 // getOAuth2Token gets a fresh access token using the refresh token
 func getOAuth2Token(clientID, clientSecret, refreshToken string) (string, error) {
-	fmt.Println("Getting new access token from Google...")
+	logger.Info("Getting new access token from Google...")
 
 	data := url.Values{}
 	data.Set("client_id", clientID)
@@ -95,7 +101,12 @@ func getOAuth2Token(clientID, clientSecret, refreshToken string) (string, error)
 	if err != nil {
 		return "", fmt.Errorf("error making request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			logger.Error("Failed to close response body", "error", err)
+		}
+	}(resp.Body)
 
 	// Read and parse the response
 	body, err := io.ReadAll(resp.Body)
@@ -123,6 +134,6 @@ func getOAuth2Token(clientID, clientSecret, refreshToken string) (string, error)
 		return "", fmt.Errorf("access_token is empty in response")
 	}
 
-	fmt.Printf("Successfully obtained access token (length: %d)\n", len(tokenResp.AccessToken))
+	logger.Info("Successfully obtained access token", "length", len(tokenResp.AccessToken))
 	return tokenResp.AccessToken, nil
 }

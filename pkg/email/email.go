@@ -9,6 +9,7 @@ import (
 	"github.com/boombuler/barcode/qr"
 	"image/png"
 	"j-ticketing/pkg/config"
+	logger "log/slog"
 	"net/smtp"
 	"strconv"
 	"strings"
@@ -528,11 +529,11 @@ func NewEmailService(cfg *config.Config) EmailService {
 		useOAuth = true
 
 		// Log OAuth configuration (for debugging)
-		fmt.Printf("Initializing OAuth2 email service with:\n")
-		fmt.Printf("- Username: %s\n", cfg.Email.Username)
-		fmt.Printf("- Client ID length: %d characters\n", len(cfg.Email.ClientID))
-		fmt.Printf("- Client Secret length: %d characters\n", len(cfg.Email.ClientSecret))
-		fmt.Printf("- Refresh Token length: %d characters\n", len(cfg.Email.RefreshToken))
+		logger.Info("Initializing OAuth2 email service")
+		logger.Info("OAuth2 email username", "value", cfg.Email.Username)
+		logger.Info("OAuth2 client ID", "length", len(cfg.Email.ClientID))
+		logger.Info("OAuth2 client secret", "length", len(cfg.Email.ClientSecret))
+		logger.Info("OAuth2 refresh token", "length", len(cfg.Email.RefreshToken))
 
 		tokenManager = NewOAuth2TokenManager(OAuth2Config{
 			ClientID:     cfg.Email.ClientID,
@@ -540,7 +541,7 @@ func NewEmailService(cfg *config.Config) EmailService {
 			RefreshToken: cfg.Email.RefreshToken,
 		})
 	} else {
-		fmt.Println("OAuth2 is NOT enabled - missing one or more required credentials")
+		logger.Warn("OAuth2 is NOT enabled - missing one or more required credentials")
 	}
 
 	return &emailService{
@@ -568,7 +569,7 @@ func (s *emailService) SendEmail(to []string, subject, body string) error {
 
 // sendEmailViaGmailAPI sends an email using the Gmail API
 func (s *emailService) sendEmailViaGmailAPI(to []string, subject, body string) error {
-	fmt.Println("Using Gmail API to send email...")
+	logger.Info("Using Gmail API to send email...")
 
 	// Use the direct Gmail API method that we know works
 	return SendDirectGmailEmail(

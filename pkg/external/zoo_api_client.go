@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	logger "log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -70,7 +71,12 @@ func (c *ZooAPIClient) GetToken() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to execute token request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			logger.Error("Failed to close response body", "error", err)
+		}
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
@@ -107,7 +113,12 @@ func (c *ZooAPIClient) GetTicketItems(date string) ([]TicketItem, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute ticket items request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			logger.Error("Failed to close response body", "error", err)
+		}
+	}(resp.Body)
 
 	// Check the response status
 	if resp.StatusCode != http.StatusOK {

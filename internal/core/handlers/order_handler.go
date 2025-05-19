@@ -12,7 +12,6 @@ import (
 	"j-ticketing/pkg/jwt"
 	"j-ticketing/pkg/models"
 	"log"
-	"net/url"
 	"strconv"
 	"strings"
 )
@@ -360,24 +359,24 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 	}
 
 	// Return success response with redirect information
-	//return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(map[string]interface{}{
-	//	"orderTicketGroupId": orderTicketGroup.OrderTicketGroupId,
-	//	"transactionStatus":  orderTicketGroup.TransactionStatus,
-	//	"orderNo":            orderTicketGroup.OrderNo,
-	//}))
+	return c.Status(fiber.StatusOK).JSON(models.NewBaseSuccessResponse(map[string]interface{}{
+		"orderTicketGroupId": orderTicketGroup.OrderTicketGroupId,
+		"transactionStatus":  orderTicketGroup.TransactionStatus,
+		"orderNo":            orderTicketGroup.OrderNo,
+	}))
 
-	successURL := h.paymentConfig.FrontendBaseURL + "/paymentRedirect"
-
-	// Build the full URL with query parameters
-	redirectURL := fmt.Sprintf("%s?orderTicketGroupId=%s&transactionStatus=%s&orderNo=%s",
-		successURL,
-		url.QueryEscape(strconv.Itoa(int(orderTicketGroup.OrderTicketGroupId))),
-		url.QueryEscape(orderTicketGroup.TransactionStatus),
-		url.QueryEscape(orderTicketGroup.OrderNo))
-
-	log.Printf("Complete redirect URL: %s", redirectURL)
-
-	return c.Redirect(redirectURL)
+	//successURL := h.paymentConfig.FrontendBaseURL + "/paymentRedirect"
+	//
+	//// Build the full URL with query parameters
+	//redirectURL := fmt.Sprintf("%s?orderTicketGroupId=%s&transactionStatus=%s&orderNo=%s",
+	//	successURL,
+	//	url.QueryEscape(strconv.Itoa(int(orderTicketGroup.OrderTicketGroupId))),
+	//	url.QueryEscape(orderTicketGroup.TransactionStatus),
+	//	url.QueryEscape(orderTicketGroup.OrderNo))
+	//
+	//log.Printf("Complete redirect URL: %s", redirectURL)
+	//
+	//return c.Redirect(redirectURL)
 }
 
 // Generate the checkout URL based on order ID and payment type

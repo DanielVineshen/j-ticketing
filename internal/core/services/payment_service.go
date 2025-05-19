@@ -94,6 +94,7 @@ func (s *PaymentService) PostToZooAPI(orderNo string) ([]email.OrderInfo, []emai
 	}
 
 	ticketGroupName := order.TicketGroup.GroupName
+	fmt.Printf(ticketGroupName)
 
 	// Get the order ticket items
 	orderTickets, err := s.orderTicketInfoRepo.FindByOrderTicketGroupID(order.OrderTicketGroupId)
@@ -138,12 +139,12 @@ func (s *PaymentService) PostToZooAPI(orderNo string) ([]email.OrderInfo, []emai
 	}
 
 	// Create the request
-	var value string
-	if ticketGroupName == "Zoo Johor" {
-		value = "PostOnlinePurchase"
-	} else {
-		value = "PostOnlinePurchase2" // Used for botani
-	}
+	var value = "PostOnlinePurchase2"
+	//if ticketGroupName == "Zoo Johor" {
+	//	value = "PostOnlinePurchase"
+	//} else {
+	//	value = "PostOnlinePurchase2" // Used for botani
+	//}
 
 	req, err := http.NewRequest("POST", s.cfg.ZooAPI.ZooBaseURL+"/api/JohorZoo/"+value, bytes.NewBuffer(jsonData))
 	if err != nil {

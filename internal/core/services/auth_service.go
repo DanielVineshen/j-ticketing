@@ -198,21 +198,25 @@ func (s *authService) RefreshToken(refreshToken string) (*dto.TokenResponse, err
 	// Validate refresh token cryptographically
 	claims, err := s.jwtService.ValidateToken(refreshToken)
 	if err != nil {
+		fmt.Printf("Refresh token failed JWT validation: %v\n", err)
 		return nil, err
 	}
 
 	// Get the identifier to use for token lookup
 	lookupID := claims.Username
+	fmt.Printf("Refreshing token for user: %s\n", lookupID)
 
 	// Check if refresh token exists in database
 	dbToken, err := s.tokenRepo.FindByUserIdAndRefreshToken(lookupID, refreshToken)
 	if err != nil {
+		fmt.Printf("Refresh token not found in database for user %s: %v\n", lookupID, err)
 		return nil, errors.New("invalid refresh token")
 	}
 
 	// Generate new access token
 	accessToken, err := s.jwtService.GenerateToken(claims, false)
 	if err != nil {
+		fmt.Printf("Error generating new access token: %v\n", err)
 		return nil, err
 	}
 
@@ -220,11 +224,13 @@ func (s *authService) RefreshToken(refreshToken string) (*dto.TokenResponse, err
 	dbToken.AccessToken = accessToken
 	dbToken.UpdatedAt = time.Now()
 	if err := s.tokenRepo.UpdateToken(dbToken); err != nil {
-		log.Printf("Error updating token: %v", err)
+		fmt.Printf("Warning: Failed to update token in database: %v\n", err)
 		// Continue anyway since we have generated the new token
+	} else {
+		fmt.Printf("Successfully updated access token for user %s\n", lookupID)
 	}
 
-	// Continue with the rest of your existing code to return the TokenResponse
+	// Create the appropriate response based on user type
 	if claims.UserType == "admin" {
 		// Find admin by username
 		admin, err := s.adminRepo.FindByUsername(claims.Username)
@@ -285,25 +291,25 @@ func (s *authService) SaveToken(userID, userType, accessToken, refreshToken, ipA
 	// Check how many tokens the user already has
 	count, err := s.tokenRepo.CountByUserId(userID)
 	if err != nil {
-		log.Printf("Error counting tokens for user %s: %v", userID, err)
-		// Continue anyway
+		fmt.Printf("Error counting tokens for user %s: %v\n", userID, err)
+		// Continue anyway since this isn't a critical error
 	}
 
-	log.Printf("The count is: %v", count)
+	fmt.Printf("User %s has %d existing tokens\n", userID, count)
 
 	// If user has 3 or more tokens, delete the oldest one
 	if count >= 3 {
 		oldestToken, err := s.tokenRepo.FindOldestByUserId(userID)
 		if err != nil {
-			log.Printf("Error finding oldest token for user %s: %v", userID, err)
+			fmt.Printf("Error finding oldest token for user %s: %v\n", userID, err)
 			// Continue anyway
 		} else {
 			// Delete the oldest token
 			if err := s.tokenRepo.DeleteToken(oldestToken); err != nil {
-				log.Printf("Error deleting oldest token for user %s: %v", userID, err)
+				fmt.Printf("Error deleting oldest token for user %s: %v\n", userID, err)
 				// Continue anyway
 			} else {
-				log.Printf("Deleted oldest token for user %s", userID)
+				fmt.Printf("Successfully deleted oldest token (ID: %d) for user %s\n", oldestToken.TokenId, userID)
 			}
 		}
 	}
@@ -320,12 +326,19 @@ func (s *authService) SaveToken(userID, userType, accessToken, refreshToken, ipA
 		UpdatedAt:    time.Now(),
 	}
 
-	return s.tokenRepo.Create(token)
+	// Create the token in the database
+	err = s.tokenRepo.Create(token)
+	if err != nil {
+		fmt.Printf("Error creating token for user %s: %v\n", userID, err)
+		return err
+	}
+
+	fmt.Printf("Token created successfully for user %s\n", userID)
+	return nil
 }
 
 // RevokeToken revokes a token (for logout)
 func (s *authService) RevokeToken(userID, accessToken string) error {
-	log.Printf("UserId: %v", userID)
 	return s.tokenRepo.DeleteByUserIdAndAccessToken(userID, accessToken)
 }
 
@@ -384,7 +397,6 @@ func (s *authService) ResetPassword(email string) (*dto.PasswordChangeResult, er
 
 	// If customer doesn't exist, return success anyway (security measure)
 	if err != nil {
-		log.Printf("Password reset requested for non-existent email: %s", email)
 		return &dto.PasswordChangeResult{
 			Success: true,
 			Message: "If your email exists in our system, you will receive a password reset email shortly.",

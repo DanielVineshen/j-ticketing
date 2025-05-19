@@ -93,6 +93,8 @@ func (s *PaymentService) PostToZooAPI(orderNo string) ([]email.OrderInfo, []emai
 		return nil, nil, fmt.Errorf("order not found: %s", orderNo)
 	}
 
+	ticketGroupName := order.TicketGroup.GroupName
+
 	// Get the order ticket items
 	orderTickets, err := s.orderTicketInfoRepo.FindByOrderTicketGroupID(order.OrderTicketGroupId)
 	if err != nil {
@@ -136,7 +138,14 @@ func (s *PaymentService) PostToZooAPI(orderNo string) ([]email.OrderInfo, []emai
 	}
 
 	// Create the request
-	req, err := http.NewRequest("POST", s.cfg.ZooAPI.ZooBaseURL+"/api/JohorZoo/PostOnlinePurchase", bytes.NewBuffer(jsonData))
+	var value string
+	if ticketGroupName == "Zoo Johor" {
+		value = "PostOnlinePurchase"
+	} else {
+		value = "PostOnlinePurchase2" // Used for botani
+	}
+
+	req, err := http.NewRequest("POST", s.cfg.ZooAPI.ZooBaseURL+"/api/JohorZoo/"+value, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -211,8 +220,8 @@ func (s *PaymentService) PostToZooAPI(orderNo string) ([]email.OrderInfo, []emai
 		}
 
 		// Update the ticket with data from the Zoo API
-		//ticketToUpdate.EncryptedId = zooTicket.EncryptedID
-		ticketToUpdate.EncryptedId = "STF020"
+		ticketToUpdate.EncryptedId = zooTicket.EncryptedID
+		//ticketToUpdate.EncryptedId = "STF020"
 		ticketToUpdate.AdmitDate = zooTicket.AdmitDate
 
 		// Parse unit price if needed

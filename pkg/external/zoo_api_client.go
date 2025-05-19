@@ -92,15 +92,21 @@ func (c *ZooAPIClient) GetToken() (string, error) {
 }
 
 // GetTicketItems gets the ticket items for a specific date
-func (c *ZooAPIClient) GetTicketItems(date string) ([]TicketItem, error) {
+func (c *ZooAPIClient) GetTicketItems(ticketGroupName string, date string) ([]TicketItem, error) {
 	// First, get a token
 	token, err := c.GetToken()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get token: %w", err)
 	}
 
-	// Create the request
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/JohorZoo/GetOnlineItem?TranDate=%s", c.baseURL, date), nil)
+	var value string
+	if ticketGroupName == "Zoo Johor" {
+		value = "GetOnlineItem"
+	} else {
+		value = "GetOnlineItem2" // Used for botani
+	}
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/JohorZoo/%s?TranDate=%s", c.baseURL, value, date), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ticket items request: %w", err)
 	}

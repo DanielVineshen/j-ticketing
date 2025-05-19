@@ -26,10 +26,11 @@ type OrderHandler struct {
 	emailService       email.EmailService
 	ticketGroupService *services.TicketGroupService
 	paymentConfig      payment.PaymentConfig
+	pdfService         *services.PDFService
 }
 
 // NewOrderHandler creates a new instance of OrderHandler
-func NewOrderHandler(orderService *services.OrderService, customerService services.CustomerService, jwtService jwt.JWTService, paymentService *services.PaymentService, emailService email.EmailService, ticketGroupService *services.TicketGroupService, paymentConfig payment.PaymentConfig) *OrderHandler {
+func NewOrderHandler(orderService *services.OrderService, customerService services.CustomerService, jwtService jwt.JWTService, paymentService *services.PaymentService, emailService email.EmailService, ticketGroupService *services.TicketGroupService, paymentConfig payment.PaymentConfig, pdfService *services.PDFService) *OrderHandler {
 	return &OrderHandler{
 		orderService:       orderService,
 		customerService:    customerService,
@@ -38,6 +39,7 @@ func NewOrderHandler(orderService *services.OrderService, customerService servic
 		emailService:       emailService,
 		ticketGroupService: ticketGroupService,
 		paymentConfig:      paymentConfig,
+		pdfService:         pdfService,
 	}
 }
 
@@ -316,7 +318,10 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 		// Continue with redirect even if this fails, we can retry later
 	}
 
-	ticketGroup := orderTicketGroup.TicketGroup
+	ticketGroup, err := h.ticketGroupService.GetTicketGroup(orderTicketGroup.TicketGroupId)
+	if err != nil {
+		log.Printf("Error finding ticket group %s: %v", orderTicketGroup.TicketGroupId, err)
+	}
 
 	orderOverview := email.OrderOverview{
 		TicketGroup:  ticketGroup.GroupName,
@@ -327,7 +332,22 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 		OrderNumber:  orderTicketGroup.OrderNo,
 	}
 
-	err = h.emailService.SendTicketsEmail(orderTicketGroup.BuyerEmail, orderOverview, orderItems, ticketInfos)
+	pdfBytes, pdfFilename, err := h.pdfService.GenerateTicketPDF(ticketGroup.GroupName, ticketInfos)
+	if err != nil {
+		log.Printf("Error generating PDF: %v", err)
+	}
+
+	// Create attachment if PDF was successfully generated
+	var pdfAttachment email.Attachment
+	if err == nil && pdfBytes != nil {
+		pdfAttachment = email.Attachment{
+			Name:    pdfFilename,
+			Content: pdfBytes,
+			Type:    "application/pdf",
+		}
+	}
+
+	err = h.emailService.SendTicketsEmail(orderTicketGroup.BuyerEmail, orderOverview, orderItems, ticketInfos, []email.Attachment{pdfAttachment})
 	if err != nil {
 		log.Printf("Failed to send tickets email to %s: %v", orderTicketGroup.BuyerEmail, err)
 		// Continue anyway since the password has been reset

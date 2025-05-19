@@ -22,15 +22,17 @@ type PaymentHandler struct {
 	paymentConfig      payment.PaymentConfig
 	emailService       email.EmailService
 	ticketGroupService *services.TicketGroupService
+	pdfService         *services.PDFService
 }
 
 // NewPaymentHandler creates a new instance of PaymentHandler
-func NewPaymentHandler(paymentService *services.PaymentService, paymentConfig payment.PaymentConfig, emailService email.EmailService, ticketGroupService *services.TicketGroupService) *PaymentHandler {
+func NewPaymentHandler(paymentService *services.PaymentService, paymentConfig payment.PaymentConfig, emailService email.EmailService, ticketGroupService *services.TicketGroupService, pdfService *services.PDFService) *PaymentHandler {
 	return &PaymentHandler{
 		paymentService:     paymentService,
 		paymentConfig:      paymentConfig,
 		emailService:       emailService,
 		ticketGroupService: ticketGroupService,
+		pdfService:         pdfService,
 	}
 }
 
@@ -101,7 +103,22 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 				OrderNumber:  order.OrderNo,
 			}
 
-			err = h.emailService.SendTicketsEmail(order.BuyerEmail, orderOverview, orderItems, ticketInfos)
+			pdfBytes, pdfFilename, err := h.pdfService.GenerateTicketPDF(ticketGroup.GroupName, ticketInfos)
+			if err != nil {
+				log.Printf("Error generating PDF: %v", err)
+			}
+
+			// Create attachment if PDF was successfully generated
+			var pdfAttachment email.Attachment
+			if err == nil && pdfBytes != nil {
+				pdfAttachment = email.Attachment{
+					Name:    pdfFilename,
+					Content: pdfBytes,
+					Type:    "application/pdf",
+				}
+			}
+
+			err = h.emailService.SendTicketsEmail(order.BuyerEmail, orderOverview, orderItems, ticketInfos, []email.Attachment{pdfAttachment})
 			if err != nil {
 				log.Printf("Failed to send tickets email to %s: %v", order.BuyerEmail, err)
 				// Continue anyway since the password has been reset
@@ -202,7 +219,22 @@ func (h *PaymentHandler) PaymentRedirect(c *fiber.Ctx) error {
 				OrderNumber:  order.OrderNo,
 			}
 
-			err = h.emailService.SendTicketsEmail(order.BuyerEmail, orderOverview, orderItems, ticketInfos)
+			pdfBytes, pdfFilename, err := h.pdfService.GenerateTicketPDF(ticketGroup.GroupName, ticketInfos)
+			if err != nil {
+				log.Printf("Error generating PDF: %v", err)
+			}
+
+			// Create attachment if PDF was successfully generated
+			var pdfAttachment email.Attachment
+			if err == nil && pdfBytes != nil {
+				pdfAttachment = email.Attachment{
+					Name:    pdfFilename,
+					Content: pdfBytes,
+					Type:    "application/pdf",
+				}
+			}
+
+			err = h.emailService.SendTicketsEmail(order.BuyerEmail, orderOverview, orderItems, ticketInfos, []email.Attachment{pdfAttachment})
 			if err != nil {
 				log.Printf("Failed to send tickets email to %s: %v", order.BuyerEmail, err)
 				// Continue anyway since the password has been reset

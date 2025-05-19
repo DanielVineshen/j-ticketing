@@ -350,9 +350,6 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 	// Generate order number and transaction ID
 	orderNo := generateOrderNumber()
 
-	// Calculate total amount based on tickets
-	var totalAmount float64 = 0
-
 	var mode = ""
 	if req.Mode == "individual" {
 		mode = "01"
@@ -371,7 +368,7 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 		MsgToken:          mode,
 		BillId:            generateBillId(),
 		ProductId:         fmt.Sprintf("TG%d", req.TicketGroupId),
-		TotalAmount:       totalAmount, // Will be updated after calculating tickets
+		TotalAmount:       0, // Will be updated after calculating tickets
 		BuyerName:         req.FullName,
 		BuyerEmail:        req.Email,
 		ProductDesc:       ticketGroup.GroupName,
@@ -405,13 +402,8 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 		}
 	}
 
-	// Save order ticket group to get the ID
-	err = s.orderTicketGroupRepo.Create(orderTicketGroup)
-	if err != nil {
-		return 0, fmt.Errorf("failed to create order: %w", err)
-	}
-
-	// Process tickets
+	// Calculate totalAmount first by looping through tickets before creating any records
+	totalAmount := 0.0 // or whatever type your totalAmount is
 	orderTicketInfos := make([]models.OrderTicketInfo, 0, len(req.Tickets))
 
 	for _, ticket := range req.Tickets {
@@ -451,6 +443,22 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 		}
 	}
 
+	// Check if totalAmount == 0
+	if totalAmount == 0 {
+		return 0, fmt.Errorf("failed to create order: total amount for tickets must be more than 0")
+	}
+
+	// Save order ticket group to get the ID
+	err = s.orderTicketGroupRepo.Create(orderTicketGroup)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create order: %w", err)
+	}
+
+	// Now that we have the OrderTicketGroupId, update all orderTicketInfos
+	for i := range orderTicketInfos {
+		orderTicketInfos[i].OrderTicketGroupId = orderTicketGroup.OrderTicketGroupId
+	}
+	
 	// Update total amount in order ticket group
 	orderTicketGroup.TotalAmount = totalAmount
 	err = s.orderTicketGroupRepo.Update(orderTicketGroup)

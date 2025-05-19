@@ -155,13 +155,14 @@ func main() {
 		ticketGroupService,
 	)
 	customerService := service.NewCustomerService(customerRepo)
+	pdfService := service.NewPDFService()
 
 	// Initialize handlers
 	ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService)
 	authHandler := handlers.NewAuthHandler(authService, emailService)
-	orderHandler := handlers.NewOrderHandler(orderService, customerService, jwtService, paymentService, emailService, ticketGroupService, paymentConfig)
-	paymentHandler := handlers.NewPaymentHandler(paymentService, paymentConfig, emailService, ticketGroupService)
-	simplePDFHandler := handlers.NewPDFHandler()
+	orderHandler := handlers.NewOrderHandler(orderService, customerService, jwtService, paymentService, emailService, ticketGroupService, paymentConfig, pdfService)
+	paymentHandler := handlers.NewPaymentHandler(paymentService, paymentConfig, emailService, ticketGroupService, pdfService)
+	pdfHandler := handlers.NewPDFHandler()
 
 	// Create Fiber app with adapted error handler for slog
 	app := fiber.New(fiber.Config{
@@ -184,7 +185,7 @@ func main() {
 	routes.SetupOrderRoutes(app, orderHandler, jwtService)
 	routes.SetupPaymentRoutes(app, paymentConfig, paymentHandler)
 	routes.SetupViewRoutes(app)
-	routes.SetupTicketPDFRoutes(app, simplePDFHandler)
+	routes.SetupTicketPDFRoutes(app, pdfHandler)
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.Server.CorePort)

@@ -93,8 +93,23 @@ func (s *OrderService) GetAllOrderTicketGroups(custId string) (orderDto.OrderTic
 
 // GetOrderTicketGroup retrieves a specific order ticket group
 func (s *OrderService) GetOrderTicketGroup(orderTicketGroupId uint) (*orderDto.OrderTicketGroupDTO, error) {
-	// Use FindWithDetails to get the order with its relations
-	order, err := s.orderTicketGroupRepo.FindWithDetails(orderTicketGroupId)
+	// Use FindWithOrderTicketGroupId to get the order with its relations
+	order, err := s.orderTicketGroupRepo.FindWithOrderTicketGroupId(orderTicketGroupId)
+	if err != nil {
+		return nil, err
+	}
+
+	orderDTO, err := s.mapOrderToDTO(order)
+	if err != nil {
+		return nil, err
+	}
+
+	return &orderDTO, nil
+}
+
+func (s *OrderService) GetOrderNonMemberInquiry(orderNo string, email string) (*orderDto.OrderTicketGroupDTO, error) {
+	// Use FindWithOrderTicketGroupId to get the order with its relations
+	order, err := s.orderTicketGroupRepo.FindWithOrderNoAndEmail(orderNo, email)
 	if err != nil {
 		return nil, err
 	}
@@ -466,7 +481,7 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 	for i := range orderTicketInfos {
 		orderTicketInfos[i].OrderTicketGroupId = orderTicketGroup.OrderTicketGroupId
 	}
-	
+
 	// Update total amount in order ticket group
 	orderTicketGroup.TotalAmount = totalAmount
 	err = s.orderTicketGroupRepo.Update(orderTicketGroup)

@@ -121,6 +121,32 @@ func (h *OrderHandler) GetOrderTicketGroup(c *fiber.Ctx) error {
 	return c.JSON(models.NewBaseSuccessResponse(order))
 }
 
+func (h *OrderHandler) GetOrderNonMemberInquiry(c *fiber.Ctx) error {
+	orderNoStr := c.Query("orderNo")
+	if orderNoStr == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			errors.INVALID_INPUT_FORMAT.Code, "Missing order number", nil,
+		))
+	}
+
+	emailStr := c.Query("email")
+	if emailStr == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			errors.INVALID_INPUT_FORMAT.Code, "Missing email", nil,
+		))
+	}
+
+	// Get the order ticket group
+	order, err := h.orderService.GetOrderNonMemberInquiry(orderNoStr, emailStr)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(
+			errors.ENTITY_NOT_FOUND_EXCEPTION.Code, "Order ticket group not found", nil,
+		))
+	}
+
+	return c.JSON(models.NewBaseSuccessResponse(order))
+}
+
 // CreateOrderTicketGroup handles POST requests to create a new order
 func (h *OrderHandler) CreateOrderTicketGroup(c *fiber.Ctx) error {
 	// Parse request body first so we can use the data either way

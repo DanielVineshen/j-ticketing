@@ -18,6 +18,7 @@ func SetupOrderRoutes(app *fiber.App, orderHandler *handlers.OrderHandler, jwtSe
 	orderGroup.Get("/orderTicketGroups", middleware.Protected(jwtService), orderHandler.GetOrderTicketGroups)
 
 	orderGroup.Get("/orderTicketGroup", orderHandler.GetOrderTicketGroup)
+	orderGroup.Get("/orderNonMemberInquiry", orderHandler.GetOrderNonMemberInquiry)
 
 	// Add create order endpoint
 	orderGroup.Post("/orderTicketGroup", orderHandler.CreateOrderTicketGroup)

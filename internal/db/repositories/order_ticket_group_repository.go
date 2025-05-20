@@ -42,8 +42,8 @@ func (r *OrderTicketGroupRepository) FindByCustomerID(custID string) ([]models.O
 	return orderTicketGroups, result.Error
 }
 
-// FindWithDetails finds an order ticket group with all its details
-func (r *OrderTicketGroupRepository) FindWithDetails(id uint) (*models.OrderTicketGroup, error) {
+// FindWithOrderTicketGroupId finds an order ticket group with all its details
+func (r *OrderTicketGroupRepository) FindWithOrderTicketGroupId(id uint) (*models.OrderTicketGroup, error) {
 	var orderTicketGroup models.OrderTicketGroup
 	result := r.db.Preload("OrderTicketInfos").
 		Preload("TicketGroup").
@@ -53,6 +53,17 @@ func (r *OrderTicketGroupRepository) FindWithDetails(id uint) (*models.OrderTick
 		return nil, result.Error
 	}
 	return &orderTicketGroup, nil
+}
+
+// FindWithOrderTicketGroupId finds an order ticket group with all its details
+func (r *OrderTicketGroupRepository) FindWithOrderNoAndEmail(orderNo string, email string) (*models.OrderTicketGroup, error) {
+	var order models.OrderTicketGroup
+
+	result := r.db.Where("order_no = ? AND buyer_email = ?", orderNo, email).First(&order)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &order, nil
 }
 
 // FindByOrderNo finds a order ticket group by its order number

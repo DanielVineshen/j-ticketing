@@ -74,7 +74,7 @@ func (s *emailService) SendPasswordResetEmail(to string, newPassword string) err
     </html>
     `, newPassword, time.Now().Year())
 
-	return s.SendEmail([]string{to}, subject, body)
+	return s.sendEmailWithRetry([]string{to}, subject, body)
 }
 
 // OrderInfo represents information about the overall order
@@ -519,7 +519,7 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
 </html>
 `, logoBase64, contentBuilder.String(), time.Now().Year())
 
-	return s.SendEmailWithAttachments([]string{to}, subject, body, attachments)
+	return s.sendEmailWithAttachmentsWithRetry([]string{to}, subject, body, attachments)
 }
 
 // NewEmailService creates a new email service
@@ -557,6 +557,25 @@ func NewEmailService(cfg *config.Config) EmailService {
 		useOAuth:     useOAuth,
 		tokenManager: tokenManager,
 	}
+}
+
+func (s *emailService) sendEmailWithRetry(to []string, subject string, body string) error {
+	maxRetries := 3
+	var lastErr error
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		err := s.SendEmail(to, subject, body)
+		if err == nil {
+			return nil // Success
+		}
+
+		lastErr = err
+
+		// Wait before retrying (with exponential backoff)
+		time.Sleep(time.Duration(attempt+1) * 2 * time.Second)
+	}
+
+	return fmt.Errorf("sendEmailWithRetry failed after %d attempts: %w", maxRetries, lastErr)
 }
 
 // SendEmail sends an email
@@ -624,6 +643,25 @@ func (s *emailService) TestOAuth2() error {
 	}
 
 	return nil
+}
+
+func (s *emailService) sendEmailWithAttachmentsWithRetry(to []string, subject string, body string, attachments []Attachment) error {
+	maxRetries := 3
+	var lastErr error
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		err := s.SendEmailWithAttachments(to, subject, body, attachments)
+		if err == nil {
+			return nil // Success
+		}
+
+		lastErr = err
+
+		// Wait before retrying (with exponential backoff)
+		time.Sleep(time.Duration(attempt+1) * 2 * time.Second)
+	}
+
+	return fmt.Errorf("sendEmailWithAttachmentsWithRetry failed after %d attempts: %w", maxRetries, lastErr)
 }
 
 // SendEmailWithAttachments sends an email with optional attachments

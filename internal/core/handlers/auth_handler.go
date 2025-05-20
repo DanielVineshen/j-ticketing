@@ -238,7 +238,7 @@ func (h *AuthHandler) ResetCustomerPassword(c *fiber.Ctx) error {
 	}
 
 	// Reset password
-	result, err := h.authService.ResetPassword(req.Email)
+	_, err := h.authService.ResetPassword(req.Email)
 	if err != nil {
 		log.Printf("Failed to reset password: %v", err)
 		// Don't expose specific error details to the client (security measure)
@@ -248,5 +248,5 @@ func (h *AuthHandler) ResetCustomerPassword(c *fiber.Ctx) error {
 	}
 
 	// Always return success (security measure)
-	return c.JSON(models.NewBaseSuccessResponse(result))
+	return c.JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }

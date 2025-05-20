@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	"github.com/boombuler/barcode"
-	"github.com/boombuler/barcode/qr"
-	"github.com/jung-kurt/gofpdf"
 	"image"
 	"image/png"
 	"j-ticketing/pkg/email"
@@ -14,6 +11,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/boombuler/barcode"
+	"github.com/boombuler/barcode/qr"
+	"github.com/jung-kurt/gofpdf"
 )
 
 // PDFService handles PDF generation functionality
@@ -134,7 +135,7 @@ func addHeader(logoBase64 string, ticketGroupName string, addr1 string, addr2 st
 
 	// General line
 	pdf.SetXY(boxX, boxY+35)
-	pdf.CellFormat(boxWidth, 10, generalLine, "", 0, "C", false, 0, "")
+	pdf.CellFormat(boxWidth, 10, "Talian Umum: "+generalLine, "", 0, "C", false, 0, "")
 
 	// Reset text color to black for the rest of the document
 	pdf.SetTextColor(0, 0, 0)
@@ -151,15 +152,15 @@ func addParticipantInfo(pdf *gofpdf.Fpdf, participantName string, purchaseDate s
 	pdf.SetFont("Arial", "", 9)
 	pdf.SetTextColor(100, 100, 100) // Gray for the labels
 	pdf.SetXY(leftColX, startY)
-	pdf.Cell(100, 5, "Lead participant")
+	pdf.Cell(100, 5, "Peserta Utama")
 
 	// Column titles - Middle column
 	pdf.SetXY(midColX, startY)
-	pdf.Cell(100, 5, "Purchase Date")
+	pdf.Cell(100, 5, "Tarikh Pembelian")
 
 	// Column titles - Right column
 	pdf.SetXY(rightColX, startY)
-	pdf.Cell(100, 5, "Entry Date")
+	pdf.Cell(100, 5, "Tarikh Masuk")
 
 	// Values - Left column (Participant Name)
 	pdf.SetFont("Arial", "B", 12)
@@ -179,13 +180,13 @@ func addParticipantInfo(pdf *gofpdf.Fpdf, participantName string, purchaseDate s
 	pdf.SetFont("Arial", "", 9)
 	pdf.SetTextColor(100, 100, 100) // Gray for the labels
 	pdf.SetXY(leftColX, startY+18)
-	pdf.Cell(100, 5, "Total Tickets")
+	pdf.Cell(100, 5, "Jumlah Tiket")
 
 	// Order No. - Label
 	pdf.SetFont("Arial", "", 9)
 	pdf.SetTextColor(100, 100, 100) // Gray for the labels
 	pdf.SetXY(midColX, startY+18)
-	pdf.Cell(100, 5, "Order No.")
+	pdf.Cell(100, 5, "No. Pesanan")
 
 	// Order No. - Value
 	pdf.SetFont("Arial", "B", 12)
@@ -209,12 +210,12 @@ func addRedeemSection(pdf *gofpdf.Fpdf) {
 	pdf.SetFont("Arial", "B", 12)
 	pdf.SetTextColor(0, 0, 0)
 	pdf.SetXY(leftX, startY)
-	pdf.Cell(180, 5, "Redeem Individual Units")
+	pdf.Cell(180, 5, "Tebus Unit Individu")
 
 	// Add instruction text
 	pdf.SetFont("Arial", "", 10)
 	pdf.SetXY(leftX, startY+7)
-	pdf.Cell(180, 5, "Scan the QR codes below to redeem your units individually.")
+	pdf.Cell(180, 5, "Imbas kod QR di bawah untuk menebus unit anda secara individu.")
 }
 
 // addTermsAndConditionsPage adds a new page with an enhanced Terms and Conditions content
@@ -364,7 +365,7 @@ func addTermsAndConditionsPage(ticketGroupName string, contactNo string, email s
 	pdf.SetFont("Arial", "B", 12)
 	pdf.SetTextColor(51, 51, 51)
 	pdf.SetXY(leftMargin, sectionY)
-	pdf.Cell(contentWidth, 6, "Contact us")
+	pdf.Cell(contentWidth, 6, "Hubungi Kami")
 	sectionY += 8
 
 	// Contact details
@@ -375,7 +376,7 @@ func addTermsAndConditionsPage(ticketGroupName string, contactNo string, email s
 	sectionY += 6
 
 	pdf.SetXY(leftMargin, sectionY)
-	pdf.Cell(contentWidth, 5, "Email : "+email)
+	pdf.Cell(contentWidth, 5, "Emel : "+email)
 }
 
 // addOrderDetailsPage adds a page with the order details
@@ -389,7 +390,7 @@ func addOrderDetailsPage(pdf *gofpdf.Fpdf, orderOverview email.OrderOverview, or
 	// Add Order Title
 	pdf.SetFont("Arial", "B", 24)
 	pdf.SetTextColor(51, 51, 51) // Dark gray
-	pdf.Cell(170, 20, fmt.Sprintf("Order #%s", orderOverview.OrderNumber))
+	pdf.Cell(170, 20, fmt.Sprintf("Pesanan #%s", orderOverview.OrderNumber))
 	pdf.Ln(30)
 
 	// Order Details Section
@@ -402,7 +403,7 @@ func addOrderDetailsPage(pdf *gofpdf.Fpdf, orderOverview email.OrderOverview, or
 
 	// Placed At
 	pdf.SetFont("Arial", "", 11)
-	pdf.Cell(col1Width, 10, "Placed At")
+	pdf.Cell(col1Width, 10, "Dibuat Pada")
 
 	pdf.SetFont("Arial", "", 11)
 	pdf.SetTextColor(0, 0, 0)
@@ -412,7 +413,7 @@ func addOrderDetailsPage(pdf *gofpdf.Fpdf, orderOverview email.OrderOverview, or
 	// Total
 	pdf.SetFont("Arial", "", 11)
 	pdf.SetTextColor(51, 51, 51)
-	pdf.Cell(col1Width, 10, "Total")
+	pdf.Cell(col1Width, 10, "Jumlah")
 
 	pdf.SetFont("Arial", "", 11)
 	pdf.SetTextColor(0, 0, 0)
@@ -426,7 +427,7 @@ func addOrderDetailsPage(pdf *gofpdf.Fpdf, orderOverview email.OrderOverview, or
 
 	pdf.SetFont("Arial", "", 11)
 	pdf.SetTextColor(0, 0, 0)
-	pdf.Cell(col2Width, 10, "CONFIRMED")
+	pdf.Cell(col2Width, 10, "DISAHKAN")
 	pdf.Ln(20)
 
 	// Items Table
@@ -445,16 +446,16 @@ func addOrderDetailsPage(pdf *gofpdf.Fpdf, orderOverview email.OrderOverview, or
 	pdf.Rect(leftMargin, pdf.GetY(), itemColWidth+priceColWidth+qtyColWidth+totalColWidth, 10, "F")
 
 	// Item header
-	pdf.Cell(itemColWidth, 10, "Item")
+	pdf.Cell(itemColWidth, 10, "Barangan")
 
 	// Price header
-	pdf.Cell(priceColWidth, 10, "Price")
+	pdf.Cell(priceColWidth, 10, "Harga")
 
 	// Quantity header
-	pdf.Cell(qtyColWidth, 10, "Quantity")
+	pdf.Cell(qtyColWidth, 10, "Kuantiti")
 
 	// Total header
-	pdf.Cell(totalColWidth, 10, "Total")
+	pdf.Cell(totalColWidth, 10, "Jumlah")
 	pdf.Ln(10)
 
 	// Table rows
@@ -520,20 +521,20 @@ func addOrderDetailsPage(pdf *gofpdf.Fpdf, orderOverview email.OrderOverview, or
 
 	// Subtotal row
 	pdf.SetX(summaryX)
-	pdf.Cell(qtyColWidth, 10, "Subtotal")
+	pdf.Cell(qtyColWidth, 10, "Jumlah Kecil")
 	pdf.Cell(totalColWidth, 10, fmt.Sprintf("MYR %.2f", orderOverview.Total))
 	pdf.Ln(10)
 
 	// Discount row (always show it as requested)
 	pdf.SetX(summaryX)
-	pdf.Cell(qtyColWidth, 10, "Discount Amount")
+	pdf.Cell(qtyColWidth, 10, "Jumlah Diskaun")
 	pdf.Cell(totalColWidth, 10, fmt.Sprintf("MYR %.2f", 0.00))
 	pdf.Ln(10)
 
 	// Total row
 	pdf.SetFont("Arial", "B", 11)
 	pdf.SetX(summaryX)
-	pdf.Cell(qtyColWidth, 10, "Total")
+	pdf.Cell(qtyColWidth, 10, "Jumlah")
 
 	finalTotal := orderOverview.Total - 0
 	pdf.Cell(totalColWidth, 10, fmt.Sprintf("MYR %.2f", finalTotal))

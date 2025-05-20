@@ -105,17 +105,17 @@ type TicketInfo struct {
 
 // SendTicketsEmail sends an email with QR codes for tickets
 func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, orderItems []OrderInfo, tickets []TicketInfo, attachments []Attachment) error {
-	subject := "Your " + orderOverview.TicketGroup + " Tickets"
+	subject := "Tiket " + orderOverview.TicketGroup + " Anda"
 
 	var address string
 	var contactNo string
 	var email string
 	if orderOverview.TicketGroup == "Zoo Johor" {
-		address = "Jalan Gertak Merah, Taman Istana<br>80000 Johor Bahru, Johor<br>General Line: +07-223 0404"
+		address = "Jalan Gertak Merah, Taman Istana<br>80000 Johor Bahru, Johor<br>Talian Umum: +07-223 0404"
 		contactNo = "+07-223 0404"
 		email = "zoojohor@johor.gov.my"
 	} else {
-		address = "Taman Botani Diraja Johor Istana Besar Johor<br>80000 Johor Bahru, Johor<br>General Line: +07-485 8101"
+		address = "Taman Botani Diraja Johor Istana Besar Johor<br>80000 Johor Bahru, Johor<br>Talian Umum: +07-485 8101"
 		contactNo = "+07-485 8101"
 		email = "botani.johor@gmail.com"
 	}
@@ -125,8 +125,8 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
 
 	contentBuilder.WriteString(`
     <div style="padding: 20px 0px">
-        <h4 style="font-size:16px">Dear ` + orderOverview.FullName + `,</h4>
-        <p style="font-size:14px">Thank you for your purchase. Below are your tickets for ` + orderOverview.TicketGroup + `:</p>
+        <h4 style="font-size:16px">Kepada ` + orderOverview.FullName + `,</h4>
+        <p style="font-size:14px">Terima kasih atas pembelian anda. Berikut adalah tiket anda untuk ` + orderOverview.TicketGroup + `:</p>
 	</div>
     `)
 
@@ -136,13 +136,13 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
         <tr>
             <td width="49%" valign="top">
                 <div class="info-group">
-                    <div class="info-label">Lead participant</div>
+                    <div class="info-label">Peserta Utama</div>
                     <div class="info-value">` + orderOverview.FullName + `</div>
                 </div>
             </td>
             <td width="49%" valign="top">
                 <div class="info-group">
-                    <div class="info-label">Purchase Date</div>
+                    <div class="info-label">Tarikh Pembelian</div>
                     <div class="info-value">` + orderOverview.PurchaseDate + `</div>
                 </div>
             </td>
@@ -150,13 +150,13 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
         <tr>
 			<td width="49%" valign="top" style="padding-top: 20px;">
                 <div class="info-group">
-                    <div class="info-label">Entry Date</div>
+                    <div class="info-label">Tarikh Masuk</div>
                     <div class="info-value">` + orderOverview.EntryDate + `</div>
                 </div>
             </td>
             <td width="49%" valign="top" style="padding-top: 20px;">
                 <div class="info-group">
-                    <div class="info-label">Order No.</div>
+                    <div class="info-label">No. Pesanan</div>
                     <div class="info-value">` + orderOverview.OrderNumber + `</div>
                 </div>
             </td>
@@ -168,8 +168,8 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
 	contentBuilder.WriteString(`
     <div>
         <div class="redeem-title">
-            <h4>Redeem Individual Units</h4>
-            <p>Scan the QR codes below to redeem your units individually.</p>
+            <h4>Tebus Unit Individu</h4>
+            <p>Imbas kod QR di bawah untuk menebus unit anda secara individu.</p>
         </div>
 	</div>
     `)
@@ -232,8 +232,8 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
 
 	contentBuilder.WriteString(`
 		<div style="text-align: center;">
-			<p>Please show these QR codes at the entrance for scanning.</p>
-        	<p>We hope you enjoy your visit to ` + orderOverview.TicketGroup + `!</p>
+			<p>Sila tunjukkan kod QR ini di pintu masuk untuk imbasan.</p>
+        	<p>Kami berharap anda menikmati lawatan anda ke ` + orderOverview.TicketGroup + `!</p>
 		</div>
         
         <div class="terms-section">
@@ -267,15 +267,15 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
     <div>
         <div class="order-summary">
             <div class="section-title">
-                <h3>Order Summary</h3>
+                <h3>Ringkasan Pesanan</h3>
             </div>
             <table class="order-table">
                 <thead>
                     <tr>
-                        <th>Item</th>
-                        <th>Quantity</th>
-                        <th>Price</th>
-                        <th>Total</th>
+                        <th>Barangan</th>
+                        <th>Kuantiti</th>
+                        <th>Harga</th>
+                        <th>Jumlah</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -304,11 +304,11 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="3">Subtotal</td>
+                        <td colspan="3">Jumlah Kecil</td>
                         <td>MYR ` + fmt.Sprintf("%.2f", subtotal) + `</td>
                     </tr>
                     <tr>
-                        <td colspan="3">Total (Inclusive GST)</td>
+                        <td colspan="3">Jumlah (Termasuk GST)</td>
                         <td>MYR ` + fmt.Sprintf("%.2f", subtotal) + `</td>
                     </tr>
                 </tfoot>
@@ -507,8 +507,8 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
         %s
         
         <div class="footer">
-            <p>This is an automated message, please do not reply to this email.</p>
-            <p>Contact us: `+contactNo+` | `+email+`</p>
+            <p>Ini adalah mesej automatik, sila jangan balas e-mel ini.</p>
+            <p>Hubungi Kami: `+contactNo+` | `+email+`</p>
             <p>&copy; %d `+orderOverview.TicketGroup+`</p>
         </div>
     </div>

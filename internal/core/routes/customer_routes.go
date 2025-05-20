@@ -11,11 +11,13 @@ import (
 
 // SetupCustomerRoutes configures all customer-related routes
 func SetupCustomerRoutes(api fiber.Router, customerHandler *handlers.CustomerHandler, jwtService jwt.JWTService) {
+	publicCustomerRoutes := api.Group("/api/customer")
+	publicCustomerRoutes.Get("/profile", customerHandler.GetCustomer)
+
 	// Customer routes - protected by authentication
-	customerRoutes := api.Group("/api/customer")
+	customerRoutes := api.Group("/api/customer", middleware.Protected(jwtService), middleware.HasRole("CUSTOMER"))
 
 	// Profile routes
-	customerRoutes.Get("/profile", customerHandler.GetCustomer)
-	customerRoutes.Put("/profile", customerHandler.UpdateCustomer, middleware.Protected(jwtService), middleware.HasRole("CUSTOMER"))
-	customerRoutes.Put("/password", customerHandler.ChangePassword, middleware.Protected(jwtService), middleware.HasRole("CUSTOMER"))
+	customerRoutes.Put("/profile", customerHandler.UpdateCustomer)
+	customerRoutes.Put("/password", customerHandler.ChangePassword)
 }

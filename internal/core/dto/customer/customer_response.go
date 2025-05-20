@@ -7,10 +7,10 @@ type CustomerResponse struct {
 }
 
 type Customer struct {
-	CustID           string `json:"custId,omitempty"`
-	Email            string `json:"email,omitempty"`
-	FullName         string `json:"fullName,omitempty"`
-	IdentificationNo string `json:"identificationNo,omitempty"`
-	IsDisabled       bool   `json:"isDisabled,omitempty"`
-	ContactNo        string `json:"contactNo,omitempty"`
+	CustID           string `json:"custId"`
+	Email            string `json:"email"`
+	FullName         string `json:"fullName"`
+	IdentificationNo string `json:"identificationNo"`
+	IsDisabled       bool   `json:"isDisabled"`
+	ContactNo        string `json:"contactNo"`
 }

@@ -565,12 +565,25 @@ func (s *emailService) sendEmailWithRetry(to []string, subject string, body stri
 	var lastErr error
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
+		logger.Info("Attempting to send email",
+			"attempt", attempt+1,
+			"recipients", to,
+			"maxRetries", maxRetries)
+
 		err := s.SendEmail(to, subject, body)
 		if err == nil {
+			logger.Info("Email sent successfully",
+				"attempt", attempt+1,
+				"recipients", to)
 			return nil // Success
 		}
 
 		lastErr = err
+		logger.Info("Email sending failed, will retry",
+			"attempt", attempt+1,
+			"error", err.Error(),
+			"nextRetryIn", (attempt+1)*2,
+			"recipients", to)
 
 		// Wait before retrying (with exponential backoff)
 		time.Sleep(time.Duration(attempt+1) * 2 * time.Second)
@@ -649,12 +662,25 @@ func (s *emailService) sendEmailWithAttachmentsWithRetry(to []string, subject st
 	var lastErr error
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
+		logger.Info("Attempting to send email",
+			"attempt", attempt+1,
+			"recipients", to,
+			"maxRetries", maxRetries)
+
 		err := s.SendEmailWithAttachments(to, subject, body, attachments)
 		if err == nil {
+			logger.Info("Email sent successfully",
+				"attempt", attempt+1,
+				"recipients", to)
 			return nil // Success
 		}
 
 		lastErr = err
+		logger.Info("Email sending failed, will retry",
+			"attempt", attempt+1,
+			"error", err.Error(),
+			"nextRetryIn", (attempt+1)*2,
+			"recipients", to)
 
 		// Wait before retrying (with exponential backoff)
 		time.Sleep(time.Duration(attempt+1) * 2 * time.Second)
@@ -741,15 +767,24 @@ func (s *emailService) sendEmailViaSmtpWithAttachments(to []string, subject, bod
 
 // sendEmailViaGmailAPIWithAttachments sends an email with attachments using Gmail API
 func (s *emailService) sendEmailViaGmailAPIWithAttachments(to []string, subject, body string, attachments []Attachment) error {
-	logger.Info("Using Gmail API to send email with attachments...")
+	logger.Info("Starting Gmail API email delivery",
+		"recipients", to,
+		"subject", subject,
+		"attachmentCount", len(attachments))
 
 	// Get access token using token manager
+	startTokenTime := time.Now()
 	accessToken, err := s.tokenManager.GetToken()
 	if err != nil {
+		logger.Error("Failed to get access token",
+			"error", err,
+			"timeSpent", time.Since(startTokenTime))
 		return fmt.Errorf("failed to get access token: %w", err)
 	}
+	logger.Info("Obtained access token", "timeSpent", time.Since(startTokenTime))
 
 	// Prepare the MIME message with attachments
+	startMimeTime := time.Now()
 	var messageBuffer bytes.Buffer
 	boundary := "==Boundary_" + randomString(30)
 
@@ -761,6 +796,9 @@ func (s *emailService) sendEmailViaGmailAPIWithAttachments(to []string, subject,
 
 	// If we have attachments, create a multipart message
 	if len(attachments) > 0 {
+		logger.Info("Creating multipart MIME message",
+			"attachmentCount", len(attachments))
+
 		messageBuffer.WriteString(fmt.Sprintf("Content-Type: multipart/mixed; boundary=%s\r\n\r\n", boundary))
 		messageBuffer.WriteString(fmt.Sprintf("--%s\r\n", boundary))
 		messageBuffer.WriteString("Content-Type: text/html; charset=UTF-8\r\n\r\n")
@@ -768,7 +806,13 @@ func (s *emailService) sendEmailViaGmailAPIWithAttachments(to []string, subject,
 		messageBuffer.WriteString("\r\n")
 
 		// Add each attachment
-		for _, attachment := range attachments {
+		for i, attachment := range attachments {
+			logger.Info("Adding attachment to email",
+				"index", i+1,
+				"name", attachment.Name,
+				"type", attachment.Type,
+				"size", len(attachment.Content))
+
 			messageBuffer.WriteString(fmt.Sprintf("\r\n--%s\r\n", boundary))
 			messageBuffer.WriteString(fmt.Sprintf("Content-Type: %s\r\n", attachment.Type))
 			messageBuffer.WriteString(fmt.Sprintf("Content-Disposition: attachment; filename=\"%s\"\r\n", attachment.Name))
@@ -789,12 +833,21 @@ func (s *emailService) sendEmailViaGmailAPIWithAttachments(to []string, subject,
 		messageBuffer.WriteString(fmt.Sprintf("\r\n--%s--\r\n", boundary))
 	} else {
 		// Simple HTML email without attachments
+		logger.Info("Creating simple HTML email without attachments")
 		messageBuffer.WriteString("Content-Type: text/html; charset=UTF-8\r\n\r\n")
 		messageBuffer.WriteString(body)
 	}
 
+	logger.Info("MIME message preparation complete",
+		"timeSpent", time.Since(startMimeTime),
+		"messageSize", messageBuffer.Len())
+
 	// Base64 URL encode the message for the Gmail API
+	startEncodingTime := time.Now()
 	encodedMessage := base64.URLEncoding.EncodeToString(messageBuffer.Bytes())
+	logger.Info("Message encoding complete",
+		"timeSpent", time.Since(startEncodingTime),
+		"encodedSize", len(encodedMessage))
 
 	// Create the request body
 	reqBody := fmt.Sprintf(`{
@@ -802,8 +855,13 @@ func (s *emailService) sendEmailViaGmailAPIWithAttachments(to []string, subject,
     }`, encodedMessage)
 
 	// Make the request to Gmail API
+	startAPIRequestTime := time.Now()
+	logger.Info("Preparing Gmail API request",
+		"endpoint", "https://gmail.googleapis.com/gmail/v1/users/me/messages/send")
+
 	req, err := http.NewRequest("POST", "https://gmail.googleapis.com/gmail/v1/users/me/messages/send", strings.NewReader(reqBody))
 	if err != nil {
+		logger.Error("Failed to create API request", "error", err)
 		return fmt.Errorf("error creating request: %w", err)
 	}
 
@@ -811,9 +869,13 @@ func (s *emailService) sendEmailViaGmailAPIWithAttachments(to []string, subject,
 	req.Header.Add("Content-Type", "application/json")
 
 	// Send the request
+	logger.Info("Sending request to Gmail API")
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
+		logger.Error("Failed to make API request",
+			"error", err,
+			"timeSpent", time.Since(startAPIRequestTime))
 		return fmt.Errorf("error making request: %w", err)
 	}
 	defer func(Body io.ReadCloser) {
@@ -826,14 +888,26 @@ func (s *emailService) sendEmailViaGmailAPIWithAttachments(to []string, subject,
 	// Check the response
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logger.Error("Failed to read API response",
+			"error", err,
+			"httpStatus", resp.StatusCode)
 		return fmt.Errorf("error reading response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		logger.Error("Gmail API returned error",
+			"httpStatus", resp.StatusCode,
+			"response", string(responseBody),
+			"timeSpent", time.Since(startAPIRequestTime))
 		return fmt.Errorf("error sending email via Gmail API: %s", responseBody)
 	}
 
-	logger.Info("Email with attachments sent successfully via Gmail API!")
+	logger.Info("Email delivery completed successfully",
+		"recipients", to,
+		"subject", subject,
+		"httpStatus", resp.StatusCode,
+		"timeSpent", time.Since(startAPIRequestTime),
+		"totalTime", time.Since(startMimeTime))
 	return nil
 }
 

@@ -124,7 +124,7 @@ func addZooHeader(ticketGroupName string, pdf *gofpdf.Fpdf) {
 	pdf.RoundedRect(boxX, boxY, boxWidth, boxHeight, 10, strconv.Itoa(10), "F")
 
 	// Add text to the box
-	pdf.SetFont("Arial", "B", 24)
+	pdf.SetFont("Arial", "B", 16)
 	pdf.SetTextColor(0, 0, 0) // Black text
 
 	// Title
@@ -224,7 +224,6 @@ func addRedeemSection(pdf *gofpdf.Fpdf) {
 	pdf.Cell(180, 5, "Scan the QR codes below to redeem your units individually.")
 }
 
-// addTermsAndConditionsPage adds a new page with an enhanced Terms and Conditions content
 func addTermsAndConditionsPage(pdf *gofpdf.Fpdf) {
 	pdf.AddPage()
 
@@ -241,7 +240,7 @@ func addTermsAndConditionsPage(pdf *gofpdf.Fpdf) {
 	pdf.SetFillColor(213, 197, 138) // Same color as the header
 	pdf.Rect(0, 0, pageWidth, 20, "F")
 
-	// Add title with white text on the orange background
+	// Add title with black text on the orange background
 	pdf.SetFont("Arial", "B", 14)
 	pdf.SetTextColor(0, 0, 0) // Black text
 	pdf.SetXY(leftMargin, 5)
@@ -253,123 +252,136 @@ func addTermsAndConditionsPage(pdf *gofpdf.Fpdf) {
 
 	// Add introductory paragraph with a subtle background
 	pdf.SetFillColor(245, 245, 245) // Light gray background
-	pdf.RoundedRect(leftMargin, 26, contentWidth, 25, 3, "1234", "F")
+	pdf.RoundedRect(leftMargin, 26, contentWidth, 20, 3, "1234", "F")
 
-	pdf.SetFont("Arial", "", 10)
+	pdf.SetFont("Arial", "", 9) // Reduced font size
 	pdf.SetXY(leftMargin+5, 29) // Add padding inside the box
-	pdf.MultiCell(contentWidth-10, 5, "Berikut adalah terma dan syarat penggunaan laman web Zoo Johor bagi pembelian secara dalam talian. Sekiranya anda mengakses laman web ini dan menggunakan perkhidmatan yang ditawarkan, anda bersetuju dan penggunaan anda terhadap bahawa anda terikat kepada terma dan syarat sebagaimana berikut :", "0", "L", false)
+	pdf.MultiCell(contentWidth-10, 4, "Berikut adalah terma dan syarat penggunaan laman web Zoo Johor bagi pembelian secara dalam talian. Sekiranya anda mengakses laman web ini dan menggunakan perkhidmatan yang ditawarkan, anda bersetuju dan penggunaan anda terhadap bahawa anda terikat kepada terma dan syarat sebagaimana berikut :", "0", "L", false)
 
 	// Position after the intro box
-	pdf.SetY(55)
+	pdf.SetY(50) // Adjusted position to make content more compact
 
 	// Create section boxes for each section with alternating colors
-	sectionY := 55.0 // Start position for sections
+	sectionY := 50.0 // Start position for sections
 
 	// Section i - with a styled section header
-	pdf.SetFillColor(213, 197, 138) // Khaki accent color
-	pdf.RoundedRect(leftMargin, sectionY, contentWidth, 8, 2, "1234", "F")
+	pdf.SetFillColor(213, 197, 138)                                        // Khaki accent color
+	pdf.RoundedRect(leftMargin, sectionY, contentWidth, 7, 2, "1234", "F") // Reduced height
 
-	pdf.SetFont("Arial", "B", 11)
-	pdf.SetTextColor(0, 0, 0) // Black text for section title
+	pdf.SetFont("Arial", "B", 10) // Reduced font size
+	pdf.SetTextColor(0, 0, 0)     // Black text for section title
 	pdf.SetXY(leftMargin+5, sectionY+1.5)
-	pdf.Cell(contentWidth-10, 5, "i) Pembelian Secara Dalam Talian")
+	pdf.Cell(contentWidth-10, 4, "i) Pembelian Secara Dalam Talian")
 
 	// Section i content
 	pdf.SetFillColor(250, 250, 250) // Very light gray for section content
-	sectionHeight := 33.0
-	pdf.RoundedRect(leftMargin, sectionY+8, contentWidth, sectionHeight, 2, "1234", "F")
+	sectionHeight := 20.0           // Reduced height
+	pdf.RoundedRect(leftMargin, sectionY+7, contentWidth, sectionHeight, 2, "1234", "F")
 
-	pdf.SetFont("Arial", "", 10)
-	pdf.SetTextColor(0, 0, 0) // Black text for content
-	pdf.SetXY(leftMargin+5, sectionY+10)
-	pdf.MultiCell(contentWidth-10, 5, "Pembeli hendaklah memastikan tarikh, hari, jenis tiket dan kuantiti adalah betul sebelum mengikut butang bayaran.\n\nBagi bayaran melalui kad kredit, kad debit atau perkhidmatan perbankan internet seperti Maybank2U atau lain-lain bank, anda hendaklah memastikan anda adalah pemilik akaun dan maklum mengenai pembayaran tersebut.", "0", "L", false)
+	pdf.SetFont("Arial", "", 9) // Reduced font size
+	pdf.SetTextColor(0, 0, 0)   // Black text for content
+	pdf.SetXY(leftMargin+5, sectionY+9)
+	pdf.MultiCell(contentWidth-10, 4, "Pembeli hendaklah memastikan tarikh, hari, jenis tiket dan kuantiti adalah betul sebelum mengikut butang bayaran.\n\nBagi bayaran melalui kad kredit, kad debit atau perkhidmatan perbankan internet seperti Maybank2U atau lain-lain bank, anda hendaklah memastikan anda adalah pemilik akaun dan maklum mengenai pembayaran tersebut.", "0", "L", false)
 
 	// Section ii
-	sectionY += sectionHeight + 15
-	pdf.SetFillColor(213, 197, 138) // Khaki accent color
-	pdf.RoundedRect(leftMargin, sectionY, contentWidth, 8, 2, "1234", "F")
+	sectionY += sectionHeight + 10                                         // Reduced spacing
+	pdf.SetFillColor(213, 197, 138)                                        // Khaki accent color
+	pdf.RoundedRect(leftMargin, sectionY, contentWidth, 7, 2, "1234", "F") // Reduced height
 
-	pdf.SetFont("Arial", "B", 11)
-	pdf.SetTextColor(0, 0, 0) // Black text for section title
+	pdf.SetFont("Arial", "B", 10) // Reduced font size
+	pdf.SetTextColor(0, 0, 0)     // Black text for section title
 	pdf.SetXY(leftMargin+5, sectionY+1.5)
-	pdf.Cell(contentWidth-10, 5, "ii) Pengesahan Pembelian")
+	pdf.Cell(contentWidth-10, 4, "ii) Pengesahan Pembelian")
 
 	// Section ii content
 	pdf.SetFillColor(250, 250, 250) // Very light gray for section content
-	sectionHeight = 20.0
-	pdf.RoundedRect(leftMargin, sectionY+8, contentWidth, sectionHeight, 2, "1234", "F")
+	sectionHeight = 18.0            // Reduced height
+	pdf.RoundedRect(leftMargin, sectionY+7, contentWidth, sectionHeight, 2, "1234", "F")
 
-	pdf.SetFont("Arial", "", 10)
-	pdf.SetTextColor(0, 0, 0) // Black text for content
-	pdf.SetXY(leftMargin+5, sectionY+10)
-	pdf.MultiCell(contentWidth-10, 5, "Selepas penerimaan pembayaran, anda akan menerima resit dan tiket yang tertera QR Code melalui emel yang telah didaftarkan. Sila bawa bersama resit dan tiket tersebut semasa berkunjung ke Zoo Johor bagi mengelakkan sebarang permasalahan.", "0", "L", false)
+	pdf.SetFont("Arial", "", 9) // Reduced font size
+	pdf.SetTextColor(0, 0, 0)   // Black text for content
+	pdf.SetXY(leftMargin+5, sectionY+9)
+	pdf.MultiCell(contentWidth-10, 4, "Selepas penerimaan pembayaran, anda akan menerima resit dan tiket yang tertera QR Code melalui emel yang telah didaftarkan. Sila bawa bersama resit dan tiket tersebut semasa berkunjung ke Zoo Johor bagi mengelakkan sebarang permasalahan.", "0", "L", false)
 
 	// Section iii
-	sectionY += sectionHeight + 15
-	pdf.SetFillColor(213, 197, 138) // Khaki accent color
-	pdf.RoundedRect(leftMargin, sectionY, contentWidth, 8, 2, "1234", "F")
+	sectionY += sectionHeight + 10                                         // Reduced spacing
+	pdf.SetFillColor(213, 197, 138)                                        // Khaki accent color
+	pdf.RoundedRect(leftMargin, sectionY, contentWidth, 7, 2, "1234", "F") // Reduced height
 
-	pdf.SetFont("Arial", "B", 11)
-	pdf.SetTextColor(0, 0, 0) // Black text for section title
+	pdf.SetFont("Arial", "B", 10) // Reduced font size
+	pdf.SetTextColor(0, 0, 0)     // Black text for section title
 	pdf.SetXY(leftMargin+5, sectionY+1.5)
-	pdf.Cell(contentWidth-10, 5, "iii) Polisi Bayaran Balik")
+	pdf.Cell(contentWidth-10, 4, "iii) Polisi Bayaran Balik")
 
 	// Section iii content
 	pdf.SetFillColor(250, 250, 250) // Very light gray for section content
-	sectionHeight = 45.0
-	pdf.RoundedRect(leftMargin, sectionY+8, contentWidth, sectionHeight, 2, "1234", "F")
+	sectionHeight = 38.0            // Reduced height
+	pdf.RoundedRect(leftMargin, sectionY+7, contentWidth, sectionHeight, 2, "1234", "F")
 
-	pdf.SetFont("Arial", "", 10)
-	pdf.SetTextColor(0, 0, 0) // Black text for content
-	pdf.SetXY(leftMargin+5, sectionY+10)
-	pdf.MultiCell(contentWidth-10, 5, "Perkhidmatan pembelian tiket secara dalam talian ini beroperasi atas polisi tiada bayaran balik. Kesemua bayaran yang telah diterima tidak akan dibayar balik kepada pembeli kecuali di dalam keadaan tertentu yang akan dibenarkan oleh pihak pengurusan antaranya permasalahan yang tidak dapat dielakkan seperti masalah teknikal laman web/sistem atau permasalahan berkaitan sistem perbankan.\n\nProses bayaran balik adalah dalam tempoh 14 hari dari tarikh masalah dikenapasti. Bagi situasi di mana pembeli telah terlebih membuat bayaran (sekiarnya ada), bayaran balik hanya akan dilaksanakan setelah pihak pengurusan berhukungan akan kepada pihak pengurusan.", "0", "L", false)
-
-	// Add a new page for remaining sections if needed
-	if sectionY+sectionHeight > 260 { // Check if we're close to the page end
-		pdf.AddPage()
-		sectionY = 20.0 // Reset Y position on new page
-	} else {
-		sectionY += sectionHeight + 15
-	}
+	pdf.SetFont("Arial", "", 9) // Reduced font size
+	pdf.SetTextColor(0, 0, 0)   // Black text for content
+	pdf.SetXY(leftMargin+5, sectionY+9)
+	pdf.MultiCell(contentWidth-10, 4, "Perkhidmatan pembelian tiket secara dalam talian ini beroperasi atas polisi tiada bayaran balik. Kesemua bayaran yang telah diterima tidak akan dibayar balik kepada pembeli kecuali di dalam keadaan tertentu yang akan dibenarkan oleh pihak pengurusan antaranya permasalahan yang tidak dapat dielakkan seperti masalah teknikal laman web/sistem atau permasalahan berkaitan sistem perbankan.\n\nProses bayaran balik adalah dalam tempoh 14 hari dari tarikh masalah dikenapasti. Bagi situasi di mana pembeli telah terlebih membuat bayaran (sekiarnya ada), bayaran balik hanya akan dilaksanakan setelah pihak pengurusan berhukungan akan kepada pihak pengurusan.", "0", "L", false)
 
 	// Section iv
-	pdf.SetFillColor(213, 197, 138) // Khaki accent color
-	pdf.RoundedRect(leftMargin, sectionY, contentWidth, 8, 2, "1234", "F")
+	sectionY += sectionHeight + 10                                         // Reduced spacing
+	pdf.SetFillColor(213, 197, 138)                                        // Khaki accent color
+	pdf.RoundedRect(leftMargin, sectionY, contentWidth, 7, 2, "1234", "F") // Reduced height
 
-	pdf.SetFont("Arial", "B", 11)
-	pdf.SetTextColor(0, 0, 0) // Black text for section title
+	pdf.SetFont("Arial", "B", 10) // Reduced font size
+	pdf.SetTextColor(0, 0, 0)     // Black text for section title
 	pdf.SetXY(leftMargin+5, sectionY+1.5)
-	pdf.Cell(contentWidth-10, 5, "iv) Polisi Menukar Tarikh Tiket")
+	pdf.Cell(contentWidth-10, 4, "iv) Polisi Menukar Tarikh Tiket")
 
 	// Section iv content
 	pdf.SetFillColor(250, 250, 250) // Very light gray for section content
-	sectionHeight = 20.0
-	pdf.RoundedRect(leftMargin, sectionY+8, contentWidth, sectionHeight, 2, "1234", "F")
+	sectionHeight = 18.0            // Reduced height
+	pdf.RoundedRect(leftMargin, sectionY+7, contentWidth, sectionHeight, 2, "1234", "F")
 
-	pdf.SetFont("Arial", "", 10)
-	pdf.SetTextColor(0, 0, 0) // Black text for content
-	pdf.SetXY(leftMargin+5, sectionY+10)
-	pdf.MultiCell(contentWidth-10, 5, "Perkhidmatan pembelian tiket secara dalam talian ini beroperasi atas polisi penukaran tarikh adalah tidak dibenarkan. Sekiranya pengunjung tidak dapat hadir pada tarikh yang telah diguatakan, penukaran tarikh tiket adalah tidak dibenarkan dan tiada pulangan bayaran akan dibuat.", "0", "L", false)
+	pdf.SetFont("Arial", "", 9) // Reduced font size
+	pdf.SetTextColor(0, 0, 0)   // Black text for content
+	pdf.SetXY(leftMargin+5, sectionY+9)
+	pdf.MultiCell(contentWidth-10, 4, "Perkhidmatan pembelian tiket secara dalam talian ini beroperasi atas polisi penukaran tarikh adalah tidak dibenarkan. Sekiranya pengunjung tidak dapat hadir pada tarikh yang telah diguatakan, penukaran tarikh tiket adalah tidak dibenarkan dan tiada pulangan bayaran akan dibuat.", "0", "L", false)
 
 	// Section v
-	sectionY += sectionHeight + 15
-	pdf.SetFillColor(213, 197, 138) // Khaki accent color
-	pdf.RoundedRect(leftMargin, sectionY, contentWidth, 8, 2, "1234", "F")
+	sectionY += sectionHeight + 10                                         // Reduced spacing
+	pdf.SetFillColor(213, 197, 138)                                        // Khaki accent color
+	pdf.RoundedRect(leftMargin, sectionY, contentWidth, 7, 2, "1234", "F") // Reduced height
 
-	pdf.SetFont("Arial", "B", 11)
-	pdf.SetTextColor(0, 0, 0) // Black text for section title
+	pdf.SetFont("Arial", "B", 10) // Reduced font size
+	pdf.SetTextColor(0, 0, 0)     // Black text for section title
 	pdf.SetXY(leftMargin+5, sectionY+1.5)
-	pdf.Cell(contentWidth-10, 5, "v) Had Tanggungjawab")
+	pdf.Cell(contentWidth-10, 4, "v) Had Tanggungjawab")
 
 	// Section v content
 	pdf.SetFillColor(250, 250, 250) // Very light gray for section content
-	sectionHeight = 40.0
-	pdf.RoundedRect(leftMargin, sectionY+8, contentWidth, sectionHeight, 2, "1234", "F")
+	sectionHeight = 30.0            // Reduced height
+	pdf.RoundedRect(leftMargin, sectionY+7, contentWidth, sectionHeight, 2, "1234", "F")
 
+	pdf.SetFont("Arial", "", 9) // Reduced font size
+	pdf.SetTextColor(0, 0, 0)   // Black text for content
+	pdf.SetXY(leftMargin+5, sectionY+9)
+	pdf.MultiCell(contentWidth-10, 4, "Pihak pengurusan tidak menjamin bahawa fungsi yang terdapat di dalam laman web ini tidak akan terganggu atau bebas dari sebarang kesalahan. Pihak pengurusan juga tidak akan bertanggungjawab atas sebarang kerugian, kemusnahan, gangguran perkhidmatan, kerugian, kehilangan simpanan atau kesan sampingan yang lain ketika mengoperasikan atau kegagalan mengoperasikan laman web ini, akses tanpa kebenaran, kenyataan atau tindakan pihak ketiga di laman web ini atau perkara-perkara lain yang berkaitan dengan laman web.", "0", "L", false)
+
+	// Add Contact Us section at bottom
+	sectionY += sectionHeight + 15
+
+	// Contact section header
+	pdf.SetFont("Arial", "B", 12)
+	pdf.SetTextColor(51, 51, 51)
+	pdf.SetXY(leftMargin, sectionY)
+	pdf.Cell(contentWidth, 6, "Contact us")
+	sectionY += 8
+
+	// Contact details
 	pdf.SetFont("Arial", "", 10)
-	pdf.SetTextColor(0, 0, 0) // Black text for content
-	pdf.SetXY(leftMargin+5, sectionY+10)
-	pdf.MultiCell(contentWidth-10, 5, "Pihak pengurusan tidak menjamin bahawa fungsi yang terdapat di dalam laman web ini tidak akan terganggu atau bebas dari sebarang kesalahan. Pihak pengurusan juga tidak akan bertanggungjawab atas sebarang kerugian, kemusnahan, gangguran perkhidmatan, kerugian, kehilangan simpanan atau kesan sampingan yang lain ketika mengoperasikan atau kegagalan mengoperasikan laman web ini, akses tanpa kebenaran, kenyataan atau tindakan pihak ketiga di laman web ini atau perkara-perkara lain yang berkaitan dengan laman web.", "0", "L", false)
+	pdf.SetTextColor(51, 51, 51)
+	pdf.SetXY(leftMargin, sectionY)
+	pdf.Cell(contentWidth, 5, "TEL    : +07-485 8101")
+	sectionY += 6
+
+	pdf.SetXY(leftMargin, sectionY)
+	pdf.Cell(contentWidth, 5, "Email : botani.johor@gmail.com")
 }
 
 // addOrderDetailsPage adds a page with the order details
@@ -438,11 +450,9 @@ func addOrderDetailsPage(pdf *gofpdf.Fpdf, order Order) {
 	pdf.SetFillColor(213, 197, 138)
 	pdf.Rect(leftMargin, pdf.GetY(), itemColWidth+priceColWidth+qtyColWidth+totalColWidth, 10, "F")
 
-	pdf.SetX(leftMargin + 3)
 	// Item header
 	pdf.Cell(itemColWidth, 10, "Item")
 
-	pdf.SetX(leftMargin + itemColWidth)
 	// Price header
 	pdf.Cell(priceColWidth, 10, "Price")
 
@@ -471,7 +481,6 @@ func addOrderDetailsPage(pdf *gofpdf.Fpdf, order Order) {
 		// Item name and description
 		nameY := startY
 		// Add 3mm padding to the left of text in the item column
-		pdf.SetX(leftMargin + 3) // Add 3mm left padding
 		pdf.MultiCell(itemColWidth, 6, fmt.Sprintf("%s\n%s", item.Name, item.Date), "", "", false)
 		nameHeight := pdf.GetY() - nameY
 
@@ -547,7 +556,7 @@ func addOrderDetailsPage(pdf *gofpdf.Fpdf, order Order) {
 
 // GenerateTicketPDF generates a PDF ticket with QR codes arranged horizontally
 func (h *PDFHandler) GenerateTicketPDF(c *fiber.Ctx) error {
-	ticketGroupName := "Zoo Johor"
+	ticketGroupName := "Taman Botani Diraja Johor"
 
 	// Sample participant information
 	participantName := "Rashidan Kamis"
@@ -561,8 +570,8 @@ func (h *PDFHandler) GenerateTicketPDF(c *fiber.Ctx) error {
 		Content string
 		Label   string
 	}{
-		{"TICKET-ADULT-001", "Adult Ticket #001"},
-		{"TICKET-ADULT-002", "Adult Ticket #002"},
+		{"TICKET-ADULT-001", "Combo Botani + Zoo Kanak-Kanak (bawah 5 tahun)"},
+		{"TICKET-ADULT-002", "Combo Botani + Zoo Kanak-Kanak (bawah 5 tahun)"},
 		{"TICKET-CHILD-001", "Child Ticket #001"},
 		{"TICKET-CHILD-002", "Child Ticket #002"},
 		{"TICKET-SENIOR-001", "Senior Ticket #001"},
@@ -592,7 +601,7 @@ func (h *PDFHandler) GenerateTicketPDF(c *fiber.Ctx) error {
 				Date:     "2024-10-08",
 			},
 			{
-				Name:     "Kanak-kanak (3-11 tahun)",
+				Name:     "Combo Botani + Zoo Kanak-Kanak (bawah 5 tahun)",
 				Price:    5.00,
 				Quantity: 2,
 				Date:     "2024-10-08",
@@ -688,10 +697,11 @@ func (h *PDFHandler) GenerateTicketPDF(c *fiber.Ctx) error {
 			pdf.Image(imageID, posX, posY, qrSize, 0, false, "", 0, "")
 
 			// Add label under QR code
-			pdf.SetFont("Arial", "", 10)
+			pdf.SetFont("Arial", "", 8) // Smaller font for better fitting
+			labelWidth := qrSize + 10   // Make label width slightly wider than QR code
 			pdf.SetY(posY + qrSize + labelOffset)
-			pdf.SetX(posX)
-			pdf.CellFormat(qrSize, 10, ticket.Label, "", 0, "C", false, 0, "")
+			pdf.SetX(posX - 5)                                         // Center the label by adjusting starting position
+			pdf.MultiCell(labelWidth, 4, ticket.Label, "", "C", false) // 4mm line height, centered text
 
 			// Reset to bold font for the next ticket
 			pdf.SetFont("Arial", "B", 16)

@@ -360,8 +360,8 @@ func (s *TicketGroupService) GetTicketVariants(ticketGroupId uint, date string) 
 		variant := dto.TicketVariantDTO{
 			TicketId:  item.ItemId,
 			UnitPrice: item.UnitPrice,
-			ItemDesc1: item.ItemDesc1,
-			ItemDesc2: item.ItemDescription,
+			ItemDesc1: item.ItemDescription,
+			ItemDesc2: item.ItemDesc1,
 			ItemDesc3: item.ItemDesc2,
 			PrintType: item.PrintType,
 			Qty:       item.Qty,

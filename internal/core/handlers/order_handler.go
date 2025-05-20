@@ -11,6 +11,7 @@ import (
 	"j-ticketing/pkg/errors"
 	"j-ticketing/pkg/jwt"
 	"j-ticketing/pkg/models"
+	"j-ticketing/pkg/utils"
 	"log"
 	"strconv"
 	"strings"
@@ -348,16 +349,19 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 		log.Printf("Error finding ticket group %s: %v", orderTicketGroup.TicketGroupId, err)
 	}
 
+	total := utils.CalculateOrderTotal(orderItems)
+
 	orderOverview := email.OrderOverview{
 		TicketGroup:  ticketGroup.GroupName,
 		FullName:     orderTicketGroup.BuyerName,
 		PurchaseDate: orderTicketGroup.TransactionDate,
 		EntryDate:    orderItems[0].EntryDate,
-		Quatity:      orderItems[0].Description,
+		Quantity:     len(orderItems),
 		OrderNumber:  orderTicketGroup.OrderNo,
+		Total:        total,
 	}
 
-	pdfBytes, pdfFilename, err := h.pdfService.GenerateTicketPDF(ticketGroup.GroupName, ticketInfos)
+	pdfBytes, pdfFilename, err := h.pdfService.GenerateTicketPDF(orderOverview, orderItems, ticketInfos)
 	if err != nil {
 		log.Printf("Error generating PDF: %v", err)
 	}

@@ -395,14 +395,11 @@ func ConvertZooTicketsToOrderItems(zooTickets []payment.ZooTicketInfo) []email.O
 	for _, group := range ticketGroups {
 		// Only create order items for groups with at least one ticket
 		if group.Count > 0 {
-			// Format the price with 2 decimal places
-			price := fmt.Sprintf("%.2f", utils.ParseFloat(group.UnitPrice))
-
 			// Create an OrderInfo for this group
 			orderInfo := email.OrderInfo{
 				Description: group.ItemDesc,
-				Quantity:    strconv.Itoa(group.Count), // Convert count to string
-				Price:       price,
+				Quantity:    group.Count,
+				Price:       utils.ParseFloat(group.UnitPrice),
 				EntryDate:   group.EntryDate,
 			}
 

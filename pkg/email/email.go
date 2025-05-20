@@ -84,15 +84,16 @@ type OrderOverview struct {
 	FullName     string
 	PurchaseDate string
 	EntryDate    string
-	Quatity      string
+	Quantity     int
 	OrderNumber  string
+	Total        float64
 }
 
 // OrderInfo represents information about a single order item
 type OrderInfo struct {
 	Description string
-	Quantity    string
-	Price       string
+	Quantity    int
+	Price       float64
 	EntryDate   string
 }
 
@@ -285,16 +286,14 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
 
 	for _, item := range orderItems {
 		// Calculate item total
-		price, _ := strconv.ParseFloat(item.Price, 64)
-		qty, _ := strconv.Atoi(item.Quantity)
-		total := price * float64(qty)
+		total := item.Price * float64(item.Quantity)
 		subtotal += total
 
 		contentBuilder.WriteString(`
                     <tr>
                         <td>` + item.Description + `<br><span class="item-date">` + item.EntryDate + `</span></td>
-                        <td>` + item.Quantity + `</td>
-                        <td>MYR ` + item.Price + `</td>
+                        <td>` + strconv.Itoa(item.Quantity) + `</td>
+                        <td>MYR ` + strconv.FormatFloat(item.Price, 'f', 2, 64) + `</td>
                         <td>MYR ` + fmt.Sprintf("%.2f", total) + `</td>
                     </tr>
         `)

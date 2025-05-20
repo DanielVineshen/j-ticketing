@@ -7,6 +7,7 @@ import (
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
 	"j-ticketing/pkg/email"
+	"j-ticketing/pkg/utils"
 	"log"
 )
 
@@ -84,16 +85,19 @@ func (s *EmailProcessingService) processOrder(order *models.OrderTicketGroup) er
 		log.Printf("Error finding ticket group %s: %v", order.TicketGroupId, err)
 	}
 
+	total := utils.CalculateOrderTotal(orderItems)
+
 	orderOverview := email.OrderOverview{
 		TicketGroup:  ticketGroup.GroupName,
 		FullName:     order.BuyerName,
 		PurchaseDate: order.TransactionDate,
 		EntryDate:    orderItems[0].EntryDate,
-		Quatity:      orderItems[0].Description,
+		Quantity:     len(orderItems),
 		OrderNumber:  order.OrderNo,
+		Total:        total,
 	}
 
-	pdfBytes, pdfFilename, err := s.pdfService.GenerateTicketPDF(ticketGroup.GroupName, ticketInfos)
+	pdfBytes, pdfFilename, err := s.pdfService.GenerateTicketPDF(orderOverview, orderItems, ticketInfos)
 	if err != nil {
 		log.Printf("Error generating PDF: %v", err)
 	}

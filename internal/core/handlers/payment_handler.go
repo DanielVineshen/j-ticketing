@@ -10,6 +10,7 @@ import (
 	"j-ticketing/internal/core/dto/payment"
 	services "j-ticketing/internal/core/services"
 	"j-ticketing/pkg/email"
+	"j-ticketing/pkg/utils"
 	"log"
 	logger "log/slog"
 	"net/url"
@@ -94,16 +95,19 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 				log.Printf("Error finding ticket group %s: %v", order.TicketGroupId, err)
 			}
 
+			total := utils.CalculateOrderTotal(orderItems)
+
 			orderOverview := email.OrderOverview{
 				TicketGroup:  ticketGroup.GroupName,
 				FullName:     order.BuyerName,
 				PurchaseDate: order.TransactionDate,
 				EntryDate:    orderItems[0].EntryDate,
-				Quatity:      orderItems[0].Description,
+				Quantity:     len(orderItems),
 				OrderNumber:  order.OrderNo,
+				Total:        total,
 			}
 
-			pdfBytes, pdfFilename, err := h.pdfService.GenerateTicketPDF(ticketGroup.GroupName, ticketInfos)
+			pdfBytes, pdfFilename, err := h.pdfService.GenerateTicketPDF(orderOverview, orderItems, ticketInfos)
 			if err != nil {
 				log.Printf("Error generating PDF: %v", err)
 			}
@@ -211,16 +215,19 @@ func (h *PaymentHandler) PaymentRedirect(c *fiber.Ctx) error {
 				log.Printf("Error finding ticket group %s: %v", order.TicketGroupId, err)
 			}
 
+			total := utils.CalculateOrderTotal(orderItems)
+
 			orderOverview := email.OrderOverview{
 				TicketGroup:  ticketGroup.GroupName,
 				FullName:     order.BuyerName,
 				PurchaseDate: order.TransactionDate,
 				EntryDate:    orderItems[0].EntryDate,
-				Quatity:      orderItems[0].Description,
+				Quantity:     len(orderItems),
 				OrderNumber:  order.OrderNo,
+				Total:        total,
 			}
 
-			pdfBytes, pdfFilename, err := h.pdfService.GenerateTicketPDF(ticketGroup.GroupName, ticketInfos)
+			pdfBytes, pdfFilename, err := h.pdfService.GenerateTicketPDF(orderOverview, orderItems, ticketInfos)
 			if err != nil {
 				log.Printf("Error generating PDF: %v", err)
 			}

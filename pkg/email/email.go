@@ -5,8 +5,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	"github.com/boombuler/barcode"
-	"github.com/boombuler/barcode/qr"
 	"image/png"
 	"io"
 	"j-ticketing/pkg/config"
@@ -17,6 +15,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/boombuler/barcode"
+	"github.com/boombuler/barcode/qr"
 )
 
 // EmailService is the interface for email operations
@@ -593,15 +594,13 @@ func (s *emailService) SendEmail(to []string, subject, body string) error {
 func (s *emailService) sendEmailViaGmailAPI(to []string, subject, body string) error {
 	logger.Info("Using Gmail API to send email...")
 
-	// Use the direct Gmail API method that we know works
+	// Pass the token manager instead of individual credentials
 	return SendDirectGmailEmail(
 		s.username,
 		to,
 		subject,
 		body,
-		s.tokenManager.config.ClientID,
-		s.tokenManager.config.ClientSecret,
-		s.tokenManager.config.RefreshToken,
+		s.tokenManager,
 	)
 }
 
@@ -744,12 +743,8 @@ func (s *emailService) sendEmailViaSmtpWithAttachments(to []string, subject, bod
 func (s *emailService) sendEmailViaGmailAPIWithAttachments(to []string, subject, body string, attachments []Attachment) error {
 	logger.Info("Using Gmail API to send email with attachments...")
 
-	// Get access token
-	accessToken, err := getOAuth2Token(
-		s.tokenManager.config.ClientID,
-		s.tokenManager.config.ClientSecret,
-		s.tokenManager.config.RefreshToken,
-	)
+	// Get access token using token manager
+	accessToken, err := s.tokenManager.GetToken()
 	if err != nil {
 		return fmt.Errorf("failed to get access token: %w", err)
 	}

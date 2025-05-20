@@ -61,9 +61,18 @@ func (m *OAuth2TokenManager) GetToken() (string, error) {
 
 	// Check if we have a valid cached token
 	// Use 5 minute buffer before expiry to avoid edge cases
-	if m.cachedToken != "" && time.Now().Add(5*time.Minute).Before(m.tokenExpiry) {
-		logger.Debug("Using cached OAuth token")
-		return m.cachedToken, nil
+	if m.cachedToken != "" {
+		// Use time.Until instead of t.Sub(time.Now())
+		timeUntilExpiry := time.Until(m.tokenExpiry)
+
+		logger.Info("Token state",
+			"timeUntilExpiry", timeUntilExpiry.String(),
+			"willUseCached", timeUntilExpiry > 5*time.Minute)
+
+		if timeUntilExpiry > 5*time.Minute {
+			logger.Info("Using cached OAuth token")
+			return m.cachedToken, nil
+		}
 	}
 
 	logger.Info("Requesting fresh OAuth token")

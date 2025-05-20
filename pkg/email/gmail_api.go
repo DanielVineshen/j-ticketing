@@ -17,18 +17,16 @@ func SendDirectGmailEmail(
 	from string,
 	to []string,
 	subject,
-	body,
-	clientID,
-	clientSecret,
-	refreshToken string,
+	body string,
+	tokenManager *OAuth2TokenManager,
 ) error {
-	// Get access token
-	accessToken, err := getOAuth2Token(clientID, clientSecret, refreshToken)
+	// Get access token using the token manager
+	accessToken, err := tokenManager.GetToken()
 	if err != nil {
 		return fmt.Errorf("failed to get access token: %w", err)
 	}
 
-	// Format the email message
+	// Rest of the function is the same...
 	message := fmt.Sprintf("From: %s\r\n"+
 		"To: %s\r\n"+
 		"Subject: %s\r\n"+
@@ -41,8 +39,8 @@ func SendDirectGmailEmail(
 
 	// Prepare the API request
 	reqBody := fmt.Sprintf(`{
-		"raw": "%s"
-	}`, encodedMessage)
+        "raw": "%s"
+    }`, encodedMessage)
 
 	// Make the request to Gmail API
 	req, err := http.NewRequest("POST", "https://gmail.googleapis.com/gmail/v1/users/me/messages/send", strings.NewReader(reqBody))

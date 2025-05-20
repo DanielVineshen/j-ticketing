@@ -2,16 +2,40 @@ package handlers
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"image"
 	"image/png"
+	"j-ticketing/pkg/storage"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/boombuler/barcode"
 	"github.com/boombuler/barcode/qr"
 	"github.com/jung-kurt/gofpdf"
 )
+
+// Item represents an order item
+type Item struct {
+	Name        string
+	Description string
+	Price       float64
+	Quantity    int
+	Date        string
+}
+
+// Order represents order details
+type Order struct {
+	OrderID        string
+	PlacedAt       string
+	Total          float64
+	Status         string
+	Items          []Item
+	DiscountAmount float64
+	GST            bool
+}
 
 // PDFHandler handles generating a PDF ticket
 type PDFHandler struct {
@@ -22,9 +46,515 @@ func NewPDFHandler() *PDFHandler {
 	return &PDFHandler{}
 }
 
+// addZooHeader adds the Zoo Johor header with logo and address box
+func addZooHeader(ticketGroupName string, pdf *gofpdf.Fpdf) {
+	addr1 := "Jalan Gertak Merah, Taman Istana"
+	addr2 := "80000 Johor Bahru, Johor"
+	generalLine := "General Line : +07-223 0404"
+
+	// Header measurements
+	headerHeight := 50.0
+	maxLogoWidth := 50.0  // Maximum width constraint
+	maxLogoHeight := 45.0 // Maximum height constraint
+	pageWidth := 210.0    // A4 width in mm
+
+	logoBase64 := storage.ZooLogo
+
+	logoBytes, err := base64.StdEncoding.DecodeString(logoBase64)
+	if err == nil {
+		// Create an image reader
+		imgReader := bytes.NewReader(logoBytes)
+
+		// Get the image config to determine dimensions
+		img, _, err := image.DecodeConfig(imgReader)
+		if err == nil {
+			// Reset reader position
+			imgReader.Seek(0, 0)
+
+			// Calculate aspect ratio
+			aspectRatio := float64(img.Width) / float64(img.Height)
+
+			// Determine scaled dimensions while maintaining aspect ratio
+			var logoWidth, logoHeight float64
+
+			if aspectRatio > 1 {
+				// Image is wider than tall
+				logoWidth = maxLogoWidth
+				logoHeight = logoWidth / aspectRatio
+
+				// Check if height exceeds maximum
+				if logoHeight > maxLogoHeight {
+					logoHeight = maxLogoHeight
+					logoWidth = logoHeight * aspectRatio
+				}
+			} else {
+				// Image is taller than wide
+				logoHeight = maxLogoHeight
+				logoWidth = logoHeight * aspectRatio
+
+				// Check if width exceeds maximum
+				if logoWidth > maxLogoWidth {
+					logoWidth = maxLogoWidth
+					logoHeight = logoWidth / aspectRatio
+				}
+			}
+
+			// Register and place the image with calculated dimensions
+			var logoOptions gofpdf.ImageOptions
+			logoOptions.ImageType = "png"
+			pdf.RegisterImageOptionsReader("logo", logoOptions, imgReader)
+			pdf.Image("logo", 20, 25, logoWidth, logoHeight, false, "", 0, "")
+		} else {
+			// Fallback to original code if we can't get image dimensions
+			var logoOptions gofpdf.ImageOptions
+			logoOptions.ImageType = "png"
+			pdf.RegisterImageOptionsReader("logo", logoOptions, imgReader)
+			pdf.Image("logo", 20, 25, maxLogoWidth, maxLogoHeight, false, "", 0, "")
+		}
+	}
+
+	// Add the title box on the right side
+	boxWidth := 115.0
+	boxHeight := headerHeight
+	boxX := pageWidth - boxWidth - 15 // 15mm margin from right
+	boxY := 20.0                      // 10mm from top
+
+	// Draw the rounded rectangle with orange background
+	pdf.SetFillColor(213, 197, 138) // Khaki to match the header
+	pdf.RoundedRect(boxX, boxY, boxWidth, boxHeight, 10, strconv.Itoa(10), "F")
+
+	// Add text to the box
+	pdf.SetFont("Arial", "B", 24)
+	pdf.SetTextColor(0, 0, 0) // Black text
+
+	// Title
+	pdf.SetXY(boxX, boxY+10)
+	pdf.CellFormat(boxWidth, 10, strings.ToUpper(ticketGroupName), "", 0, "C", false, 0, "")
+
+	// Address lines
+	pdf.SetFont("Arial", "", 11)
+	pdf.SetXY(boxX, boxY+20)
+	pdf.CellFormat(boxWidth, 10, addr1, "", 0, "C", false, 0, "")
+
+	pdf.SetXY(boxX, boxY+25)
+	pdf.CellFormat(boxWidth, 10, addr2, "", 0, "C", false, 0, "")
+
+	// General line
+	pdf.SetXY(boxX, boxY+35)
+	pdf.CellFormat(boxWidth, 10, generalLine, "", 0, "C", false, 0, "")
+
+	// Reset text color to black for the rest of the document
+	pdf.SetTextColor(0, 0, 0)
+}
+
+// addParticipantInfo adds the participant information section
+func addParticipantInfo(pdf *gofpdf.Fpdf, participantName string, purchaseDate string, entryDate string, orderNo string, totalTickets int) {
+	startY := 85.0 // Start position after the header
+	leftColX := 15.0
+	midColX := 80.0
+	rightColX := 150.0
+
+	// Column titles - Left column
+	pdf.SetFont("Arial", "", 9)
+	pdf.SetTextColor(100, 100, 100) // Gray for the labels
+	pdf.SetXY(leftColX, startY)
+	pdf.Cell(100, 5, "Lead participant")
+
+	// Column titles - Middle column
+	pdf.SetXY(midColX, startY)
+	pdf.Cell(100, 5, "Purchase Date")
+
+	// Column titles - Right column
+	pdf.SetXY(rightColX, startY)
+	pdf.Cell(100, 5, "Entry Date")
+
+	// Values - Left column (Participant Name)
+	pdf.SetFont("Arial", "B", 12)
+	pdf.SetTextColor(0, 0, 0) // Black for the values
+	pdf.SetXY(leftColX, startY+7)
+	pdf.Cell(100, 5, participantName)
+
+	// Values - Middle column (Purchase Date)
+	pdf.SetXY(midColX, startY+7)
+	pdf.Cell(100, 5, purchaseDate)
+
+	// Values - Right column (Entry Date)
+	pdf.SetXY(rightColX, startY+7)
+	pdf.Cell(100, 5, entryDate)
+
+	// Total Tickets - Label
+	pdf.SetFont("Arial", "", 9)
+	pdf.SetTextColor(100, 100, 100) // Gray for the labels
+	pdf.SetXY(leftColX, startY+18)
+	pdf.Cell(100, 5, "Total Tickets")
+
+	// Order No. - Label
+	pdf.SetFont("Arial", "", 9)
+	pdf.SetTextColor(100, 100, 100) // Gray for the labels
+	pdf.SetXY(midColX, startY+18)
+	pdf.Cell(100, 5, "Order No.")
+
+	// Order No. - Value
+	pdf.SetFont("Arial", "B", 12)
+	pdf.SetTextColor(0, 0, 0) // Black for the values
+	pdf.SetXY(midColX, startY+25)
+	pdf.Cell(100, 5, orderNo)
+
+	// Total Tickets - Value
+	pdf.SetFont("Arial", "B", 12)
+	pdf.SetTextColor(0, 0, 0) // Black for the values
+	pdf.SetXY(leftColX, startY+25)
+	pdf.Cell(100, 5, strconv.Itoa(totalTickets))
+}
+
+// addRedeemSection adds the redeem instructions section
+func addRedeemSection(pdf *gofpdf.Fpdf) {
+	startY := 130.0 // Start position after the participant info
+	leftX := 15.0
+
+	// Add section heading
+	pdf.SetFont("Arial", "B", 12)
+	pdf.SetTextColor(0, 0, 0)
+	pdf.SetXY(leftX, startY)
+	pdf.Cell(180, 5, "Redeem Individual Units")
+
+	// Add instruction text
+	pdf.SetFont("Arial", "", 10)
+	pdf.SetXY(leftX, startY+7)
+	pdf.Cell(180, 5, "Scan the QR codes below to redeem your units individually.")
+}
+
+// addTermsAndConditionsPage adds a new page with an enhanced Terms and Conditions content
+func addTermsAndConditionsPage(pdf *gofpdf.Fpdf) {
+	pdf.AddPage()
+
+	// Set margins for the terms page
+	leftMargin := 15.0
+	topMargin := 15.0
+	pdf.SetMargins(leftMargin, topMargin, 15.0)
+
+	// Page width calculation for design elements
+	pageWidth := 210.0                            // A4 width in mm
+	contentWidth := pageWidth - leftMargin - 15.0 // Left and right margins
+
+	// Add a stylish header bar for the terms page
+	pdf.SetFillColor(213, 197, 138) // Same color as the header
+	pdf.Rect(0, 0, pageWidth, 20, "F")
+
+	// Add title with white text on the orange background
+	pdf.SetFont("Arial", "B", 14)
+	pdf.SetTextColor(0, 0, 0) // Black text
+	pdf.SetXY(leftMargin, 5)
+	pdf.Cell(contentWidth, 10, "TERMA DAN SYARAT PERKHIDMATAN")
+
+	// Reset position after header
+	pdf.SetY(29)
+	pdf.SetTextColor(0, 0, 0) // Black text
+
+	// Add introductory paragraph with a subtle background
+	pdf.SetFillColor(245, 245, 245) // Light gray background
+	pdf.RoundedRect(leftMargin, 26, contentWidth, 25, 3, "1234", "F")
+
+	pdf.SetFont("Arial", "", 10)
+	pdf.SetXY(leftMargin+5, 29) // Add padding inside the box
+	pdf.MultiCell(contentWidth-10, 5, "Berikut adalah terma dan syarat penggunaan laman web Zoo Johor bagi pembelian secara dalam talian. Sekiranya anda mengakses laman web ini dan menggunakan perkhidmatan yang ditawarkan, anda bersetuju dan penggunaan anda terhadap bahawa anda terikat kepada terma dan syarat sebagaimana berikut :", "0", "L", false)
+
+	// Position after the intro box
+	pdf.SetY(55)
+
+	// Create section boxes for each section with alternating colors
+	sectionY := 55.0 // Start position for sections
+
+	// Section i - with a styled section header
+	pdf.SetFillColor(213, 197, 138) // Khaki accent color
+	pdf.RoundedRect(leftMargin, sectionY, contentWidth, 8, 2, "1234", "F")
+
+	pdf.SetFont("Arial", "B", 11)
+	pdf.SetTextColor(0, 0, 0) // Black text for section title
+	pdf.SetXY(leftMargin+5, sectionY+1.5)
+	pdf.Cell(contentWidth-10, 5, "i) Pembelian Secara Dalam Talian")
+
+	// Section i content
+	pdf.SetFillColor(250, 250, 250) // Very light gray for section content
+	sectionHeight := 33.0
+	pdf.RoundedRect(leftMargin, sectionY+8, contentWidth, sectionHeight, 2, "1234", "F")
+
+	pdf.SetFont("Arial", "", 10)
+	pdf.SetTextColor(0, 0, 0) // Black text for content
+	pdf.SetXY(leftMargin+5, sectionY+10)
+	pdf.MultiCell(contentWidth-10, 5, "Pembeli hendaklah memastikan tarikh, hari, jenis tiket dan kuantiti adalah betul sebelum mengikut butang bayaran.\n\nBagi bayaran melalui kad kredit, kad debit atau perkhidmatan perbankan internet seperti Maybank2U atau lain-lain bank, anda hendaklah memastikan anda adalah pemilik akaun dan maklum mengenai pembayaran tersebut.", "0", "L", false)
+
+	// Section ii
+	sectionY += sectionHeight + 15
+	pdf.SetFillColor(213, 197, 138) // Khaki accent color
+	pdf.RoundedRect(leftMargin, sectionY, contentWidth, 8, 2, "1234", "F")
+
+	pdf.SetFont("Arial", "B", 11)
+	pdf.SetTextColor(0, 0, 0) // Black text for section title
+	pdf.SetXY(leftMargin+5, sectionY+1.5)
+	pdf.Cell(contentWidth-10, 5, "ii) Pengesahan Pembelian")
+
+	// Section ii content
+	pdf.SetFillColor(250, 250, 250) // Very light gray for section content
+	sectionHeight = 20.0
+	pdf.RoundedRect(leftMargin, sectionY+8, contentWidth, sectionHeight, 2, "1234", "F")
+
+	pdf.SetFont("Arial", "", 10)
+	pdf.SetTextColor(0, 0, 0) // Black text for content
+	pdf.SetXY(leftMargin+5, sectionY+10)
+	pdf.MultiCell(contentWidth-10, 5, "Selepas penerimaan pembayaran, anda akan menerima resit dan tiket yang tertera QR Code melalui emel yang telah didaftarkan. Sila bawa bersama resit dan tiket tersebut semasa berkunjung ke Zoo Johor bagi mengelakkan sebarang permasalahan.", "0", "L", false)
+
+	// Section iii
+	sectionY += sectionHeight + 15
+	pdf.SetFillColor(213, 197, 138) // Khaki accent color
+	pdf.RoundedRect(leftMargin, sectionY, contentWidth, 8, 2, "1234", "F")
+
+	pdf.SetFont("Arial", "B", 11)
+	pdf.SetTextColor(0, 0, 0) // Black text for section title
+	pdf.SetXY(leftMargin+5, sectionY+1.5)
+	pdf.Cell(contentWidth-10, 5, "iii) Polisi Bayaran Balik")
+
+	// Section iii content
+	pdf.SetFillColor(250, 250, 250) // Very light gray for section content
+	sectionHeight = 45.0
+	pdf.RoundedRect(leftMargin, sectionY+8, contentWidth, sectionHeight, 2, "1234", "F")
+
+	pdf.SetFont("Arial", "", 10)
+	pdf.SetTextColor(0, 0, 0) // Black text for content
+	pdf.SetXY(leftMargin+5, sectionY+10)
+	pdf.MultiCell(contentWidth-10, 5, "Perkhidmatan pembelian tiket secara dalam talian ini beroperasi atas polisi tiada bayaran balik. Kesemua bayaran yang telah diterima tidak akan dibayar balik kepada pembeli kecuali di dalam keadaan tertentu yang akan dibenarkan oleh pihak pengurusan antaranya permasalahan yang tidak dapat dielakkan seperti masalah teknikal laman web/sistem atau permasalahan berkaitan sistem perbankan.\n\nProses bayaran balik adalah dalam tempoh 14 hari dari tarikh masalah dikenapasti. Bagi situasi di mana pembeli telah terlebih membuat bayaran (sekiarnya ada), bayaran balik hanya akan dilaksanakan setelah pihak pengurusan berhukungan akan kepada pihak pengurusan.", "0", "L", false)
+
+	// Add a new page for remaining sections if needed
+	if sectionY+sectionHeight > 260 { // Check if we're close to the page end
+		pdf.AddPage()
+		sectionY = 20.0 // Reset Y position on new page
+	} else {
+		sectionY += sectionHeight + 15
+	}
+
+	// Section iv
+	pdf.SetFillColor(213, 197, 138) // Khaki accent color
+	pdf.RoundedRect(leftMargin, sectionY, contentWidth, 8, 2, "1234", "F")
+
+	pdf.SetFont("Arial", "B", 11)
+	pdf.SetTextColor(0, 0, 0) // Black text for section title
+	pdf.SetXY(leftMargin+5, sectionY+1.5)
+	pdf.Cell(contentWidth-10, 5, "iv) Polisi Menukar Tarikh Tiket")
+
+	// Section iv content
+	pdf.SetFillColor(250, 250, 250) // Very light gray for section content
+	sectionHeight = 20.0
+	pdf.RoundedRect(leftMargin, sectionY+8, contentWidth, sectionHeight, 2, "1234", "F")
+
+	pdf.SetFont("Arial", "", 10)
+	pdf.SetTextColor(0, 0, 0) // Black text for content
+	pdf.SetXY(leftMargin+5, sectionY+10)
+	pdf.MultiCell(contentWidth-10, 5, "Perkhidmatan pembelian tiket secara dalam talian ini beroperasi atas polisi penukaran tarikh adalah tidak dibenarkan. Sekiranya pengunjung tidak dapat hadir pada tarikh yang telah diguatakan, penukaran tarikh tiket adalah tidak dibenarkan dan tiada pulangan bayaran akan dibuat.", "0", "L", false)
+
+	// Section v
+	sectionY += sectionHeight + 15
+	pdf.SetFillColor(213, 197, 138) // Khaki accent color
+	pdf.RoundedRect(leftMargin, sectionY, contentWidth, 8, 2, "1234", "F")
+
+	pdf.SetFont("Arial", "B", 11)
+	pdf.SetTextColor(0, 0, 0) // Black text for section title
+	pdf.SetXY(leftMargin+5, sectionY+1.5)
+	pdf.Cell(contentWidth-10, 5, "v) Had Tanggungjawab")
+
+	// Section v content
+	pdf.SetFillColor(250, 250, 250) // Very light gray for section content
+	sectionHeight = 40.0
+	pdf.RoundedRect(leftMargin, sectionY+8, contentWidth, sectionHeight, 2, "1234", "F")
+
+	pdf.SetFont("Arial", "", 10)
+	pdf.SetTextColor(0, 0, 0) // Black text for content
+	pdf.SetXY(leftMargin+5, sectionY+10)
+	pdf.MultiCell(contentWidth-10, 5, "Pihak pengurusan tidak menjamin bahawa fungsi yang terdapat di dalam laman web ini tidak akan terganggu atau bebas dari sebarang kesalahan. Pihak pengurusan juga tidak akan bertanggungjawab atas sebarang kerugian, kemusnahan, gangguran perkhidmatan, kerugian, kehilangan simpanan atau kesan sampingan yang lain ketika mengoperasikan atau kegagalan mengoperasikan laman web ini, akses tanpa kebenaran, kenyataan atau tindakan pihak ketiga di laman web ini atau perkara-perkara lain yang berkaitan dengan laman web.", "0", "L", false)
+}
+
+// addOrderDetailsPage adds a page with the order details
+func addOrderDetailsPage(pdf *gofpdf.Fpdf, order Order) {
+	pdf.AddPage()
+
+	// Set margins for the order details page
+	leftMargin := 15.0
+	pdf.SetMargins(leftMargin, 20, 15)
+
+	// Add Order Title
+	pdf.SetFont("Arial", "B", 24)
+	pdf.SetTextColor(51, 51, 51) // Dark gray
+	pdf.Cell(170, 20, fmt.Sprintf("Order #%s", order.OrderID))
+	pdf.Ln(30)
+
+	// Order Details Section
+	pdf.SetFont("Arial", "", 11)
+	pdf.SetTextColor(51, 51, 51)
+
+	// Create left column
+	col1Width := 40.0
+	col2Width := 80.0
+
+	// Placed At
+	pdf.SetFont("Arial", "", 11)
+	pdf.Cell(col1Width, 10, "Placed At")
+
+	pdf.SetFont("Arial", "", 11)
+	pdf.SetTextColor(0, 0, 0)
+	pdf.Cell(col2Width, 10, order.PlacedAt)
+	pdf.Ln(10)
+
+	// Total
+	pdf.SetFont("Arial", "", 11)
+	pdf.SetTextColor(51, 51, 51)
+	pdf.Cell(col1Width, 10, "Total")
+
+	pdf.SetFont("Arial", "", 11)
+	pdf.SetTextColor(0, 0, 0)
+	pdf.Cell(col2Width, 10, fmt.Sprintf("MYR %.2f", order.Total))
+	pdf.Ln(10)
+
+	// Status
+	pdf.SetFont("Arial", "", 11)
+	pdf.SetTextColor(51, 51, 51)
+	pdf.Cell(col1Width, 10, "Status")
+
+	pdf.SetFont("Arial", "", 11)
+	pdf.SetTextColor(0, 0, 0)
+	pdf.Cell(col2Width, 10, order.Status)
+	pdf.Ln(20)
+
+	// Items Table
+	// Table headers
+	pdf.SetFont("Arial", "", 11)
+	pdf.SetTextColor(51, 51, 51)
+	pdf.SetFillColor(213, 197, 138)
+
+	itemColWidth := 70.0
+	priceColWidth := 35.0
+	qtyColWidth := 40.0
+	totalColWidth := 40.0
+
+	// Draw table header with fill color
+	pdf.SetFillColor(213, 197, 138)
+	pdf.Rect(leftMargin, pdf.GetY(), itemColWidth+priceColWidth+qtyColWidth+totalColWidth, 10, "F")
+
+	pdf.SetX(leftMargin + 3)
+	// Item header
+	pdf.Cell(itemColWidth, 10, "Item")
+
+	pdf.SetX(leftMargin + itemColWidth)
+	// Price header
+	pdf.Cell(priceColWidth, 10, "Price")
+
+	// Quantity header
+	pdf.Cell(qtyColWidth, 10, "Quantity")
+
+	// Total header
+	pdf.Cell(totalColWidth, 10, "Total")
+	pdf.Ln(10)
+
+	// Table rows
+	pdf.SetFont("Arial", "", 11)
+	pdf.SetTextColor(0, 0, 0)
+
+	// Loop through items to create table rows
+	for i, item := range order.Items {
+		// If not enough space for this row and the totals section, add a new page
+		if pdf.GetY() > 250 {
+			pdf.AddPage()
+			pdf.SetMargins(leftMargin, 20, 20)
+			pdf.SetY(30)
+		}
+
+		startY := pdf.GetY()
+
+		// Item name and description
+		nameY := startY
+		// Add 3mm padding to the left of text in the item column
+		pdf.SetX(leftMargin + 3) // Add 3mm left padding
+		pdf.MultiCell(itemColWidth, 6, fmt.Sprintf("%s\n%s", item.Name, item.Date), "", "", false)
+		nameHeight := pdf.GetY() - nameY
+
+		// Reset Y position to start of the row for other columns
+		pdf.SetY(startY)
+		pdf.SetX(leftMargin + itemColWidth)
+
+		// Price
+		pdf.Cell(priceColWidth, nameHeight, fmt.Sprintf("MYR %.2f", item.Price))
+
+		// Quantity
+		pdf.Cell(qtyColWidth, nameHeight, fmt.Sprintf("%d", item.Quantity))
+
+		// Total for this item
+		itemTotal := item.Price * float64(item.Quantity)
+		pdf.Cell(totalColWidth, nameHeight, fmt.Sprintf("MYR %.2f", itemTotal))
+
+		// Move to the next line after the tallest cell
+		pdf.SetY(startY + nameHeight)
+
+		// Add a line after each row except the last one
+		if i < len(order.Items)-1 {
+			pdf.SetDrawColor(220, 220, 220) // Light gray
+			pdf.Line(leftMargin, pdf.GetY(), leftMargin+itemColWidth+priceColWidth+qtyColWidth+totalColWidth, pdf.GetY())
+			pdf.Ln(5) // Add some space after the line
+		}
+	}
+
+	// Summary Section
+	pdf.Ln(15)
+
+	// Line above subtotal
+	pdf.SetDrawColor(220, 220, 220)
+	pdf.Line(leftMargin, pdf.GetY()-5, leftMargin+itemColWidth+priceColWidth+qtyColWidth+totalColWidth, pdf.GetY()-5)
+
+	// Subtotal
+	pdf.SetFont("Arial", "", 11)
+	pdf.SetTextColor(51, 51, 51)
+
+	// Calculate and position the summary on the right
+	summaryX := leftMargin + itemColWidth + priceColWidth
+	//summaryWidth := qtyColWidth + totalColWidth
+
+	// Subtotal row
+	pdf.SetX(summaryX)
+	pdf.Cell(qtyColWidth, 10, "Subtotal")
+	pdf.Cell(totalColWidth, 10, fmt.Sprintf("MYR %.2f", order.Total))
+	pdf.Ln(10)
+
+	// Discount row (always show it as requested)
+	pdf.SetX(summaryX)
+	pdf.Cell(qtyColWidth, 10, "Discount Amount")
+	pdf.Cell(totalColWidth, 10, fmt.Sprintf("MYR %.2f", order.DiscountAmount))
+	pdf.Ln(10)
+
+	// Total row
+	pdf.SetFont("Arial", "B", 11)
+	pdf.SetX(summaryX)
+	pdf.Cell(qtyColWidth, 10, "Total")
+
+	finalTotal := order.Total - order.DiscountAmount
+	pdf.Cell(totalColWidth, 10, fmt.Sprintf("MYR %.2f", finalTotal))
+
+	// Add GST note if applicable
+	//if order.GST {
+	//	pdf.Ln(6)
+	//	pdf.SetFont("Arial", "I", 9)
+	//	pdf.SetTextColor(100, 100, 100)
+	//	pdf.SetX(summaryX)
+	//	pdf.Cell(summaryWidth, 10, "Inclusive GST")
+	//}
+}
+
 // GenerateTicketPDF generates a PDF ticket with QR codes arranged horizontally
 func (h *PDFHandler) GenerateTicketPDF(c *fiber.Ctx) error {
 	ticketGroupName := "Zoo Johor"
+
+	// Sample participant information
+	participantName := "Rashidan Kamis"
+	purchaseDate := "07 October 2024 - 22:56"
+	entryDate := "08 October 2024"
+	orderNo := "338831"
+	totalTickets := 7
 
 	// QR code content
 	tickets := []struct {
@@ -37,20 +567,47 @@ func (h *PDFHandler) GenerateTicketPDF(c *fiber.Ctx) error {
 		{"TICKET-CHILD-002", "Child Ticket #002"},
 		{"TICKET-SENIOR-001", "Senior Ticket #001"},
 		{"TICKET-SENIOR-002", "Senior Ticket #002"},
-		{"TICKET-SENIOR-002", "Senior Ticket #002"},
+		{"TICKET-SENIOR-003", "Senior Ticket #003"},
+	}
+
+	// Sample order details for demonstration - with multiple items
+	orderDetails := Order{
+		OrderID:        "338831",
+		PlacedAt:       "07 October 2024 - 22:56",
+		Total:          30.00,
+		Status:         "CONFIRMED",
+		DiscountAmount: 0.00, // Always include this field with default value
+		GST:            true,
+		Items: []Item{
+			{
+				Name:     "Dewasa (12 ke atas)",
+				Price:    10.00,
+				Quantity: 2,
+				Date:     "2024-10-08",
+			},
+			{
+				Name:     "Kanak-kanak (3-11 tahun)",
+				Price:    5.00,
+				Quantity: 2,
+				Date:     "2024-10-08",
+			},
+			{
+				Name:     "Kanak-kanak (3-11 tahun)",
+				Price:    5.00,
+				Quantity: 2,
+				Date:     "2024-10-08",
+			},
+		},
 	}
 
 	// Create a new PDF with portrait orientation, mm unit, A4 format
 	pdf := gofpdf.New("P", "mm", "A4", "")
 
-	// Set default font
-	pdf.SetFont("Arial", "B", 16)
-
 	// QR code settings
 	qrSize := 25.0        // Size of QR code in mm
 	startX := 15.0        // Starting X position in mm (left margin)
 	horizontalGap := 35.0 // Gap between QR codes in mm
-	startY := 30.0        // Starting Y position in mm
+	startY := 150.0       // Starting Y position in mm (adjusted to leave space for header, participant info and redeem section)
 	itemsPerRow := 5      // Maximum items per row
 	itemsPerPage := 10    // Maximum items per page
 	labelOffset := 2.0    // Space between QR code and its label in mm
@@ -64,9 +621,17 @@ func (h *PDFHandler) GenerateTicketPDF(c *fiber.Ctx) error {
 		// Add a new page
 		pdf.AddPage()
 
-		// Add title
-		pdf.SetY(10)
-		pdf.Cell(190, 10, ticketGroupName+" Tickets")
+		// Add the Zoo Johor header to each page
+		addZooHeader(ticketGroupName, pdf)
+
+		// Add participant information section
+		addParticipantInfo(pdf, participantName, purchaseDate, entryDate, orderNo, totalTickets)
+
+		// Add redemption instructions section
+		addRedeemSection(pdf)
+
+		// Set default font for ticket content
+		pdf.SetFont("Arial", "B", 16)
 
 		// Calculate how many items will be on this page
 		itemsOnPage := itemsPerPage
@@ -85,7 +650,7 @@ func (h *PDFHandler) GenerateTicketPDF(c *fiber.Ctx) error {
 
 			// Calculate position (arranged horizontally, then wrap to next row)
 			posX := startX + float64(col)*horizontalGap
-			posY := startY + float64(row)*50.0 // 90mm vertical spacing between rows
+			posY := startY + float64(row)*45.0 // 45mm vertical spacing between rows
 
 			// Generate QR code image
 			qrCode, err := qr.Encode(ticket.Content, qr.M, qr.Auto)
@@ -132,6 +697,12 @@ func (h *PDFHandler) GenerateTicketPDF(c *fiber.Ctx) error {
 			pdf.SetFont("Arial", "B", 16)
 		}
 	}
+
+	// Add Terms and Conditions page
+	addTermsAndConditionsPage(pdf)
+
+	// Add Order Details page (single order with multiple items)
+	addOrderDetailsPage(pdf, orderDetails)
 
 	// Generate the PDF content
 	var buffer bytes.Buffer

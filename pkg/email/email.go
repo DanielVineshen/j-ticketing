@@ -74,7 +74,7 @@ func (s *emailService) SendPasswordResetEmail(to string, newPassword string) err
     </html>
     `, newPassword, time.Now().Year())
 
-	return s.SendEmail([]string{to}, subject, body)
+	return s.sendEmailWithRetry([]string{to}, subject, body)
 }
 
 // OrderInfo represents information about the overall order

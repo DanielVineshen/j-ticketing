@@ -122,10 +122,11 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 			if err != nil {
 				log.Printf("Failed to send tickets email to %s: %v", order.BuyerEmail, err)
 				// Continue anyway since the password has been reset
+			} else {
+				order.IsEmailSent = true
+				// Save the updated order
+				err = h.paymentService.UpdateOrderTicketGroup(order)
 			}
-			order.IsEmailSent = true
-			// Save the updated order
-			err = h.paymentService.UpdateOrderTicketGroup(order)
 			if err != nil {
 				log.Printf("Failed to update order ticket group: %v", err)
 			}
@@ -238,10 +239,11 @@ func (h *PaymentHandler) PaymentRedirect(c *fiber.Ctx) error {
 			if err != nil {
 				log.Printf("Failed to send tickets email to %s: %v", order.BuyerEmail, err)
 				// Continue anyway since the password has been reset
+			} else {
+				order.IsEmailSent = true
+				// Save the updated order
+				err = h.paymentService.UpdateOrderTicketGroup(order)
 			}
-			order.IsEmailSent = true
-			// Save the updated order
-			err = h.paymentService.UpdateOrderTicketGroup(order)
 			if err != nil {
 				log.Printf("Failed to update order ticket group: %v", err)
 			}

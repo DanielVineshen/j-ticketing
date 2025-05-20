@@ -13,6 +13,7 @@ import (
 	"j-ticketing/pkg/email"
 	"j-ticketing/pkg/utils"
 	"log"
+	logger "log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -111,145 +112,166 @@ func (s *PaymentService) PostToZooAPI(orderNo string) ([]email.OrderInfo, []emai
 		})
 	}
 
-	// Get the first order ticket info to know the admit date
-	admissionDate := orderTickets[0].AdmitDate
+	var zooTicketInfos []payment.ZooTicketInfo
+	// Check if first order ticket is already assigned with qr code or not
+	if orderTickets[0].EncryptedId == "" {
+		logger.Info("ZooTicketInfo will now be assigned with QR Codes")
+		// Get the first order ticket info to know the admit date
+		admissionDate := orderTickets[0].AdmitDate
 
-	// Create the request payload
-	payload := payment.ZooTicketRequest{
-		TranDate:    admissionDate,
-		ReferenceNo: orderNo, // Use the order number as reference
-		Items:       items,
-	}
+		// Create the request payload
+		payload := payment.ZooTicketRequest{
+			TranDate:    admissionDate,
+			ReferenceNo: orderNo, // Use the order number as reference
+			Items:       items,
+		}
 
-	// Convert to JSON
-	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to marshal JSON: %w", err)
-	}
-
-	// Get a fresh token from the token generation endpoint
-	token, err := generateZooAPIToken(s.cfg)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate API token: %w", err)
-	}
-
-	// Create a new HTTP client
-	client := &http.Client{
-		Timeout: time.Second * 60,
-	}
-
-	// Create the request
-	var value = "PostOnlinePurchase2"
-	//if ticketGroupName == "Zoo Johor" {
-	//	value = "PostOnlinePurchase"
-	//} else {
-	//	value = "PostOnlinePurchase2" // Used for botani
-	//}
-
-	req, err := http.NewRequest("POST", s.cfg.ZooAPI.ZooBaseURL+"/api/JohorZoo/"+value, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	// Add headers
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", "Bearer "+token)
-
-	// Send the request
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
+		// Convert to JSON
+		jsonData, err := json.Marshal(payload)
 		if err != nil {
-			log.Printf("Error closing response body: %v", err)
-		}
-	}(resp.Body)
-
-	// Read the response
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
-	// Check if the response status is OK
-	if resp.StatusCode != http.StatusOK {
-		return nil, nil, fmt.Errorf("API returned non-OK status: %d, body: %s", resp.StatusCode, string(body))
-	}
-
-	// Parse the response
-	var zooResponse payment.ZooTicketResponse
-	err = json.Unmarshal(body, &zooResponse)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	// Check if the status code is OK
-	if zooResponse.StatusCode != "OK" {
-		return nil, nil, fmt.Errorf("API returned status code: %s", zooResponse.StatusCode)
-	}
-
-	// Update each ticket with the data from the API
-	// Create a map of tickets by item ID for quick lookup
-	ticketByItemId := make(map[string][]*models.OrderTicketInfo)
-	for i := range orderTickets {
-		ticketByItemId[orderTickets[i].ItemId] = append(ticketByItemId[orderTickets[i].ItemId], &orderTickets[i])
-	}
-
-	// Update the tickets with data from the response
-	for _, zooTicket := range zooResponse.Tickets {
-		// Get the list of tickets for this item ID
-		ticketsForItem, exists := ticketByItemId[zooTicket.ItemId]
-		if !exists || len(ticketsForItem) == 0 {
-			log.Printf("No matching tickets found for item ID: %s", zooTicket.ItemId)
-			continue
+			return nil, nil, fmt.Errorf("failed to marshal JSON: %w", err)
 		}
 
-		// Get the next ticket that hasn't been updated yet
-		var ticketToUpdate *models.OrderTicketInfo
-		for _, t := range ticketsForItem {
-			if t.EncryptedId == "" {
-				ticketToUpdate = t
-				break
-			}
-		}
-
-		if ticketToUpdate == nil {
-			log.Printf("All tickets for item ID %s have already been updated", zooTicket.ItemId)
-			continue
-		}
-
-		// Update the ticket with data from the Zoo API
-		ticketToUpdate.EncryptedId = zooTicket.EncryptedID
-		//ticketToUpdate.EncryptedId = "STF020"
-		ticketToUpdate.AdmitDate = zooTicket.AdmitDate
-
-		// Parse unit price if needed
-		if unitPrice, err := strconv.ParseFloat(zooTicket.UnitPrice, 64); err == nil {
-			ticketToUpdate.UnitPrice = unitPrice
-		}
-
-		// Update the ticket in the database
-		err = s.orderTicketInfoRepo.Update(ticketToUpdate)
+		// Get a fresh token from the token generation endpoint
+		token, err := generateZooAPIToken(s.cfg)
 		if err != nil {
-			log.Printf("Failed to update ticket %s: %v", ticketToUpdate.OrderTicketInfoId, err)
-			// Continue updating other tickets
+			return nil, nil, fmt.Errorf("failed to generate API token: %w", err)
 		}
 
-		// Remove this ticket from the list to ensure we don't update it again
-		for i, t := range ticketsForItem {
-			if t == ticketToUpdate {
-				ticketsForItem = append(ticketsForItem[:i], ticketsForItem[i+1:]...)
-				break
-			}
+		// Create a new HTTP client
+		client := &http.Client{
+			Timeout: time.Second * 60,
 		}
-		ticketByItemId[zooTicket.ItemId] = ticketsForItem
+
+		// Create the request
+		var value = "PostOnlinePurchase2"
+		//if ticketGroupName == "Zoo Johor" {
+		//	value = "PostOnlinePurchase"
+		//} else {
+		//	value = "PostOnlinePurchase2" // Used for botani
+		//}
+
+		req, err := http.NewRequest("POST", s.cfg.ZooAPI.ZooBaseURL+"/api/JohorZoo/"+value, bytes.NewBuffer(jsonData))
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to create request: %w", err)
+		}
+
+		// Add headers
+		req.Header.Add("Content-Type", "application/json")
+		req.Header.Add("Authorization", "Bearer "+token)
+
+		// Send the request
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to send request: %w", err)
+		}
+		defer func(Body io.ReadCloser) {
+			err := Body.Close()
+			if err != nil {
+				log.Printf("Error closing response body: %v", err)
+			}
+		}(resp.Body)
+
+		// Read the response
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to read response: %w", err)
+		}
+
+		// Check if the response status is OK
+		if resp.StatusCode != http.StatusOK {
+			return nil, nil, fmt.Errorf("API returned non-OK status: %d, body: %s", resp.StatusCode, string(body))
+		}
+
+		// Parse the response
+		var zooResponse payment.ZooTicketResponse
+		err = json.Unmarshal(body, &zooResponse)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to parse response: %w", err)
+		}
+
+		zooTicketInfos = zooResponse.Tickets
+
+		// Check if the status code is OK
+		if zooResponse.StatusCode != "OK" {
+			return nil, nil, fmt.Errorf("API returned status code: %s", zooResponse.StatusCode)
+		}
+
+		// Update each ticket with the data from the API
+		// Create a map of tickets by item ID for quick lookup
+		ticketByItemId := make(map[string][]*models.OrderTicketInfo)
+		for i := range orderTickets {
+			ticketByItemId[orderTickets[i].ItemId] = append(ticketByItemId[orderTickets[i].ItemId], &orderTickets[i])
+		}
+
+		// Update the tickets with data from the response
+		for _, zooTicket := range zooResponse.Tickets {
+			// Get the list of tickets for this item ID
+			ticketsForItem, exists := ticketByItemId[zooTicket.ItemId]
+			if !exists || len(ticketsForItem) == 0 {
+				log.Printf("No matching tickets found for item ID: %s", zooTicket.ItemId)
+				continue
+			}
+
+			// Get the next ticket that hasn't been updated yet
+			var ticketToUpdate *models.OrderTicketInfo
+			for _, t := range ticketsForItem {
+				if t.EncryptedId == "" {
+					ticketToUpdate = t
+					break
+				}
+			}
+
+			if ticketToUpdate == nil {
+				log.Printf("All tickets for item ID %s have already been updated", zooTicket.ItemId)
+				continue
+			}
+
+			// Update the ticket with data from the Zoo API
+			ticketToUpdate.EncryptedId = zooTicket.EncryptedID
+			//ticketToUpdate.EncryptedId = "STF020"
+			ticketToUpdate.AdmitDate = zooTicket.AdmitDate
+
+			// Parse unit price if needed
+			if unitPrice, err := strconv.ParseFloat(zooTicket.UnitPrice, 64); err == nil {
+				ticketToUpdate.UnitPrice = unitPrice
+			}
+
+			// Update the ticket in the database
+			err = s.orderTicketInfoRepo.Update(ticketToUpdate)
+			if err != nil {
+				log.Printf("Failed to update ticket %s: %v", ticketToUpdate.OrderTicketInfoId, err)
+				// Continue updating other tickets
+			}
+
+			// Remove this ticket from the list to ensure we don't update it again
+			for i, t := range ticketsForItem {
+				if t == ticketToUpdate {
+					ticketsForItem = append(ticketsForItem[:i], ticketsForItem[i+1:]...)
+					break
+				}
+			}
+			ticketByItemId[zooTicket.ItemId] = ticketsForItem
+		}
+	} else {
+		logger.Info("ZooTicketInfo have already been assigned with QR Codes")
+		for _, ticket := range orderTickets {
+			zooTicketInfos = append(zooTicketInfos, payment.ZooTicketInfo{
+				TWBID:       ticket.Twbid.String,
+				ItemId:      ticket.ItemId,
+				EncryptedID: ticket.EncryptedId,
+				AdmitDate:   ticket.AdmitDate,
+				UnitPrice:   fmt.Sprintf("%.2f", ticket.UnitPrice),
+				ItemDesc:    ticket.ItemDesc1,
+				ItemDesc2:   ticket.ItemDesc2,
+				ItemDesc3:   "",
+			})
+		}
 	}
 
-	ticketInfos := ConvertZooTicketsToTicketInfo(zooResponse.Tickets)
+	ticketInfos := ConvertZooTicketsToTicketInfo(zooTicketInfos)
 
-	orderItems := ConvertZooTicketsToOrderItems(zooResponse.Tickets)
+	orderItems := ConvertZooTicketsToOrderItems(zooTicketInfos)
 
 	return orderItems, ticketInfos, nil
 }
@@ -406,6 +428,7 @@ func (s *PaymentService) UpdateOrderFromPaymentResponse(orderNo string, transact
 
 	// Update order fields
 	order.TransactionId = transactionData.IDTransaksi
+	order.TransactionDate = transactionData.TarikhTransaksi
 	order.TransactionStatus = dbStatus
 	order.BankCurrentStatus = transactionData.StatusTransaksi
 	order.StatusMessage = sql.NullString{String: transactionData.StatusMessage, Valid: transactionData.StatusMessage != ""}

@@ -80,7 +80,7 @@ func main() {
 	dbConfig := &db.DBConfig{
 		AutoMigrate:       autoMigrate,
 		CreateConstraints: createConstraints,
-		LogLevel:          gormLogger.Info,
+		LogLevel:          gormLogger.Error,
 	}
 
 	database, err := db.GetDBConnection(cfg, dbConfig)
@@ -178,7 +178,7 @@ func main() {
 	// Middleware
 	app.Use(recover.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:8080,http://127.0.0.1:3000,http://139.59.253.119:3000,https://etiket.johor.gov.my,http://stagingetiket.johor.gov.my:3000",
+		AllowOrigins:     "http://localhost:8080,http://127.0.0.1:3000,http://139.59.253.119:3000,https://etiket.johor.gov.my,http://stagingetiket.johor.gov.my:3000,https://stg-ticketcms.castis.io",
 		AllowMethods:     "GET,POST,PUT,DELETE",
 		AllowHeaders:     "Origin,Content-Type,Accept,Authorization",
 		AllowCredentials: true,

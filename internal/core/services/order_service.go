@@ -373,13 +373,6 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 		mode = "02"
 	}
 
-	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
-	if err != nil {
-		// Handle the error appropriately
-		// Perhaps log it, or return it from your function
-		return 0, err // or handle differently based on your application's needs
-	}
-
 	// Create order ticket group
 	orderTicketGroup := &models.OrderTicketGroup{
 		TicketGroupId:     req.TicketGroupId,
@@ -387,7 +380,7 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 		TransactionId:     "",
 		OrderNo:           orderNo,
 		TransactionStatus: "initiate", // Initial status
-		TransactionDate:   malaysiaTime,
+		TransactionDate:   "",         // Only assigned trans date after order redirect
 		MsgToken:          mode,
 		BillId:            generateBillId(),
 		ProductId:         fmt.Sprintf("TG%d", req.TicketGroupId),

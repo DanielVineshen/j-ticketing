@@ -66,6 +66,16 @@ func (r *OrderTicketGroupRepository) FindWithOrderNoAndEmail(orderNo string, ema
 	return &order, nil
 }
 
+func (r *OrderTicketGroupRepository) FindEmailPendingOrderTicketGroups() ([]models.OrderTicketGroup, error) {
+	var orders []models.OrderTicketGroup
+
+	result := r.db.Where("transaction_status = 'success' AND is_email_sent = 0 AND transaction_date != ''").Find(&orders)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return orders, nil
+}
+
 // FindByOrderNo finds a order ticket group by its order number
 func (r *OrderTicketGroupRepository) FindByOrderNo(orderNo string) (*models.OrderTicketGroup, error) {
 	var order models.OrderTicketGroup

@@ -3,11 +3,18 @@ package main
 
 import (
 	"fmt"
+	"j-ticketing/internal/core/dto/payment"
+	service "j-ticketing/internal/core/services"
 	"j-ticketing/internal/db"
+	"j-ticketing/internal/db/repositories"
+	"j-ticketing/internal/scheduler/jobs"
 	"j-ticketing/pkg/config"
+	"j-ticketing/pkg/email"
 	"j-ticketing/pkg/middleware"
+	"log"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -20,12 +27,34 @@ func main() {
 	// Initialize slogger first so we can use it throughout
 	slogger := initLogger()
 
+	// Pre-processing for OAuth client ID - clean up any URL prefixes
+	if clientID := os.Getenv("CLIENT_ID"); strings.HasPrefix(clientID, "http://") || strings.HasPrefix(clientID, "https://") {
+		cleanClientID := strings.TrimPrefix(strings.TrimPrefix(clientID, "http://"), "https://")
+		truncatedID := cleanClientID
+		if len(cleanClientID) > 10 {
+			truncatedID = cleanClientID[:10]
+		}
+
+		slogger.Info("CLIENT_ID contains URL prefix, using cleaned value",
+			"original", clientID,
+			"cleaned", truncatedID)
+
+		err := os.Setenv("CLIENT_ID", cleanClientID)
+		if err != nil {
+			slogger.Error("Failed to set cleaned CLIENT_ID", "error", err)
+			return
+		}
+	}
+
 	// Load configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		slogger.Error("Failed to load configuration", "error", err)
 		os.Exit(1)
 	}
+
+	// Initialize email service
+	emailService := email.NewEmailService(cfg)
 
 	// Control auto-migration from environment variable
 	autoMigrate := false
@@ -40,18 +69,59 @@ func main() {
 		slogger.Info("Create constraints is enabled")
 	}
 
+	// Initialize payment config
+	paymentConfig := payment.PaymentConfig{
+		GatewayURL:      getRequiredEnv("PAYMENT_GATEWAY_URL", slogger),
+		APIKey:          getRequiredEnv("JP_API_KEY", slogger),
+		BaseURL:         getRequiredEnv("BASE_URL", slogger),
+		AGToken:         getRequiredEnv("AG_TOKEN", slogger),
+		FrontendBaseURL: getRequiredEnv("FRONTEND_BASE_URL", slogger),
+	}
+
 	// Initialize database connection with auto-migration control
 	dbConfig := &db.DBConfig{
 		AutoMigrate:       autoMigrate,
 		CreateConstraints: createConstraints,
-		LogLevel:          gormLogger.Info,
+		LogLevel:          gormLogger.Error,
 	}
 
-	_, err = db.GetDBConnection(cfg, dbConfig)
+	database, err := db.GetDBConnection(cfg, dbConfig)
 	if err != nil {
 		slogger.Error("Failed to connect to database", "error", err)
 		os.Exit(1)
 	}
+
+	// Initialize repositories
+	ticketGroupRepo := repositories.NewTicketGroupRepository(database)
+	tagRepo := repositories.NewTagRepository(database)
+	groupGalleryRepo := repositories.NewGroupGalleryRepository(database)
+	ticketDetailRepo := repositories.NewTicketDetailRepository(database)
+	orderTicketGroupRepo := repositories.NewOrderTicketGroupRepository(database)
+	orderTicketInfoRepo := repositories.NewOrderTicketInfoRepository(database)
+
+	// Initialize services
+	paymentService := service.NewPaymentService(
+		orderTicketGroupRepo,
+		orderTicketInfoRepo,
+		ticketGroupRepo,
+		tagRepo,
+		groupGalleryRepo,
+		ticketDetailRepo,
+		&paymentConfig,
+		cfg,
+	)
+	ticketGroupService := service.NewTicketGroupService(
+		ticketGroupRepo,
+		tagRepo,
+		groupGalleryRepo,
+		ticketDetailRepo,
+		cfg,
+	)
+	pdfService := service.NewPDFService()
+
+	emailProcessingService := jobs.NewEmailProcessingService(paymentService, orderTicketGroupRepo, orderTicketInfoRepo, paymentConfig, emailService, ticketGroupService, pdfService)
+
+	go runScheduler(emailProcessingService)
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
@@ -110,4 +180,52 @@ func initLogger() *slog.Logger {
 	slog.SetDefault(slogger)
 
 	return slogger
+}
+
+// runScheduler runs the scheduler in a loop
+func runScheduler(orderService *jobs.EmailProcessingService) {
+	log.Printf("INFO: Starting scheduler")
+
+	for {
+		// Log the start of the scheduler run
+		startTime := time.Now()
+		log.Printf("INFO: Running scheduled task: Processing orders")
+
+		// Process orders - wait for completion
+		count, err := orderService.ProcessPendingOrders()
+		if err != nil {
+			log.Printf("ERROR: Error processing orders: %v", err)
+		} else {
+			log.Printf("INFO: Order processing complete (processed_count=%d)", count)
+		}
+
+		// Calculate how long the processing took
+		processingDuration := time.Since(startTime)
+		nextRunAt := time.Now().Add(10 * time.Minute)
+
+		// Log completion and wait time
+		log.Printf("INFO: Scheduler run complete, waiting 10 minutes until next run (processing_duration=%v, next_run_at=%v)",
+			processingDuration, nextRunAt.Format(time.RFC3339))
+
+		// Wait exactly 10 minutes before the next run, regardless of how long processing took
+		time.Sleep(10 * time.Minute)
+	}
+}
+
+// Helper function to get environment variables with required check
+func getRequiredEnv(key string, slogger *slog.Logger) string {
+	value := os.Getenv(key)
+	if value == "" {
+		slogger.Error("Required environment variable not set", "variable", key)
+		os.Exit(1)
+	}
+	return value
+}
+
+// Helper function to test OAuth2 token acquisition
+func testOAuth2(emailService email.EmailService) error {
+	// Use SendEmail to a fake recipient, but with a flag to just test token acquisition
+	// Return nil to indicate success
+	// Temporary implementation, requires proper email to ensure it works
+	return nil
 }

@@ -106,18 +106,15 @@ type TicketInfo struct {
 func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, orderItems []OrderInfo, tickets []TicketInfo, attachments []Attachment) error {
 	subject := "Your " + orderOverview.TicketGroup + " Tickets"
 
-	var logoBase64 string
 	var address string
 	var contactNo string
 	var email string
 	if orderOverview.TicketGroup == "Zoo Johor" {
-		logoBase64 = zooLogo
 		address = "Jalan Gertak Merah, Taman Istana<br>80000 Johor Bahru, Johor<br>General Line: +07-223 0404"
 		contactNo = "+07-223 0404"
 		email = "zoojohor@johor.gov.my"
 	} else {
-		logoBase64 = botaniLogo
-		address = "Taman Botani Diraja Johor<br>80000 Johor Bahru, Johor<br>General Line: +07-485 8101"
+		address = "Taman Botani Diraja Johor Istana Besar Johor<br>80000 Johor Bahru, Johor<br>General Line: +07-485 8101"
 		contactNo = "+07-485 8101"
 		email = "botani.johor@gmail.com"
 	}
@@ -126,42 +123,41 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
 	var contentBuilder bytes.Buffer
 
 	contentBuilder.WriteString(`
-    <div class="content">
-        <p>Dear ` + orderOverview.FullName + `,</p>
-        <p>Thank you for your purchase. Below are your tickets for ` + orderOverview.TicketGroup + `:</p>
+    <div style="padding: 20px 0px">
+        <h4 style="font-size:16px">Dear ` + orderOverview.FullName + `,</h4>
+        <p style="font-size:14px">Thank you for your purchase. Below are your tickets for ` + orderOverview.TicketGroup + `:</p>
+	</div>
     `)
 
 	contentBuilder.WriteString(`
 <div class="order-info-section">
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 25px 0 30px;">
         <tr>
-            <td width="33%" valign="top">
+            <td width="49%" valign="top">
                 <div class="info-group">
                     <div class="info-label">Lead participant</div>
                     <div class="info-value">` + orderOverview.FullName + `</div>
                 </div>
             </td>
-            <td width="33%" valign="top">
+            <td width="49%" valign="top">
                 <div class="info-group">
                     <div class="info-label">Purchase Date</div>
                     <div class="info-value">` + orderOverview.PurchaseDate + `</div>
                 </div>
             </td>
-            <td width="33%" valign="top">
+        </tr>
+        <tr>
+			<td width="49%" valign="top" style="padding-top: 20px;">
                 <div class="info-group">
                     <div class="info-label">Entry Date</div>
                     <div class="info-value">` + orderOverview.EntryDate + `</div>
                 </div>
             </td>
-        </tr>
-        <tr>
-            <td width="33%" valign="top" style="padding-top: 20px;">
+            <td width="49%" valign="top" style="padding-top: 20px;">
                 <div class="info-group">
                     <div class="info-label">Order No.</div>
                     <div class="info-value">` + orderOverview.OrderNumber + `</div>
                 </div>
-            </td>
-            <td width="66%" valign="top" colspan="2" style="padding-top: 20px;">
             </td>
         </tr>
     </table>
@@ -169,7 +165,7 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
 `)
 
 	contentBuilder.WriteString(`
-    <div class="content">
+    <div>
         <div class="redeem-title">
             <h4>Redeem Individual Units</h4>
             <p>Scan the QR codes below to redeem your units individually.</p>
@@ -177,8 +173,17 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
 	</div>
     `)
 
+	// Start a table for QR codes - much better support in email clients
+	contentBuilder.WriteString(`
+        <table cellspacing="10" cellpadding="0" border="0" align="center" style="margin: 20px auto;">
+        <tr>
+    `)
+
 	// Generate QR code for each ticket and add to email content
-	for _, ticket := range tickets {
+	ticketCount := len(tickets)
+	maxColumns := 3 // Maximum number of QR codes per row
+
+	for i, ticket := range tickets {
 		// Generate QR code
 		qrCode, err := qr.Encode(ticket.Content, qr.M, qr.Auto)
 		//qrCode, err := qr.Encode("STF020", qr.M, qr.Auto) // HARDCODED VALUE FOR NOW
@@ -187,7 +192,7 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
 		}
 
 		// Scale QR code to appropriate size
-		qrCode, err = barcode.Scale(qrCode, 200, 200)
+		qrCode, err = barcode.Scale(qrCode, 150, 150)
 		if err != nil {
 			return fmt.Errorf("failed to scale QR code: %w", err)
 		}
@@ -201,24 +206,34 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
 
 		qrBase64 := base64.StdEncoding.EncodeToString(qrBuffer.Bytes())
 
-		// Add ticket with QR code to email content
+		// Add ticket with QR code to email content using table cell
 		contentBuilder.WriteString(`
-            <div class="ticket">
-                <div class="qr-code">
-                    <img src="data:image/png;base64,` + qrBase64 + `" alt="QR Code">
-                </div>
-                <div class="ticket-info">
-                    <p class="ticket-type">` + ticket.Label + `</p>
-                </div>
-            </div>
+            <td align="center" valign="top" style="padding: 5px; width: 160px;">
+                <img src="data:image/png;base64,` + qrBase64 + `" alt="QR Code" style="width: 150px; height: 150px; border: 1px solid #eee; padding: 5px; margin-bottom: 8px;">
+                <div style="font-size: 12px; font-weight: bold; color: #333; text-align: center; word-wrap: break-word; line-height: 1.2;">` + ticket.Label + `</div>
+            </td>
         `)
+
+		// Start a new row after maxColumns items or at the end
+		if (i+1)%maxColumns == 0 && i < ticketCount-1 {
+			contentBuilder.WriteString(`
+			</tr>
+			<tr>
+			`)
+		}
 	}
 
+	// Close the table row and table
 	contentBuilder.WriteString(`
-        </div>
-        
-        <p>Please show these QR codes at the entrance for scanning.</p>
-        <p>We hope you enjoy your visit to ` + orderOverview.TicketGroup + `!</p>
+        </tr>
+        </table>
+    `)
+
+	contentBuilder.WriteString(`
+		<div style="text-align: center;">
+			<p>Please show these QR codes at the entrance for scanning.</p>
+        	<p>We hope you enjoy your visit to ` + orderOverview.TicketGroup + `!</p>
+		</div>
         
         <div class="terms-section">
             <h4>Terma dan Syarat Perkhidmatan</h4>
@@ -248,7 +263,7 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
 
 	// Main content with customer information
 	contentBuilder.WriteString(`
-    <div class="content">
+    <div>
         <div class="order-summary">
             <div class="section-title">
                 <h3>Order Summary</h3>
@@ -300,8 +315,6 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
                 </tfoot>
             </table>
         </div>
-        
-        <div class="tickets">
     `)
 
 	// Complete HTML email body with nice formatting
@@ -324,14 +337,11 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
         .header { 
-            background-color: #f4a261; 
-            color: white; 
+            background-color: #D5C58A; 
+            color: #000000; 
             padding: 15px; 
             border-radius: 5px 5px 0 0; 
             text-align: center; 
-        }
-        .content { 
-            padding: 25px; 
         }
 		.logo-container {
 			display: table;
@@ -345,14 +355,15 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
 			vertical-align: middle;
 		}
 		.company-info {
-			display: table-cell;
-			text-align: right;
+			text-align: center;
 			vertical-align: middle;
-			font-size: 14px;
-			color: #555;
+			font-size: 18px;
+			color: #000000;
+			margin: 0px 0px 0px 21px;
+			padding: 0px;
 		}
         .order-summary {
-            margin: 20px 0;
+            margin: 15px 0;
             background-color: #f9f9f9;
             border-radius: 5px;
             padding: 15px;
@@ -403,7 +414,6 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
         }
         .section-title {
             text-align: center;
-            margin: 10px 0;
         }
         .section-title h3 {
             margin: 0;
@@ -417,7 +427,6 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
             margin-bottom: 20px;
         }
         .redeem-title h4 {
-            margin: 0 0 5px 0;
             font-size: 16px;
         }
         .redeem-title p {
@@ -425,36 +434,30 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
             font-size: 14px;
             color: #666;
         }
-        .tickets { 
-            margin: 20px 0; 
+        .order-summary {
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            padding: 15px;
         }
-        .ticket { 
-            border: 1px solid #eee; 
-            border-radius: 5px; 
-            padding: 15px; 
-            margin-bottom: 15px; 
-            display: flex; 
-            align-items: center;
-            background-color: #fff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        .order-table {
+            width: 100%%;
+            border-collapse: collapse;
         }
-        .ticket-info { 
-            margin-left: 20px; 
-            flex-grow: 1;
+        .order-table th {
+            background-color: #f0f0f0;
+            text-align: left;
+            padding: 8px;
+            font-size: 14px;
+            border-bottom: 1px solid #ddd;
         }
-        .ticket-type {
-            font-size: 16px;
+        .order-table td {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+        .order-table tfoot td {
             font-weight: bold;
-            margin: 0 0 5px 0;
-        }
-        .qr-code { 
-            text-align: center; 
-        }
-        .qr-code img { 
-            width: 120px; 
-            height: 120px;
-            border: 1px solid #eee; 
-            padding: 5px; 
+            border-top: 2px solid #ddd;
         }
         .terms-section {
             margin-top: 30px;
@@ -480,7 +483,6 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
 			background-color: #f8f8f8;
 			border-radius: 5px;
 			padding: 20px;
-			margin: 25px 0;
 		}
 		.info-label {
 			color: #666;
@@ -497,15 +499,10 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
 <body>
     <div class="container">
         <div class="header">
-            <h2>`+orderOverview.TicketGroup+` Tickets</h2>
-        </div>
-        
-        <div class="logo-container">
-            <img src="data:image/png;base64,%s" alt="`+orderOverview.TicketGroup+` Logo" class="logo">
-            <div class="company-info">
-                <p><strong>`+orderOverview.TicketGroup+`</strong><br>
-				`+address+`</p>
-            </div>
+            <h1 style="text-transform: uppercase;font-size: 32px;">`+orderOverview.TicketGroup+`</h1>
+        	<div class="company-info">
+				<p>`+address+`</p>
+			</div>
         </div>
         
         %s
@@ -518,7 +515,7 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
     </div>
 </body>
 </html>
-`, logoBase64, contentBuilder.String(), time.Now().Year())
+`, contentBuilder.String(), time.Now().Year())
 
 	return s.sendEmailWithAttachmentsWithRetry([]string{to}, subject, body, attachments)
 }

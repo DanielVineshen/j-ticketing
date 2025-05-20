@@ -4,6 +4,7 @@ package service
 import (
 	"database/sql"
 	"fmt"
+	dto "j-ticketing/internal/core/dto/customer"
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
 	bcryptPassword "j-ticketing/pkg/utils"
@@ -14,10 +15,8 @@ import (
 type CustomerService interface {
 	RegisterCustomer(email, password, identificationNo, fullName, contactNo string) (*models.Customer, error)
 	GetCustomerByID(id string) (*models.Customer, error)
-	UpdateCustomer(id, fullName, contactNo string) (*models.Customer, error)
+	UpdateCustomer(id string, req dto.UpdateCustomerRequest) (*models.Customer, error)
 	ChangePassword(id, currentPassword, newPassword string) error
-	DisableCustomer(id string) error
-	EnableCustomer(id string) error
 	ListCustomers() ([]models.Customer, error)
 	GetCustomerByEmail(email string) (*models.Customer, error)
 }
@@ -105,17 +104,22 @@ func (s *customerService) GetCustomerByID(id string) (*models.Customer, error) {
 }
 
 // UpdateCustomer updates a customer's information
-func (s *customerService) UpdateCustomer(id, fullName, contactNo string) (*models.Customer, error) {
+func (s *customerService) UpdateCustomer(id string, req dto.UpdateCustomerRequest) (*models.Customer, error) {
 	customer, err := s.customerRepo.FindByID(id)
 	if err != nil {
 		return nil, err
 	}
 
-	customer.FullName = fullName
+	customer.Email = req.Email
+	customer.FullName = req.FullName
+	customer.IdentificationNo = req.IdentificationNo
+
+	// Handle contact number (can be null)
 	customer.ContactNo = sql.NullString{
-		String: contactNo,
-		Valid:  contactNo != "", // Will be NULL if contactNo is empty
+		String: req.ContactNo,
+		Valid:  req.ContactNo != "",
 	}
+
 	customer.UpdatedAt = time.Now()
 
 	err = s.customerRepo.Update(customer)
@@ -150,32 +154,6 @@ func (s *customerService) ChangePassword(id, currentPassword, newPassword string
 		Valid:  hashedPassword != "", // Will be NULL if contactNo is empty
 	}
 
-	customer.UpdatedAt = time.Now()
-
-	return s.customerRepo.Update(customer)
-}
-
-// DisableCustomer disables a customer's account
-func (s *customerService) DisableCustomer(id string) error {
-	customer, err := s.customerRepo.FindByID(id)
-	if err != nil {
-		return err
-	}
-
-	customer.IsDisabled = true
-	customer.UpdatedAt = time.Now()
-
-	return s.customerRepo.Update(customer)
-}
-
-// EnableCustomer enables a customer's account
-func (s *customerService) EnableCustomer(id string) error {
-	customer, err := s.customerRepo.FindByID(id)
-	if err != nil {
-		return err
-	}
-
-	customer.IsDisabled = false
 	customer.UpdatedAt = time.Now()
 
 	return s.customerRepo.Update(customer)

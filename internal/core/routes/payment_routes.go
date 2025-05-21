@@ -109,10 +109,10 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, pay
 		})
 	})
 
-	// Payment return handler (callback from payment gateway)
+	// Payment return handler (callback from payment gateway - customer)
 	paymentGroup.Get("/return", paymentHandler.PaymentReturn)
 
-	// Payment return handler (callback from payment gateway)
+	// Payment return handler (callback from payment gateway - cronjob)
 	paymentGroup.Get("/redirect", paymentHandler.PaymentRedirect)
 
 	// Payment process - this will redirect to the payment gateway
@@ -164,7 +164,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, pay
 		}
 		formData.Set("jp_total_amount", totalAmount)
 		formData.Set("jp_product_id", productId)
-		formData.Set("jp_product_desc", productDesc)
+		formData.Set("jp_product_desc", productDesc[0:25])
 		formData.Set("jp_email", buyerEmail)
 		formData.Set("method", method)
 		formData.Set("jp_redirect_url", redirectUrl)

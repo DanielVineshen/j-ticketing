@@ -336,11 +336,11 @@ func ConvertZooTicketsToTicketInfo(zooTickets []payment.ZooTicketInfo) []email.T
 	ticketInfos := make([]email.TicketInfo, 0, len(zooTickets))
 
 	for _, ticket := range zooTickets {
-		// Use ItemDesc2 (English description) for the label
+		// Use ItemDesc2 (Malay description) for the label
 		// If ItemDesc2 is empty, fall back to ItemDesc
-		label := ticket.ItemDesc2
+		label := ticket.ItemDesc
 		if label == "" {
-			label = ticket.ItemDesc
+			label = ticket.ItemDesc2
 		}
 
 		// Create TicketInfo with EncryptedID as QR code content

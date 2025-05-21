@@ -121,21 +121,25 @@ func addHeader(logoBase64 string, ticketGroupName string, addr1 string, addr2 st
 	pdf.SetFont("Arial", "B", 16)
 	pdf.SetTextColor(0, 0, 0) // Black text
 
-	// Title
-	pdf.SetXY(boxX, boxY+10)
-	pdf.CellFormat(boxWidth, 10, strings.ToUpper(ticketGroupName), "", 0, "C", false, 0, "")
+	// Title - use MultiCell for auto-wrapping long text
+	titleY := boxY + 5 // Start a bit higher to accommodate potentially two lines
+	pdf.SetXY(boxX+5, titleY)
+	pdf.MultiCell(boxWidth-10, 8, strings.ToUpper(ticketGroupName), "", "C", false)
+
+	// Get current Y position after title, to make sure address lines don't overlap
+	currentY := pdf.GetY() + 3 // Add small gap after title
 
 	// Address lines
 	pdf.SetFont("Arial", "", 11)
-	pdf.SetXY(boxX, boxY+20)
-	pdf.CellFormat(boxWidth, 10, addr1, "", 0, "C", false, 0, "")
+	pdf.SetXY(boxX, currentY)
+	pdf.CellFormat(boxWidth, 8, addr1, "", 0, "C", false, 0, "")
 
-	pdf.SetXY(boxX, boxY+25)
-	pdf.CellFormat(boxWidth, 10, addr2, "", 0, "C", false, 0, "")
+	pdf.SetXY(boxX, currentY+8)
+	pdf.CellFormat(boxWidth, 8, addr2, "", 0, "C", false, 0, "")
 
 	// General line
-	pdf.SetXY(boxX, boxY+35)
-	pdf.CellFormat(boxWidth, 10, "Talian Umum: "+generalLine, "", 0, "C", false, 0, "")
+	pdf.SetXY(boxX, currentY+16)
+	pdf.CellFormat(boxWidth, 8, "Talian Umum: "+generalLine, "", 0, "C", false, 0, "")
 
 	// Reset text color to black for the rest of the document
 	pdf.SetTextColor(0, 0, 0)

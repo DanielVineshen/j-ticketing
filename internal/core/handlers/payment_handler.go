@@ -269,6 +269,10 @@ func (h *PaymentHandler) PaymentRedirect(c *fiber.Ctx) error {
 }
 
 func (h *PaymentHandler) decipherPayload(c *fiber.Ctx) (payment.TransactionResponse, error) {
+	// Get query parameters
+	queryParams := c.Queries()
+	logger.Info("queryParams from decipherPayload: %v", queryParams)
+
 	// Get the payload and remove surrounding quotes first
 	payload := strings.Trim(c.Query("payload"), "\"")
 

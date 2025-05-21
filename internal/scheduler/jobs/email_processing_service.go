@@ -116,12 +116,13 @@ func (s *EmailProcessingService) processOrder(order *models.OrderTicketGroup) er
 	if err != nil {
 		log.Printf("Failed to send tickets email to %s: %v", order.BuyerEmail, err)
 		// Continue anyway since the password has been reset
-	}
-	order.IsEmailSent = true
-	// Save the updated order
-	err = s.paymentService.UpdateOrderTicketGroup(order)
-	if err != nil {
-		log.Printf("Failed to update order ticket group: %v", err)
+	} else {
+		order.IsEmailSent = true
+		// Save the updated order
+		err = s.paymentService.UpdateOrderTicketGroup(order)
+		if err != nil {
+			log.Printf("Failed to update order ticket group: %v", err)
+		}
 	}
 
 	log.Printf("Successfully processed order")

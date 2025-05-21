@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type PaymentHandler struct {
@@ -155,6 +156,147 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 
 func (h *PaymentHandler) PaymentRedirect(c *fiber.Ctx) error {
 	logger.Info("Payment redirect was triggered by JohorPay!")
+
+	log.Printf("============ PAYMENT REDIRECT RECEIVED ============")
+	log.Printf("Time: %s", time.Now().Format(time.RFC3339))
+
+	// Log request method and URL
+	log.Printf("Method: %s", c.Method())
+	log.Printf("Path: %s", c.Path())
+	log.Printf("Full URL: %s", c.BaseURL()+c.OriginalURL())
+
+	// Log all HTTP headers
+	log.Printf("------ Headers ------")
+	c.Request().Header.VisitAll(func(key, value []byte) {
+		log.Printf("%s: %s", string(key), string(value))
+	})
+
+	// Log all query parameters
+	log.Printf("------ Query Parameters ------")
+	queryParams := c.Queries()
+	for k, v := range queryParams {
+		log.Printf("%s: %s", k, v)
+	}
+
+	// Enhanced body logging
+	log.Printf("------ Request Body ------")
+
+	// Get raw body bytes
+	body := c.Body()
+	log.Printf("Body length: %d bytes", len(body))
+
+	if len(body) > 0 {
+		// Log raw body as string
+		bodyStr := string(body)
+		log.Printf("Raw body: %s", bodyStr)
+
+		// Log body as hex dump for binary inspection
+		log.Printf("Body hex dump:")
+		for i := 0; i < len(body); i += 16 {
+			end := i + 16
+			if end > len(body) {
+				end = len(body)
+			}
+			chunk := body[i:end]
+			hexStr := ""
+			asciiStr := ""
+
+			for _, b := range chunk {
+				hexStr += fmt.Sprintf("%02x ", b)
+				if b >= 32 && b <= 126 { // Printable ASCII
+					asciiStr += string(b)
+				} else {
+					asciiStr += "."
+				}
+			}
+
+			// Pad for alignment if needed
+			for j := len(chunk); j < 16; j++ {
+				hexStr += "   "
+			}
+
+			log.Printf("  %04x: %s | %s", i, hexStr, asciiStr)
+		}
+
+		// Try to parse as URL-encoded form data
+		contentType := c.Get("Content-Type")
+		if strings.Contains(contentType, "application/x-www-form-urlencoded") {
+			log.Printf("Detected form-urlencoded content type")
+
+			// Parse as form data
+			var form map[string][]string
+			if err := c.QueryParser(&form); err == nil {
+				log.Printf("Parsed form data:")
+				for k, v := range form {
+					log.Printf("  %s: %v", k, v)
+				}
+			} else {
+				log.Printf("Failed to parse form data: %v", err)
+
+				// Try manual parsing
+				formItems := strings.Split(bodyStr, "&")
+				log.Printf("Manual form parsing (%d items):", len(formItems))
+				for _, item := range formItems {
+					parts := strings.SplitN(item, "=", 2)
+					if len(parts) == 2 {
+						key, _ := url.QueryUnescape(parts[0])
+						value, _ := url.QueryUnescape(parts[1])
+						log.Printf("  %s: %s", key, value)
+					} else if len(parts) == 1 {
+						key, _ := url.QueryUnescape(parts[0])
+						log.Printf("  %s: (no value)", key)
+					}
+				}
+			}
+		}
+
+		// Try to parse as JSON
+		if strings.Contains(contentType, "application/json") ||
+			(bodyStr != "" && bodyStr[0] == '{' && bodyStr[len(bodyStr)-1] == '}') {
+			log.Printf("Attempting to parse as JSON")
+			var jsonData map[string]interface{}
+			if err := json.Unmarshal(body, &jsonData); err == nil {
+				jsonBytes, _ := json.MarshalIndent(jsonData, "", "  ")
+				log.Printf("Parsed JSON data:\n%s", string(jsonBytes))
+			} else {
+				log.Printf("Failed to parse as JSON: %v", err)
+			}
+		}
+
+		// Look for specific patterns in the body
+		if strings.Contains(bodyStr, ":") && strings.Contains(bodyStr, "==") {
+			log.Printf("Body appears to contain encoded/encrypted data (contains ':' and '==')")
+
+			// Split and log parts separately
+			parts := strings.Split(bodyStr, ":")
+			log.Printf("Found %d parts separated by ':'", len(parts))
+			for i, part := range parts {
+				log.Printf("Part %d: %s", i+1, part)
+
+				// Check if this part looks like Base64
+				if strings.Contains(part, "==") || strings.Contains(part, "=") {
+					log.Printf("Part %d appears to be Base64 encoded", i+1)
+				}
+			}
+		}
+	} else {
+		log.Printf("Body is empty")
+	}
+
+	// Log any cookies
+	log.Printf("------ Cookies ------")
+	cookieHeader := c.Get("Cookie")
+	log.Printf("Cookie header: %s", cookieHeader)
+
+	// Log any session data
+	log.Printf("------ Session/Store Data ------")
+
+	// Log IP address and user agent
+	log.Printf("------ Client Info ------")
+	log.Printf("IP: %s", c.IP())
+	log.Printf("User-Agent: %s", c.Get("User-Agent"))
+
+	log.Printf("============ END PAYMENT REDIRECT LOG ============")
 
 	transactionData, err := h.decipherPayload(c)
 	if err != nil {

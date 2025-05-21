@@ -50,7 +50,7 @@ func NewPDFHandler() *PDFHandler {
 func addZooHeader(ticketGroupName string, pdf *gofpdf.Fpdf) {
 	addr1 := "Jalan Gertak Merah, Taman Istana"
 	addr2 := "80000 Johor Bahru, Johor"
-	generalLine := "General Line : +07-223 0404"
+	generalLine := "General Line : +607-223 0404"
 
 	// Header measurements
 	headerHeight := 50.0
@@ -377,7 +377,7 @@ func addTermsAndConditionsPage(pdf *gofpdf.Fpdf) {
 	pdf.SetFont("Arial", "", 10)
 	pdf.SetTextColor(51, 51, 51)
 	pdf.SetXY(leftMargin, sectionY)
-	pdf.Cell(contentWidth, 5, "TEL    : +07-485 8101")
+	pdf.Cell(contentWidth, 5, "TEL    : +607-485 8101")
 	sectionY += 6
 
 	pdf.SetXY(leftMargin, sectionY)

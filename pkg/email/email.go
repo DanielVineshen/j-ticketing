@@ -111,12 +111,12 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
 	var contactNo string
 	var email string
 	if orderOverview.TicketGroup == "Zoo Johor" {
-		address = "Jalan Gertak Merah, Taman Istana<br>80000 Johor Bahru, Johor<br>Talian Umum: +07-223 0404"
-		contactNo = "+07-223 0404"
+		address = "Jalan Gertak Merah, Taman Istana<br>80000 Johor Bahru, Johor<br>Talian Umum: +607-223 0404"
+		contactNo = "+607-223 0404"
 		email = "zoojohor@johor.gov.my"
 	} else {
-		address = "Taman Botani Diraja Johor Istana Besar Johor<br>80000 Johor Bahru, Johor<br>Talian Umum: +07-485 8101"
-		contactNo = "+07-485 8101"
+		address = "Taman Botani Diraja Johor Istana Besar Johor<br>80000 Johor Bahru, Johor<br>Talian Umum: +607-223 3020"
+		contactNo = "+607-485 8101"
 		email = "botani.johor@gmail.com"
 	}
 

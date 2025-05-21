@@ -563,13 +563,13 @@ func (s *PDFService) GenerateTicketPDF(orderOverview email.OrderOverview, orderI
 	if orderOverview.TicketGroup == "Zoo Johor" {
 		addr1 = "Jalan Gertak Merah, Taman Istana"
 		addr2 = "80000 Johor Bahru, Johor"
-		contactNo = "+07-223 0404"
+		contactNo = "+607-223 0404"
 		email = "zoojohor@johor.gov.my"
 		logoBase64 = storage.ZooLogo
 	} else {
 		addr1 = "Taman Botani Diraja Johor Istana Besar Johor"
 		addr2 = "80000 Johor Bahru, Johor"
-		contactNo = "+07-485 8101"
+		contactNo = "+607-485 8101"
 		email = "botani.johor@gmail.com"
 		logoBase64 = storage.BotaniLogo
 	}

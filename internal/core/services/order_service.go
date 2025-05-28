@@ -59,13 +59,15 @@ func NewOrderService(
 }
 
 // GetAllOrderTicketGroups retrieves all order ticket groups for a user
-func (s *OrderService) GetAllOrderTicketGroups(custId string) (orderDto.OrderTicketGroupResponse, error) {
+func (s *OrderService) GetAllOrderTicketGroups(custId string, startDate string, endDate string) (orderDto.OrderTicketGroupResponse, error) {
 	var orders []models.OrderTicketGroup
 	var err error
 
 	// If customer ID is provided, retrieve orders for that customer only
 	if custId != "" {
 		orders, err = s.orderTicketGroupRepo.FindByCustomerID(custId)
+	} else if startDate != "" && endDate != "" {
+		orders, err = s.orderTicketGroupRepo.FindByDateRange(startDate, endDate)
 	} else {
 		// Otherwise, retrieve all orders
 		orders, err = s.orderTicketGroupRepo.FindAll()

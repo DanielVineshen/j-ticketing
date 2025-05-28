@@ -164,7 +164,7 @@ func main() {
 	ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService)
 	authHandler := handlers.NewAuthHandler(authService, emailService)
 	customerHandler := handlers.NewCustomerHandler(customerService)
-	bannerHandler := handlers.NewBannerImageHandler(bannerService)
+	bannerHandler := handlers.NewBannerHandler(bannerService)
 	groupGalleryHandler := handlers.NewGroupGalleryHandler(groupGalleryService)
 	simplePDFHandler := handlers.NewPDFHandler()
 	orderHandler := handlers.NewOrderHandler(orderService, customerService, jwtService, paymentService, emailService, ticketGroupService, paymentConfig, pdfService)
@@ -194,7 +194,7 @@ func main() {
 	routes.SetupViewRoutes(app)
 	routes.SetupTicketPDFRoutes(app, simplePDFHandler)
 	routes.SetupCustomerRoutes(app, customerHandler, jwtService)
-	routes.SetupBannerRoutes(app, bannerHandler)
+	routes.SetupBannerRoutes(app, bannerHandler, jwtService)
 	routes.SetupGroupGalleryRoutes(app, groupGalleryHandler)
 	routes.SetupTicketPDFRoutes(app, pdfHandler)
 

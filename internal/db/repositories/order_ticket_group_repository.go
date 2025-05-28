@@ -29,6 +29,7 @@ func (r *OrderTicketGroupRepository) FindAll() ([]models.OrderTicketGroup, error
 		Preload("TicketGroup.GroupGalleries").
 		Preload("TicketGroup.TicketDetails").
 		Preload("OrderTicketInfos").
+		Order("order_ticket_group_id DESC").
 		Find(&orderTicketGroups)
 	return orderTicketGroups, result.Error
 }
@@ -53,7 +54,9 @@ func (r *OrderTicketGroupRepository) FindByCustomerID(custID string) ([]models.O
 		Preload("TicketGroup.TicketTags.Tag").
 		Preload("TicketGroup.GroupGalleries").
 		Preload("TicketGroup.TicketDetails").
-		Preload("OrderTicketInfos").Find(&orderTicketGroups)
+		Preload("OrderTicketInfos").
+		Order("order_ticket_group_id DESC").
+		Find(&orderTicketGroups)
 	return orderTicketGroups, result.Error
 }
 

@@ -130,3 +130,14 @@ func (h *CustomerHandler) ListCustomers(c *fiber.Ctx) error {
 
 	return c.JSON(customers)
 }
+
+func (h *CustomerHandler) GetCustomerManagement(c *fiber.Ctx) error {
+	customers, err := h.customerService.GetAllCustomers()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
+			"Could not get customers: "+err.Error(), nil,
+		))
+	}
+
+	return c.JSON(models.NewBaseSuccessResponse(customers))
+}

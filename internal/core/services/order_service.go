@@ -59,13 +59,15 @@ func NewOrderService(
 }
 
 // GetAllOrderTicketGroups retrieves all order ticket groups for a user
-func (s *OrderService) GetAllOrderTicketGroups(custId string) (orderDto.OrderTicketGroupResponse, error) {
+func (s *OrderService) GetAllOrderTicketGroups(custId string, startDate string, endDate string) (orderDto.OrderTicketGroupResponse, error) {
 	var orders []models.OrderTicketGroup
 	var err error
 
 	// If customer ID is provided, retrieve orders for that customer only
 	if custId != "" {
 		orders, err = s.orderTicketGroupRepo.FindByCustomerID(custId)
+	} else if startDate != "" && endDate != "" {
+		orders, err = s.orderTicketGroupRepo.FindByDateRange(startDate, endDate)
 	} else {
 		// Otherwise, retrieve all orders
 		orders, err = s.orderTicketGroupRepo.FindAll()
@@ -140,6 +142,7 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 		BuyerEmail:         order.BuyerEmail,
 		ProductDesc:        order.ProductDesc,
 		OrderTicketInfo:    make([]orderDto.OrderTicketInfoDTO, 0),
+		OrderTicketLog:     make([]orderDto.OrderTicketLogDTO, 0),
 		CreatedAt:          order.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:          order.UpdatedAt.Format(time.RFC3339),
 	}
@@ -178,6 +181,21 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 		}
 
 		orderProfile.OrderTicketInfo = append(orderProfile.OrderTicketInfo, infoDTO)
+	}
+
+	for _, ticket := range order.OrderTicketLogs {
+		ticketDTO := orderDto.OrderTicketLogDTO{
+			OrderTicketLogId:   ticket.OrderTicketLogId,
+			OrderTicketGroupId: ticket.OrderTicketGroupId,
+			Type:               ticket.Type,
+			Title:              ticket.Title,
+			Message:            ticket.Message,
+			Date:               ticket.Date,
+			CreatedAt:          ticket.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:          ticket.UpdatedAt.Format(time.RFC3339),
+		}
+
+		orderProfile.OrderTicketLog = append(orderProfile.OrderTicketLog, ticketDTO)
 	}
 
 	//  Use preloaded TicketGroup directly (no database call)

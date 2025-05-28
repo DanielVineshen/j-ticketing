@@ -29,8 +29,31 @@ func (r *OrderTicketGroupRepository) FindAll() ([]models.OrderTicketGroup, error
 		Preload("TicketGroup.GroupGalleries").
 		Preload("TicketGroup.TicketDetails").
 		Preload("OrderTicketInfos").
+		Order("order_ticket_group_id DESC").
 		Find(&orderTicketGroups)
 	return orderTicketGroups, result.Error
+}
+
+func (r *OrderTicketGroupRepository) FindByDateRange(startDate, endDate string) ([]models.OrderTicketGroup, error) {
+	var orders []models.OrderTicketGroup
+
+	// Add time boundaries for precision
+	startDateTime := startDate + " 00:00:00"
+	endDateTime := endDate + " 23:59:59"
+
+	result := r.db.
+		Where("transaction_date >= ? AND transaction_date <= ?", startDateTime, endDateTime).
+		Preload("Customer").
+		Preload("OrderTicketInfos").
+		Preload("TicketGroup").
+		Preload("TicketGroup.TicketTags").
+		Preload("TicketGroup.TicketTags.Tag").
+		Preload("TicketGroup.GroupGalleries").
+		Preload("TicketGroup.TicketDetails").
+		Order("order_ticket_group_id DESC").
+		Find(&orders)
+
+	return orders, result.Error
 }
 
 // FindByID finds an order ticket group by ID
@@ -53,7 +76,9 @@ func (r *OrderTicketGroupRepository) FindByCustomerID(custID string) ([]models.O
 		Preload("TicketGroup.TicketTags.Tag").
 		Preload("TicketGroup.GroupGalleries").
 		Preload("TicketGroup.TicketDetails").
-		Preload("OrderTicketInfos").Find(&orderTicketGroups)
+		Preload("OrderTicketInfos").
+		Order("order_ticket_group_id DESC").
+		Find(&orderTicketGroups)
 	return orderTicketGroups, result.Error
 }
 

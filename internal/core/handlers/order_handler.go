@@ -76,10 +76,10 @@ func (h *OrderHandler) GetOrderTicketGroups(c *fiber.Ctx) error {
 	if userType == "admin" && (userRole == "SYSADMIN" || userRole == "ADMIN") {
 		// Admin can optionally filter by customer ID
 		filterCustId := c.Query("custId")
-		response, err = h.orderService.GetAllOrderTicketGroups(filterCustId)
+		response, err = h.orderService.GetAllOrderTicketGroups(filterCustId, "", "")
 	} else if userType == "customer" {
 		// Customer can only see their own orders
-		response, err = h.orderService.GetAllOrderTicketGroups(custId)
+		response, err = h.orderService.GetAllOrderTicketGroups(custId, "", "")
 	} else {
 		return c.Status(fiber.StatusForbidden).JSON(models.NewBaseErrorResponse(
 			"You are not authorized to view these orders", nil,
@@ -424,7 +424,7 @@ func (h *OrderHandler) GetOrderManagement(c *fiber.Ctx) error {
 		))
 	}
 
-	orderTicketGroups, err := h.orderService.GetAllOrderTicketGroups("")
+	orderTicketGroups, err := h.orderService.GetAllOrderTicketGroups("", startDate, endDate)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
 			"Could not get order ticket groups: "+err.Error(), nil,

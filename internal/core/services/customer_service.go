@@ -4,7 +4,9 @@ package service
 import (
 	"database/sql"
 	"fmt"
+	customerDto "j-ticketing/internal/core/dto/customer"
 	dto "j-ticketing/internal/core/dto/customer"
+	orderDto "j-ticketing/internal/core/dto/order"
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
 	bcryptPassword "j-ticketing/pkg/utils"
@@ -13,6 +15,7 @@ import (
 
 // CustomerService handles customer-related operations
 type CustomerService interface {
+	GetAllCustomers() (customerDto.DetailedCustomerResponse, error)
 	RegisterCustomer(email, password, identificationNo, fullName, contactNo string) (*models.Customer, error)
 	GetCustomerByID(id string) (*models.Customer, error)
 	UpdateCustomer(id string, req dto.UpdateCustomerRequest) (*models.Customer, error)
@@ -30,6 +33,107 @@ func NewCustomerService(customerRepo repositories.CustomerRepository) CustomerSe
 	return &customerService{
 		customerRepo: customerRepo,
 	}
+}
+
+func (s *customerService) GetAllCustomers() (customerDto.DetailedCustomerResponse, error) {
+	customers, err := s.customerRepo.FindAll()
+	if err != nil {
+		return customerDto.DetailedCustomerResponse{}, err
+	}
+
+	response := customerDto.DetailedCustomerResponse{
+		DetailedCustomers: make([]customerDto.DetailedCustomer, 0, len(customers)),
+	}
+
+	for _, customer := range customers {
+		customerDTO, err := s.mapCustomerToDTO(&customer)
+		if err != nil {
+			return customerDto.DetailedCustomerResponse{}, err
+		}
+
+		response.DetailedCustomers = append(response.DetailedCustomers, customerDTO)
+	}
+
+	return response, nil
+}
+
+func (s *customerService) mapCustomerToDTO(customer *models.Customer) (customerDto.DetailedCustomer, error) {
+	cust := customerDto.DetailedCustomer{
+		CustID:           customer.CustId,
+		Email:            customer.Email,
+		FullName:         customer.FullName,
+		IdentificationNo: customer.IdentificationNo,
+		IsDisabled:       customer.IsDisabled,
+		ContactNo:        getStringFromNullString(customer.ContactNo),
+		OrderTicketGroup: make([]orderDto.OrderProfileDTO, 0),
+	}
+
+	orderTicketGroups := customer.OrderTicketGroups
+
+	for _, order := range orderTicketGroups {
+		orderProfile := orderDto.OrderProfileDTO{
+			OrderTicketGroupId: order.OrderTicketGroupId,
+			TicketGroupId:      order.TicketGroupId,
+			CustId:             order.CustId,
+			TransactionId:      order.TransactionId,
+			OrderNo:            order.OrderNo,
+			TransactionStatus:  order.TransactionStatus,
+			TransactionDate:    order.TransactionDate,
+			MsgToken:           order.MsgToken,
+			BillId:             order.BillId,
+			ProductId:          order.ProductId,
+			TotalAmount:        order.TotalAmount,
+			BuyerName:          order.BuyerName,
+			BuyerEmail:         order.BuyerEmail,
+			ProductDesc:        order.ProductDesc,
+			OrderTicketInfo:    make([]orderDto.OrderTicketInfoDTO, 0),
+			OrderTicketLog:     make([]orderDto.OrderTicketLogDTO, 0),
+			CreatedAt:          order.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:          order.UpdatedAt.Format(time.RFC3339),
+		}
+
+		// Use preloaded OrderTicketInfos directly (no database call)
+		for _, info := range order.OrderTicketInfos {
+			infoDTO := orderDto.OrderTicketInfoDTO{
+				OrderTicketInfoId:  info.OrderTicketInfoId,
+				OrderTicketGroupId: info.OrderTicketGroupId,
+				ItemId:             info.ItemId,
+				UnitPrice:          info.UnitPrice,
+				ItemDesc1:          info.ItemDesc1,
+				ItemDesc2:          info.ItemDesc2,
+				PrintType:          info.PrintType,
+				QuantityBought:     info.QuantityBought,
+				EncryptedId:        info.EncryptedId,
+				AdmitDate:          info.AdmitDate,
+				Variant:            info.Variant,
+				CreatedAt:          info.CreatedAt.Format(time.RFC3339),
+				UpdatedAt:          info.UpdatedAt.Format(time.RFC3339),
+			}
+
+			if info.Twbid.Valid {
+				infoDTO.Twbid = info.Twbid.String
+			}
+
+			orderProfile.OrderTicketInfo = append(orderProfile.OrderTicketInfo, infoDTO)
+		}
+
+		for _, ticket := range order.OrderTicketLogs {
+			ticketDTO := orderDto.OrderTicketLogDTO{
+				OrderTicketLogId:   ticket.OrderTicketLogId,
+				OrderTicketGroupId: ticket.OrderTicketGroupId,
+				Type:               ticket.Type,
+				Title:              ticket.Title,
+				Message:            ticket.Message,
+				Date:               ticket.Date,
+				CreatedAt:          ticket.CreatedAt.Format(time.RFC3339),
+				UpdatedAt:          ticket.UpdatedAt.Format(time.RFC3339),
+			}
+
+			orderProfile.OrderTicketLog = append(orderProfile.OrderTicketLog, ticketDTO)
+		}
+	}
+
+	return cust, nil
 }
 
 func (s *customerService) GetCustomerByEmail(email string) (*models.Customer, error) {
@@ -175,4 +279,11 @@ func (s *customerService) ListCustomers() ([]models.Customer, error) {
 	}
 
 	return customers, nil
+}
+
+func getStringFromNullString(ns sql.NullString) string {
+	if ns.Valid {
+		return ns.String
+	}
+	return "" // Return empty string if NULL
 }

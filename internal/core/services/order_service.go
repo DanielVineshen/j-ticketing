@@ -142,6 +142,7 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 		BuyerEmail:         order.BuyerEmail,
 		ProductDesc:        order.ProductDesc,
 		OrderTicketInfo:    make([]orderDto.OrderTicketInfoDTO, 0),
+		OrderTicketLog:     make([]orderDto.OrderTicketLogDTO, 0),
 		CreatedAt:          order.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:          order.UpdatedAt.Format(time.RFC3339),
 	}
@@ -180,6 +181,21 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 		}
 
 		orderProfile.OrderTicketInfo = append(orderProfile.OrderTicketInfo, infoDTO)
+	}
+
+	for _, ticket := range order.OrderTicketLogs {
+		ticketDTO := orderDto.OrderTicketLogDTO{
+			OrderTicketLogId:   ticket.OrderTicketLogId,
+			OrderTicketGroupId: ticket.OrderTicketGroupId,
+			Type:               ticket.Type,
+			Title:              ticket.Title,
+			Message:            ticket.Message,
+			Date:               ticket.Date,
+			CreatedAt:          ticket.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:          ticket.UpdatedAt.Format(time.RFC3339),
+		}
+
+		orderProfile.OrderTicketLog = append(orderProfile.OrderTicketLog, ticketDTO)
 	}
 
 	//  Use preloaded TicketGroup directly (no database call)

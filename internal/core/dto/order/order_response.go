@@ -36,6 +36,7 @@ type OrderProfileDTO struct {
 	BuyerEmail         string               `json:"buyerEmail"`
 	ProductDesc        string               `json:"productDesc"`
 	OrderTicketInfo    []OrderTicketInfoDTO `json:"orderTicketInfo"`
+	OrderTicketLog     []OrderTicketLogDTO  `json:"orderTicketLog"`
 	CreatedAt          string               `json:"createdAt"`
 	UpdatedAt          string               `json:"updatedAt"`
 }
@@ -56,4 +57,15 @@ type OrderTicketInfoDTO struct {
 	Variant            string  `json:"variant"`
 	CreatedAt          string  `json:"createdAt"`
 	UpdatedAt          string  `json:"updatedAt"`
+}
+
+type OrderTicketLogDTO struct {
+	OrderTicketLogId   uint   `json:"orderTicketLogId"`
+	OrderTicketGroupId uint   `json:"orderTicketGroupId"`
+	Type               string `json:"type"`
+	Title              string `json:"title"`
+	Message            string `json:"message"`
+	Date               string `json:"date"`
+	CreatedAt          string `json:"createdAt"`
+	UpdatedAt          string `json:"updatedAt"`
 }

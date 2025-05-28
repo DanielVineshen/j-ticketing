@@ -1,4 +1,4 @@
-// File: j-ticketing/internal/db/repositories/customer_repository.go\
+// File: j-ticketing/internal/db/repositories/customer_repository.go
 package repositories
 
 import (
@@ -10,6 +10,7 @@ import (
 // CustomerRepository is the interface for customer database operations
 type CustomerRepository interface {
 	Create(customer *models.Customer) error
+	FindAll() ([]models.Customer, error)
 	FindByID(id string) (*models.Customer, error)
 	FindByEmail(email string) (*models.Customer, error)
 	Update(customer *models.Customer) error
@@ -31,6 +32,18 @@ func NewCustomerRepository(db *gorm.DB) CustomerRepository {
 // Create creates a new customer
 func (r *customerRepository) Create(customer *models.Customer) error {
 	return r.db.Create(customer).Error
+}
+
+func (r *customerRepository) FindAll() ([]models.Customer, error) {
+	var customers []models.Customer
+	result := r.db.
+		Preload("OrderTicketGroups").
+		Preload("OrderTicketGroups.OrderTicketInfos").
+		Preload("OrderTicketGroups.OrderTicketLogs").
+		Order("created_at DESC").
+		Find(&customers)
+
+	return customers, result.Error
 }
 
 // FindByID finds a customer by ID

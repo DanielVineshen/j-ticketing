@@ -8,7 +8,7 @@ import (
 // OrderTicketLog represents the order_ticket_log table
 type OrderTicketLog struct {
 	OrderTicketLogId   uint      `gorm:"primaryKey;column:order_ticket_log_id;type:bigint unsigned AUTO_INCREMENT"`
-	OrderTicketGroupId int       `gorm:"column:order_ticket_group_id;type:int;not null"`
+	OrderTicketGroupId uint      `gorm:"column:order_ticket_group_id;type:bigint unsigned;not null"`
 	Type               string    `gorm:"column:type;type:varchar(255);not null"`
 	Title              string    `gorm:"column:title;type:varchar(255);not null"`
 	Message            string    `gorm:"column:message;type:text;not null"`

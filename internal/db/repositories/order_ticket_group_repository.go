@@ -21,7 +21,15 @@ func NewOrderTicketGroupRepository(db *gorm.DB) *OrderTicketGroupRepository {
 // FindAll returns all order ticket groups
 func (r *OrderTicketGroupRepository) FindAll() ([]models.OrderTicketGroup, error) {
 	var orderTicketGroups []models.OrderTicketGroup
-	result := r.db.Find(&orderTicketGroups)
+	result := r.db.Preload("Customer").
+		Preload("OrderTicketLogs").
+		Preload("TicketGroup").
+		Preload("TicketGroup.TicketTags").
+		Preload("TicketGroup.TicketTags.Tag").
+		Preload("TicketGroup.GroupGalleries").
+		Preload("TicketGroup.TicketDetails").
+		Preload("OrderTicketInfos").
+		Find(&orderTicketGroups)
 	return orderTicketGroups, result.Error
 }
 
@@ -38,7 +46,14 @@ func (r *OrderTicketGroupRepository) FindByID(id uint) (*models.OrderTicketGroup
 // FindByCustomerID finds order ticket groups by customer ID
 func (r *OrderTicketGroupRepository) FindByCustomerID(custID string) ([]models.OrderTicketGroup, error) {
 	var orderTicketGroups []models.OrderTicketGroup
-	result := r.db.Where("cust_id = ?", custID).Find(&orderTicketGroups)
+	result := r.db.Where("cust_id = ?", custID).
+		Preload("OrderTicketLogs").
+		Preload("TicketGroup").
+		Preload("TicketGroup.TicketTags").
+		Preload("TicketGroup.TicketTags.Tag").
+		Preload("TicketGroup.GroupGalleries").
+		Preload("TicketGroup.TicketDetails").
+		Preload("OrderTicketInfos").Find(&orderTicketGroups)
 	return orderTicketGroups, result.Error
 }
 

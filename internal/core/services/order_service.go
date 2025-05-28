@@ -122,7 +122,6 @@ func (s *OrderService) GetOrderNonMemberInquiry(orderNo string, email string) (*
 	return &orderDTO, nil
 }
 
-// mapOrderToDTO maps an order model to its DTO representation
 func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.OrderTicketGroupDTO, error) {
 	// Map the order profile
 	orderProfile := orderDto.OrderProfileDTO{
@@ -156,20 +155,8 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 		orderProfile.BankName = order.BankName.String
 	}
 
-	// Get order ticket info items if they're not already loaded
-	var orderInfos []models.OrderTicketInfo
-	if len(order.OrderTicketInfos) > 0 {
-		orderInfos = order.OrderTicketInfos
-	} else {
-		var err error
-		orderInfos, err = s.orderTicketInfoRepo.FindByOrderTicketGroupID(order.OrderTicketGroupId)
-		if err != nil {
-			return orderDto.OrderTicketGroupDTO{}, err
-		}
-	}
-
-	// Map order ticket info items
-	for _, info := range orderInfos {
+	// Use preloaded OrderTicketInfos directly (no database call)
+	for _, info := range order.OrderTicketInfos {
 		infoDTO := orderDto.OrderTicketInfoDTO{
 			OrderTicketInfoId:  info.OrderTicketInfoId,
 			OrderTicketGroupId: info.OrderTicketGroupId,
@@ -193,45 +180,29 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 		orderProfile.OrderTicketInfo = append(orderProfile.OrderTicketInfo, infoDTO)
 	}
 
-	// Get the ticket group
-	var ticketGroup *models.TicketGroup
-	if order.TicketGroup.TicketGroupId > 0 {
-		// If already loaded via preload
-		ticketGroup = &order.TicketGroup
-	} else {
-		// Otherwise fetch it
-		var err error
-		ticketGroup, err = s.ticketGroupRepo.FindByID(order.TicketGroupId)
-		if err != nil {
-			return orderDto.OrderTicketGroupDTO{}, err
+	//  Use preloaded TicketGroup directly (no database call)
+	ticketGroup := &order.TicketGroup
+
+	// Validate that ticket group is loaded
+	if ticketGroup.TicketGroupId == 0 {
+		return orderDto.OrderTicketGroupDTO{}, fmt.Errorf("ticket group not preloaded for order %d", order.OrderTicketGroupId)
+	}
+
+	// Use preloaded tags from TicketGroup.TicketTags.Tag (no database call)
+	tagDTOs := make([]ticketGroupDto.TagDTO, 0, len(ticketGroup.TicketTags))
+	for _, ticketTag := range ticketGroup.TicketTags {
+		if ticketTag.Tag.TagId != 0 { // Ensure tag is loaded
+			tagDTOs = append(tagDTOs, ticketGroupDto.TagDTO{
+				TagId:   ticketTag.Tag.TagId,
+				TagName: ticketTag.Tag.TagName,
+				TagDesc: ticketTag.Tag.TagDesc,
+			})
 		}
 	}
 
-	// Get tags for this ticket group
-	tags, err := s.tagRepo.FindByTicketGroupID(ticketGroup.TicketGroupId)
-	if err != nil {
-		return orderDto.OrderTicketGroupDTO{}, err
-	}
-
-	// Map tags to DTOs
-	tagDTOs := make([]ticketGroupDto.TagDTO, 0, len(tags))
-	for _, tag := range tags {
-		tagDTOs = append(tagDTOs, ticketGroupDto.TagDTO{
-			TagId:   tag.TagId,
-			TagName: tag.TagName,
-			TagDesc: tag.TagDesc,
-		})
-	}
-
-	// Get gallery items for this ticket group
-	galleries, err := s.groupGalleryRepo.FindByTicketGroupID(ticketGroup.TicketGroupId)
-	if err != nil {
-		return orderDto.OrderTicketGroupDTO{}, err
-	}
-
-	// Map gallery items to DTOs
-	galleryDTOs := make([]ticketGroupDto.GroupGalleryDTO, 0, len(galleries))
-	for _, gallery := range galleries {
+	// Use preloaded galleries from TicketGroup.GroupGalleries (no database call)
+	galleryDTOs := make([]ticketGroupDto.GroupGalleryDTO, 0, len(ticketGroup.GroupGalleries))
+	for _, gallery := range ticketGroup.GroupGalleries {
 		galleryDTOs = append(galleryDTOs, ticketGroupDto.GroupGalleryDTO{
 			GroupGalleryId:  gallery.GroupGalleryId,
 			AttachmentName:  gallery.AttachmentName,
@@ -242,15 +213,9 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 		})
 	}
 
-	// Get ticket details for this ticket group
-	details, err := s.ticketDetailRepo.FindByTicketGroupID(ticketGroup.TicketGroupId)
-	if err != nil {
-		return orderDto.OrderTicketGroupDTO{}, err
-	}
-
-	// Map ticket details to DTOs
-	detailDTOs := make([]ticketGroupDto.TicketDetailDTO, 0, len(details))
-	for _, detail := range details {
+	// Use preloaded details from TicketGroup.TicketDetails (no database call)
+	detailDTOs := make([]ticketGroupDto.TicketDetailDTO, 0, len(ticketGroup.TicketDetails))
+	for _, detail := range ticketGroup.TicketDetails {
 		detailDTOs = append(detailDTOs, ticketGroupDto.TicketDetailDTO{
 			TicketDetailId: detail.TicketDetailId,
 			Title:          detail.Title,

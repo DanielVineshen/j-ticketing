@@ -14,7 +14,7 @@ type Tag struct {
 	UpdatedAt time.Time `gorm:"column:updated_at;not null"`
 
 	// Relationships
-	TicketGroups []TicketGroup `gorm:"-"`
+	TicketTags []TicketTag `gorm:"foreignKey:TagId"`
 }
 
 // TableName overrides the table name

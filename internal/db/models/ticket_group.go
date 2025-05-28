@@ -40,10 +40,10 @@ type TicketGroup struct {
 
 	// Relationships defined without foreign key constraints
 	// These will be used for Go code navigation but won't create DB constraints
-	OrderTicketGroups []OrderTicketGroup `gorm:"-"`
-	GroupGallery      []GroupGallery     `gorm:"-"`
-	TicketTag         []TicketTag        `gorm:"-"`
-	TicketGroup       []TicketGroup      `gorm:"-"`
+	OrderTicketGroups []OrderTicketGroup `gorm:"foreignKey:TicketGroupId"`
+	GroupGalleries    []GroupGallery     `gorm:"foreignKey:TicketGroupId"`
+	TicketDetails     []TicketDetail     `gorm:"foreignKey:TicketGroupId"`
+	TicketTags        []TicketTag        `gorm:"foreignKey:TicketGroupId"`
 }
 
 // TableName overrides the table name

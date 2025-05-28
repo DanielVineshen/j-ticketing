@@ -409,6 +409,31 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 	//return c.Redirect(redirectURL)
 }
 
+func (h *OrderHandler) GetOrderManagement(c *fiber.Ctx) error {
+	startDate := c.Query("startDate")
+	if startDate == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			"Missing start date", nil,
+		))
+	}
+
+	endDate := c.Query("endDate")
+	if endDate == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			"Missing end date", nil,
+		))
+	}
+
+	orderTicketGroups, err := h.orderService.GetAllOrderTicketGroups("")
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
+			"Could not get order ticket groups: "+err.Error(), nil,
+		))
+	}
+
+	return c.JSON(models.NewBaseSuccessResponse(orderTicketGroups))
+}
+
 // Generate the checkout URL based on order ID and payment type
 func (h *OrderHandler) generateCheckoutURL(orderID uint, paymentType string) string {
 	// Base checkout URL

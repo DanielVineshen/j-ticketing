@@ -23,4 +23,7 @@ func SetupOrderRoutes(app *fiber.App, orderHandler *handlers.OrderHandler, jwtSe
 	// Add create order endpoint
 	orderGroup.Post("/orderTicketGroup", orderHandler.CreateOrderTicketGroup)
 	orderGroup.Post("/orderTicketGroup/free", orderHandler.CreateFreeOrderTicketGroup)
+
+	// Admin module
+	orderGroup.Get("/orderTicketGroups/management", orderHandler.GetOrderManagement)
 }

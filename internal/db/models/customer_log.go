@@ -17,7 +17,7 @@ type CustomerLog struct {
 	UpdatedAt time.Time `gorm:"column:updated_at;type:datetime;not null"`
 
 	// Relationships defined without foreign key constraints
-	Customer Customer `gorm:"-"`
+	Customer Customer `gorm:"foreignKey:CustId;references:CustId;constraint:false"`
 }
 
 // TableName overrides the table name

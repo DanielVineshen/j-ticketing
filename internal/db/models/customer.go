@@ -19,7 +19,8 @@ type Customer struct {
 	UpdatedAt        time.Time      `gorm:"column:updated_at;not null"`
 
 	// Relationships defined without foreign key constraints
-	OrderTicketGroups []OrderTicketGroup `gorm:"-"`
+	OrderTicketGroups []OrderTicketGroup `gorm:"foreignKey:CustId"`
+	CustomerLogs      []CustomerLog      `gorm:"foreignKey:CustId"`
 }
 
 // TableName overrides the table name

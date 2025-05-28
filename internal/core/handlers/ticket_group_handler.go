@@ -4,7 +4,6 @@ package handlers
 import (
 	dto "j-ticketing/internal/core/dto/ticket_group"
 	services "j-ticketing/internal/core/services"
-	"j-ticketing/pkg/errors"
 	"j-ticketing/pkg/models"
 	"net/http"
 	"os"
@@ -56,14 +55,14 @@ func (h *TicketGroupHandler) GetTicketProfile(c *fiber.Ctx) error {
 
 	if ticketGroupIdStr == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_FORMAT.Code, "Missing ticketGroupId parameter", nil,
+			"Missing ticketGroupId parameter", nil,
 		))
 	}
 
 	ticketGroupId, err := strconv.ParseUint(ticketGroupIdStr, 10, 32)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_VALUES.Code, "Invalid ticketGroupId parameter", nil,
+			"Invalid ticketGroupId parameter", nil,
 		))
 	}
 
@@ -71,7 +70,7 @@ func (h *TicketGroupHandler) GetTicketProfile(c *fiber.Ctx) error {
 	response, err := h.ticketGroupService.GetTicketProfile(uint(ticketGroupId))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.PROCESSING_ERROR.Code, "Internal Server Error: "+err.Error(), nil,
+			"Internal Server Error: "+err.Error(), nil,
 		))
 	}
 
@@ -88,13 +87,13 @@ func (h *TicketGroupHandler) GetTicketVariants(c *fiber.Ctx) error {
 	// Validate the parameters
 	if ticketGroupIdStr == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_FORMAT.Code, "Missing ticketGroupId parameter", nil,
+			"Missing ticketGroupId parameter", nil,
 		))
 	}
 
 	if date == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_FORMAT.Code, "Missing date parameter", nil,
+			"Missing date parameter", nil,
 		))
 	}
 
@@ -102,7 +101,7 @@ func (h *TicketGroupHandler) GetTicketVariants(c *fiber.Ctx) error {
 	ticketGroupId, err := strconv.ParseUint(ticketGroupIdStr, 10, 32)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_VALUES.Code, "Invalid ticketGroupId parameter", nil,
+			"Invalid ticketGroupId parameter", nil,
 		))
 	}
 
@@ -110,7 +109,7 @@ func (h *TicketGroupHandler) GetTicketVariants(c *fiber.Ctx) error {
 	_, err = time.Parse("2006-01-02", date)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_VALUES.Code, "Invalid date format. Required format: YYYY-MM-DD", nil,
+			"Invalid date format. Required format: YYYY-MM-DD", nil,
 		))
 	}
 
@@ -118,7 +117,7 @@ func (h *TicketGroupHandler) GetTicketVariants(c *fiber.Ctx) error {
 	response, err := h.ticketGroupService.GetTicketVariants(uint(ticketGroupId), date)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
-			errors.PROCESSING_ERROR.Code, "Failed to get ticket variants: "+err.Error(), nil,
+			"Failed to get ticket variants: "+err.Error(), nil,
 		))
 	}
 
@@ -131,7 +130,7 @@ func (h *TicketGroupHandler) GetTicketGroupImage(c *fiber.Ctx) error {
 	uniqueExtension := c.Params("uniqueExtension")
 	if uniqueExtension == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_FORMAT.Code, "Missing uniqueExtension parameter", nil,
+			"Missing uniqueExtension parameter", nil,
 		))
 	}
 
@@ -139,7 +138,7 @@ func (h *TicketGroupHandler) GetTicketGroupImage(c *fiber.Ctx) error {
 	contentType, filePath, err := h.ticketGroupService.GetImageInfo(uniqueExtension)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.FILE_NOT_FOUND.Code, "File not found.", nil,
+			"File not found.", nil,
 		))
 	}
 

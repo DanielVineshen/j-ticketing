@@ -48,7 +48,7 @@ func GlobalErrorHandler(logger *slog.Logger) fiber.ErrorHandler {
 			case fiber.StatusForbidden:
 				response.RespCode = errors.USER_NOT_PERMITTED.Code
 			case fiber.StatusNotFound:
-				response.RespCode = errors.FILE_NOT_FOUND.Code
+				response.RespCode = errors.NOT_FOUND.Code
 			case fiber.StatusUnsupportedMediaType:
 				response.RespCode = errors.UNSUPPORTED_MEDIA_TYPE_EXCEPTION.Code
 			}

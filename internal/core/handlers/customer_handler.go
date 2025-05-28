@@ -4,7 +4,6 @@ package handlers
 import (
 	dto "j-ticketing/internal/core/dto/customer"
 	service "j-ticketing/internal/core/services"
-	"j-ticketing/pkg/errors"
 	"j-ticketing/pkg/models"
 
 	"github.com/gofiber/fiber/v2"
@@ -30,7 +29,7 @@ func (h *CustomerHandler) GetCustomer(c *fiber.Ctx) error {
 		custId = c.Query("custId")
 		if custId == "" {
 			return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(
-				errors.INVALID_INPUT_FORMAT.Code, "Missing custId parameter", nil,
+				"Missing custId parameter", nil,
 			))
 		}
 	}
@@ -38,7 +37,7 @@ func (h *CustomerHandler) GetCustomer(c *fiber.Ctx) error {
 	customer, err := h.customerService.GetCustomerByID(custId)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(
-			errors.USER_NOT_EXIST.Code, "Customer does not exist", nil,
+			"Customer does not exist", nil,
 		))
 	}
 
@@ -63,14 +62,14 @@ func (h *CustomerHandler) UpdateCustomer(c *fiber.Ctx) error {
 	var req dto.UpdateCustomerRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_FORMAT.Code, "Invalid request body", nil,
+			"Invalid request body", nil,
 		))
 	}
 
 	// Validate request
 	if err := req.Validate(); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_FORMAT.Code, err.Error(), nil,
+			err.Error(), nil,
 		))
 	}
 
@@ -81,7 +80,7 @@ func (h *CustomerHandler) UpdateCustomer(c *fiber.Ctx) error {
 	_, err := h.customerService.UpdateCustomer(userID, req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
-			errors.PROCESSING_ERROR.Code, "Internal server Error: "+err.Error(), nil,
+			"Internal server Error: "+err.Error(), nil,
 		))
 	}
 
@@ -94,7 +93,7 @@ func (h *CustomerHandler) ChangePassword(c *fiber.Ctx) error {
 	var req dto.ChangePasswordRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_FORMAT.Code, "Invalid request body", nil,
+			"Invalid request body", nil,
 		))
 	}
 
@@ -105,7 +104,7 @@ func (h *CustomerHandler) ChangePassword(c *fiber.Ctx) error {
 	err := h.customerService.ChangePassword(userID, req.CurrentPassword, req.NewPassword)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_CREDENTIALS.Code, err.Error(), nil,
+			err.Error(), nil,
 		))
 	}
 

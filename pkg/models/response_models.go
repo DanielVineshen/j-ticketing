@@ -1,5 +1,7 @@
 package models
 
+import "j-ticketing/pkg/errors"
+
 // BaseErrorResponse represents the standard error response structure
 type BaseErrorResponse struct {
 	RespCode int         `json:"respCode"`
@@ -8,9 +10,9 @@ type BaseErrorResponse struct {
 }
 
 // NewBaseErrorResponse creates a new BaseErrorResponse
-func NewBaseErrorResponse(code int, message string, result interface{}) *BaseErrorResponse {
+func NewBaseErrorResponse(message string, result interface{}) *BaseErrorResponse {
 	return &BaseErrorResponse{
-		RespCode: code,
+		RespCode: 4000,
 		RespDesc: message,
 		Result:   result,
 	}
@@ -26,7 +28,7 @@ type BaseSuccessResponse struct {
 // NewBaseSuccessResponse creates a new BaseSuccessResponse
 func NewBaseSuccessResponse(result interface{}) *BaseSuccessResponse {
 	return &BaseSuccessResponse{
-		RespCode: 2000,
+		RespCode: errors.SUCCESS.Code,
 		RespDesc: "Success",
 		Result:   result,
 	}

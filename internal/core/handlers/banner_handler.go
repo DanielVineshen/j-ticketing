@@ -3,7 +3,6 @@ package handlers
 
 import (
 	service "j-ticketing/internal/core/services"
-	"j-ticketing/pkg/errors"
 	"j-ticketing/pkg/models"
 	"net/http"
 	"os"
@@ -29,7 +28,7 @@ func (h *BannerHandler) GetBannerImage(c *fiber.Ctx) error {
 	uniqueExtension := c.Params("uniqueExtension")
 	if uniqueExtension == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_FORMAT.Code, "Missing uniqueExtension parameter", nil,
+			"Missing uniqueExtension parameter", nil,
 		))
 	}
 
@@ -37,7 +36,7 @@ func (h *BannerHandler) GetBannerImage(c *fiber.Ctx) error {
 	contentType, filePath, err := h.bannerService.GetImageInfo(uniqueExtension)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.FILE_NOT_FOUND.Code, "File not found.", nil,
+			"File not found.", nil,
 		))
 	}
 

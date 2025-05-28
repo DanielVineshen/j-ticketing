@@ -32,7 +32,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	var req dto.LoginRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			4000, "Invalid request body", nil,
+			"Invalid request body", nil,
 		))
 	}
 
@@ -40,7 +40,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	if err := req.Validate(); err != nil {
 		// For now, just use a simple error message
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			4001, "Validation failed: "+err.Error(), nil,
+			"Validation failed: "+err.Error(), nil,
 		))
 	}
 
@@ -62,14 +62,14 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		tokenResp, err = h.authService.LoginCustomer(req.Username, req.Password)
 	default:
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			4001, "Invalid user type", nil,
+			"Invalid user type", nil,
 		))
 	}
 
 	if err != nil {
 		log.Printf("Login failed: %v", err)
 		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
-			4010, err.Error(), nil,
+			err.Error(), nil,
 		))
 	}
 
@@ -98,7 +98,7 @@ func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 	authHeader := c.Get("Authorization")
 	if authHeader == "" || len(authHeader) < 8 || !strings.HasPrefix(authHeader, "Bearer ") {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			4000, "Refresh token is required", nil,
+			"Refresh token is required", nil,
 		))
 	}
 
@@ -109,7 +109,7 @@ func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 	tokenResp, err := h.authService.RefreshToken(refreshToken)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
-			4010, err.Error(), nil,
+			err.Error(), nil,
 		))
 	}
 
@@ -121,7 +121,7 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 	authHeader := c.Get("Authorization")
 	if authHeader == "" || len(authHeader) < 8 || !strings.HasPrefix(authHeader, "Bearer ") {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			4000, "Access token is required", nil,
+			"Access token is required", nil,
 		))
 	}
 
@@ -132,7 +132,7 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 	username, ok := c.Locals("username").(string)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
-			4010, "User not authenticated", nil,
+			"User not authenticated", nil,
 		))
 	}
 
@@ -152,7 +152,7 @@ func (h *AuthHandler) ValidateToken(c *fiber.Ctx) error {
 	authHeader := c.Get("Authorization")
 	if authHeader == "" || len(authHeader) < 8 || authHeader[:7] != "Bearer " {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			4000, "Invalid authorization header", nil,
+			"Invalid authorization header", nil,
 		))
 	}
 
@@ -163,7 +163,7 @@ func (h *AuthHandler) ValidateToken(c *fiber.Ctx) error {
 	isValid, err := h.authService.ValidateToken(token)
 	if err != nil || !isValid {
 		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
-			4010, "Invalid or expired token", nil,
+			"Invalid or expired token", nil,
 		))
 	}
 
@@ -178,14 +178,14 @@ func (h *AuthHandler) CreateCustomer(c *fiber.Ctx) error {
 	var req dto.CreateCustomerRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			4000, "Invalid request format", nil,
+			"Invalid request format", nil,
 		))
 	}
 
 	// Validate the request
 	if err := req.Validate(); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			4001, "Validation failed: "+err.Error(), nil,
+			"Validation failed: "+err.Error(), nil,
 		))
 	}
 
@@ -197,12 +197,12 @@ func (h *AuthHandler) CreateCustomer(c *fiber.Ctx) error {
 		// Check for specific errors
 		if err.Error() == "email already exists" {
 			return c.Status(fiber.StatusConflict).JSON(models.NewBaseErrorResponse(
-				4009, "A customer with this email already exists", nil,
+				"A customer with this email already exists", nil,
 			))
 		}
 
 		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
-			5000, "Failed to create customer: "+err.Error(), nil,
+			"Failed to create customer: "+err.Error(), nil,
 		))
 	}
 
@@ -226,14 +226,14 @@ func (h *AuthHandler) ResetCustomerPassword(c *fiber.Ctx) error {
 	var req dto.ResetPasswordRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			4000, "Invalid request format", nil,
+			"Invalid request format", nil,
 		))
 	}
 
 	// Validate the request
 	if err := req.Validate(); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			4001, "Validation failed: "+err.Error(), nil,
+			"Validation failed: "+err.Error(), nil,
 		))
 	}
 
@@ -243,7 +243,7 @@ func (h *AuthHandler) ResetCustomerPassword(c *fiber.Ctx) error {
 		log.Printf("Failed to reset password: %v", err)
 		// Don't expose specific error details to the client (security measure)
 		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
-			5000, "An error occurred while processing your request", nil,
+			"An error occurred while processing your request", nil,
 		))
 	}
 

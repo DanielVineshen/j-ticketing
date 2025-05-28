@@ -49,7 +49,7 @@ func (h *OrderHandler) GetOrderTicketGroups(c *fiber.Ctx) error {
 	custId, ok := c.Locals("userId").(string)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
-			errors.USER_NOT_AUTHORIZED.Code, "User not authenticated", nil,
+			"User not authenticated", nil,
 		))
 	}
 
@@ -57,7 +57,7 @@ func (h *OrderHandler) GetOrderTicketGroups(c *fiber.Ctx) error {
 	userType, ok := c.Locals("userType").(string)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
-			errors.USER_NOT_AUTHORIZED.Code, "User type not found", nil,
+			"User type not found", nil,
 		))
 	}
 
@@ -65,7 +65,7 @@ func (h *OrderHandler) GetOrderTicketGroups(c *fiber.Ctx) error {
 	userRole, ok := c.Locals("role").(string)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
-			errors.USER_NOT_AUTHORIZED.Code, "User role not found", nil,
+			"User role not found", nil,
 		))
 	}
 
@@ -82,13 +82,13 @@ func (h *OrderHandler) GetOrderTicketGroups(c *fiber.Ctx) error {
 		response, err = h.orderService.GetAllOrderTicketGroups(custId)
 	} else {
 		return c.Status(fiber.StatusForbidden).JSON(models.NewBaseErrorResponse(
-			errors.USER_NOT_PERMITTED.Code, "You are not authorized to view these orders", nil,
+			"You are not authorized to view these orders", nil,
 		))
 	}
 
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
-			errors.PROCESSING_ERROR.Code, "Failed to retrieve order ticket groups: "+err.Error(), nil,
+			"Failed to retrieve order ticket groups: "+err.Error(), nil,
 		))
 	}
 
@@ -101,21 +101,21 @@ func (h *OrderHandler) GetOrderTicketGroup(c *fiber.Ctx) error {
 	orderTicketGroupIdStr := c.Query("orderTicketGroupId")
 	if orderTicketGroupIdStr == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_FORMAT.Code, "Missing order ticket group ID", nil,
+			"Missing order ticket group ID", nil,
 		))
 	}
 
 	orderTicketGroupId, err := strconv.ParseUint(orderTicketGroupIdStr, 10, 32)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_VALUES.Code, "Invalid order ticket group ID", nil,
+			"Invalid order ticket group ID", nil,
 		))
 	}
 	// Get the order ticket group
 	order, err := h.orderService.GetOrderTicketGroup(uint(orderTicketGroupId))
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(
-			errors.ENTITY_NOT_FOUND_EXCEPTION.Code, "Order ticket group not found", nil,
+			"Order ticket group not found", nil,
 		))
 	}
 
@@ -126,14 +126,14 @@ func (h *OrderHandler) GetOrderNonMemberInquiry(c *fiber.Ctx) error {
 	orderNoStr := c.Query("orderNo")
 	if orderNoStr == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_FORMAT.Code, "Missing order number", nil,
+			"Missing order number", nil,
 		))
 	}
 
 	emailStr := c.Query("email")
 	if emailStr == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_FORMAT.Code, "Missing email", nil,
+			"Missing email", nil,
 		))
 	}
 
@@ -141,7 +141,7 @@ func (h *OrderHandler) GetOrderNonMemberInquiry(c *fiber.Ctx) error {
 	order, err := h.orderService.GetOrderNonMemberInquiry(orderNoStr, emailStr)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(
-			errors.ENTITY_NOT_FOUND_EXCEPTION.Code, "Order ticket group not found", nil,
+			"Order ticket group not found", nil,
 		))
 	}
 
@@ -154,14 +154,14 @@ func (h *OrderHandler) CreateOrderTicketGroup(c *fiber.Ctx) error {
 	var req orderDto.CreateOrderRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_FORMAT.Code, "Invalid request format", nil,
+			"Invalid request format", nil,
 		))
 	}
 
 	// Validate request
 	if err := req.Validate(); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_VALUES.Code, err.Error(), nil,
+			err.Error(), nil,
 		))
 	}
 
@@ -187,14 +187,14 @@ func (h *OrderHandler) CreateOrderTicketGroup(c *fiber.Ctx) error {
 			}
 		} else {
 			return c.Status(fiber.StatusForbidden).JSON(models.NewBaseErrorResponse(
-				errors.USER_NOT_AUTHORIZED.Code, errors.USER_NOT_AUTHORIZED.Message, nil,
+				errors.USER_NOT_AUTHORIZED.Message, nil,
 			))
 		}
 	} else {
 		// Check if any of the required fields are empty strings
 		if req.Email == "" || req.IdentificationNo == "" || req.FullName == "" || req.ContactNo == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-				errors.INVALID_INPUT_VALUES.Code, "All customer information (email, identification number, full name, and contact number) must be provided", nil,
+				"All customer information (email, identification number, full name, and contact number) must be provided", nil,
 			))
 		}
 
@@ -211,7 +211,7 @@ func (h *OrderHandler) CreateOrderTicketGroup(c *fiber.Ctx) error {
 
 			if err != nil {
 				return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
-					errors.PROCESSING_ERROR.Code, "Failed to create customer: "+err.Error(), nil,
+					"Failed to create customer: "+err.Error(), nil,
 				))
 			}
 
@@ -227,15 +227,15 @@ func (h *OrderHandler) CreateOrderTicketGroup(c *fiber.Ctx) error {
 		// Determine appropriate error code based on the error
 		if strings.Contains(err.Error(), "not found") {
 			return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(
-				errors.ENTITY_NOT_FOUND_EXCEPTION.Code, err.Error(), nil,
+				err.Error(), nil,
 			))
 		} else if strings.Contains(err.Error(), "payment processing failed") {
 			return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-				errors.PROCESSING_ERROR.Code, err.Error(), nil,
+				err.Error(), nil,
 			))
 		} else {
 			return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
-				errors.PROCESSING_ERROR.Code, "Failed to create order: "+err.Error(), nil,
+				"Failed to create order: "+err.Error(), nil,
 			))
 		}
 	}
@@ -255,14 +255,14 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 	var req orderDto.CreateFreeOrderRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_FORMAT.Code, "Invalid request format", nil,
+			"Invalid request format", nil,
 		))
 	}
 
 	// Validate request
 	if err := req.Validate(); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			errors.INVALID_INPUT_VALUES.Code, err.Error(), nil,
+			err.Error(), nil,
 		))
 	}
 
@@ -288,14 +288,14 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 			}
 		} else {
 			return c.Status(fiber.StatusForbidden).JSON(models.NewBaseErrorResponse(
-				errors.USER_NOT_AUTHORIZED.Code, errors.USER_NOT_AUTHORIZED.Message, nil,
+				errors.USER_NOT_AUTHORIZED.Message, nil,
 			))
 		}
 	} else {
 		// Check if any of the required fields are empty strings
 		if req.Email == "" || req.IdentificationNo == "" || req.FullName == "" || req.ContactNo == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-				errors.INVALID_INPUT_VALUES.Code, "All customer information (email, identification number, full name, and contact number) must be provided", nil,
+				"All customer information (email, identification number, full name, and contact number) must be provided", nil,
 			))
 		}
 
@@ -312,7 +312,7 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 
 			if err != nil {
 				return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
-					errors.PROCESSING_ERROR.Code, "Failed to create customer: "+err.Error(), nil,
+					"Failed to create customer: "+err.Error(), nil,
 				))
 			}
 
@@ -328,11 +328,11 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 		// Determine appropriate error code based on the error
 		if strings.Contains(err.Error(), "not found") {
 			return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(
-				errors.ENTITY_NOT_FOUND_EXCEPTION.Code, err.Error(), nil,
+				err.Error(), nil,
 			))
 		} else {
 			return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
-				errors.PROCESSING_ERROR.Code, "Failed to create order: "+err.Error(), nil,
+				"Failed to create order: "+err.Error(), nil,
 			))
 		}
 	}

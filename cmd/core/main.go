@@ -118,6 +118,7 @@ func main() {
 	orderTicketInfoRepo := repositories.NewOrderTicketInfoRepository(database)
 	bannerRepo := repositories.NewBannerRepository(database)
 	orderTicketLogRepo := repositories.NewOrderTicketLogRepository(database)
+	customerLogRepo := repositories.NewCustomerLogRepository(database)
 
 	// Initialize services
 	paymentService := service.NewPaymentService(
@@ -157,14 +158,14 @@ func main() {
 		ticketGroupService,
 		orderTicketLogRepo,
 	)
-	customerService := service.NewCustomerService(customerRepo)
+	customerService := service.NewCustomerService(customerRepo, customerLogRepo)
 	bannerService := service.NewBannerService(bannerRepo)
 	groupGalleryService := service.NewGroupGalleryService(groupGalleryRepo)
 	pdfService := service.NewPDFService()
 
 	// Initialize handlers
 	ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService)
-	authHandler := handlers.NewAuthHandler(authService, emailService)
+	authHandler := handlers.NewAuthHandler(authService, emailService, customerService)
 	customerHandler := handlers.NewCustomerHandler(customerService)
 	bannerHandler := handlers.NewBannerHandler(bannerService)
 	groupGalleryHandler := handlers.NewGroupGalleryHandler(groupGalleryService)

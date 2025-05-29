@@ -14,15 +14,17 @@ import (
 
 // AuthHandler handles authentication related HTTP requests
 type AuthHandler struct {
-	authService  service.AuthService
-	emailService email.EmailService
+	authService     service.AuthService
+	emailService    email.EmailService
+	customerService service.CustomerService
 }
 
 // NewAuthHandler creates a new authentication handler
-func NewAuthHandler(authService service.AuthService, emailService email.EmailService) *AuthHandler {
+func NewAuthHandler(authService service.AuthService, emailService email.EmailService, customerService service.CustomerService) *AuthHandler {
 	return &AuthHandler{
-		authService:  authService,
-		emailService: emailService,
+		authService:     authService,
+		emailService:    emailService,
+		customerService: customerService,
 	}
 }
 
@@ -206,6 +208,11 @@ func (h *AuthHandler) CreateCustomer(c *fiber.Ctx) error {
 		))
 	}
 
+	err = h.customerService.CreateCustomerLog("account", "Member Joined", "Customer registered as a new member", *customer)
+	if err != nil {
+		return err
+	}
+
 	// Create a response object that doesn't include sensitive data
 	response := map[string]interface{}{
 		"custId":           customer.CustId,
@@ -238,13 +245,18 @@ func (h *AuthHandler) ResetCustomerPassword(c *fiber.Ctx) error {
 	}
 
 	// Reset password
-	_, err := h.authService.ResetPassword(req.Email)
+	customer, _, err := h.authService.ResetPassword(req.Email)
 	if err != nil {
 		log.Printf("Failed to reset password: %v", err)
 		// Don't expose specific error details to the client (security measure)
 		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
 			"An error occurred while processing your request", nil,
 		))
+	}
+
+	err = h.customerService.CreateCustomerLog("account", "Member Reset Password", "Customer reset their password", *customer)
+	if err != nil {
+		return err
 	}
 
 	// Always return success (security measure)

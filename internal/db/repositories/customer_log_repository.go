@@ -16,6 +16,6 @@ func NewCustomerLogRepository(db *gorm.DB) *CustomerLogRepository {
 }
 
 // Create creates a new audit log
-func (r *CustomerLogRepository) Create(auditLog *models.CustomerLog) error {
-	return r.db.Create(auditLog).Error
+func (r *CustomerLogRepository) Create(customerLog *models.CustomerLog) error {
+	return r.db.Create(customerLog).Error
 }

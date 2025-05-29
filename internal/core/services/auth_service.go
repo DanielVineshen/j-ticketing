@@ -32,7 +32,7 @@ type AuthService interface {
 
 	// Customer management
 	CreateCustomer(req *dto.CreateCustomerRequest) (*coremodels.Customer, error)
-	ResetPassword(email string) (*dto.PasswordChangeResult, error)
+	ResetPassword(email string) (*coremodels.Customer, *dto.PasswordChangeResult, error)
 }
 
 type authService struct {
@@ -391,28 +391,29 @@ func (s *authService) CreateCustomer(req *dto.CreateCustomerRequest) (*coremodel
 }
 
 // ResetPassword resets a customer's password
-func (s *authService) ResetPassword(email string) (*dto.PasswordChangeResult, error) {
+func (s *authService) ResetPassword(email string) (*coremodels.Customer, *dto.PasswordChangeResult, error) {
 	// Find customer by email
 	customer, err := s.customerRepo.FindByEmail(email)
 
 	// If customer doesn't exist, return success anyway (security measure)
 	if err != nil {
-		return &dto.PasswordChangeResult{
-			Success: true,
-			Message: "If your email exists in our system, you will receive a password reset email shortly.",
-		}, nil
+		return customer,
+			&dto.PasswordChangeResult{
+				Success: true,
+				Message: "If your email exists in our system, you will receive a password reset email shortly.",
+			}, nil
 	}
 
 	// Generate a new random password (12 characters)
 	newPassword, err := util.GenerateRandomPassword(12)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate password: %w", err)
+		return nil, nil, fmt.Errorf("failed to generate password: %w", err)
 	}
 
 	// Hash the new password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, fmt.Errorf("failed to hash password: %w", err)
+		return nil, nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
 	// Update customer's password
@@ -420,7 +421,7 @@ func (s *authService) ResetPassword(email string) (*dto.PasswordChangeResult, er
 	customer.UpdatedAt = time.Now()
 
 	if err := s.customerRepo.Update(customer); err != nil {
-		return nil, fmt.Errorf("failed to update customer password: %w", err)
+		return nil, nil, fmt.Errorf("failed to update customer password: %w", err)
 	}
 
 	// Send email with the new password
@@ -430,8 +431,9 @@ func (s *authService) ResetPassword(email string) (*dto.PasswordChangeResult, er
 		// Continue anyway since the password has been reset
 	}
 
-	return &dto.PasswordChangeResult{
-		Success: true,
-		Message: "If your email exists in our system, you will receive a password reset email shortly.",
-	}, nil
+	return customer,
+		&dto.PasswordChangeResult{
+			Success: true,
+			Message: "If your email exists in our system, you will receive a password reset email shortly.",
+		}, nil
 }

@@ -9,7 +9,7 @@ import (
 	orderDto "j-ticketing/internal/core/dto/order"
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
-	bcryptPassword "j-ticketing/pkg/utils"
+	"j-ticketing/pkg/utils"
 	"time"
 )
 
@@ -19,19 +19,22 @@ type CustomerService interface {
 	RegisterCustomer(email, password, identificationNo, fullName, contactNo string) (*models.Customer, error)
 	GetCustomerByID(id string) (*models.Customer, error)
 	UpdateCustomer(id string, req dto.UpdateCustomerRequest) (*models.Customer, error)
-	ChangePassword(id, currentPassword, newPassword string) error
+	ChangePassword(id, currentPassword, newPassword string) (*models.Customer, error)
 	ListCustomers() ([]models.Customer, error)
 	GetCustomerByEmail(email string) (*models.Customer, error)
+	CreateCustomerLog(logType string, title string, message string, customer models.Customer) error
 }
 
 type customerService struct {
-	customerRepo repositories.CustomerRepository
+	customerRepo    repositories.CustomerRepository
+	customerLogRepo *repositories.CustomerLogRepository
 }
 
 // NewCustomerService creates a new customer service
-func NewCustomerService(customerRepo repositories.CustomerRepository) CustomerService {
+func NewCustomerService(customerRepo repositories.CustomerRepository, customerLogRepo *repositories.CustomerLogRepository) CustomerService {
 	return &customerService{
-		customerRepo: customerRepo,
+		customerRepo:    customerRepo,
+		customerLogRepo: customerLogRepo,
 	}
 }
 
@@ -173,7 +176,7 @@ func (s *customerService) RegisterCustomer(email, password, identificationNo, fu
 	// Only hash and set password if it's provided
 	if password != "" {
 		// Hash the password
-		hashedPassword, err := bcryptPassword.HashPassword(password)
+		hashedPassword, err := utils.HashPassword(password)
 		if err != nil {
 			return nil, err
 		}
@@ -192,7 +195,7 @@ func (s *customerService) RegisterCustomer(email, password, identificationNo, fu
 	}
 
 	// Generate a unique customer ID
-	custID, err := bcryptPassword.GenerateRandomToken(8)
+	custID, err := utils.GenerateRandomToken(8)
 	if err != nil {
 		return nil, err
 	}
@@ -253,22 +256,22 @@ func (s *customerService) UpdateCustomer(id string, req dto.UpdateCustomerReques
 }
 
 // ChangePassword changes a customer's password
-func (s *customerService) ChangePassword(id, currentPassword, newPassword string) error {
+func (s *customerService) ChangePassword(id, currentPassword, newPassword string) (*models.Customer, error) {
 	customer, err := s.customerRepo.FindByID(id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Verify current password
-	err = bcryptPassword.CheckPassword(currentPassword, customer.Password.String)
+	err = utils.CheckPassword(currentPassword, customer.Password.String)
 	if err != nil {
-		return fmt.Errorf("current password is incorrect")
+		return nil, fmt.Errorf("current password is incorrect")
 	}
 
 	// Hash the new password
-	hashedPassword, err := bcryptPassword.HashPassword(newPassword)
+	hashedPassword, err := utils.HashPassword(newPassword)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	customer.Password = sql.NullString{
@@ -278,7 +281,7 @@ func (s *customerService) ChangePassword(id, currentPassword, newPassword string
 
 	customer.UpdatedAt = time.Now()
 
-	return s.customerRepo.Update(customer)
+	return customer, s.customerRepo.Update(customer)
 }
 
 // ListCustomers lists all customers
@@ -297,6 +300,28 @@ func (s *customerService) ListCustomers() ([]models.Customer, error) {
 	}
 
 	return customers, nil
+}
+
+func (s *customerService) CreateCustomerLog(logType string, title string, message string, customer models.Customer) error {
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+
+	customerLog := models.CustomerLog{
+		Customer: customer,
+		Type:     logType,
+		Title:    title,
+		Message:  message,
+		Date:     malaysiaTime,
+	}
+
+	err = s.customerLogRepo.Create(&customerLog)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func getStringFromNullString(ns sql.NullString) string {

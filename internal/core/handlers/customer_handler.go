@@ -77,11 +77,16 @@ func (h *CustomerHandler) UpdateCustomer(c *fiber.Ctx) error {
 	userID := c.Locals("userId").(string)
 
 	// Update customer
-	_, err := h.customerService.UpdateCustomer(userID, req)
+	customer, err := h.customerService.UpdateCustomer(userID, req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
 			"Internal server Error: "+err.Error(), nil,
 		))
+	}
+
+	err = h.customerService.CreateCustomerLog("account", "Member Update Account", "Customer updated their account", *customer)
+	if err != nil {
+		return err
 	}
 
 	return c.JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
@@ -101,11 +106,16 @@ func (h *CustomerHandler) ChangePassword(c *fiber.Ctx) error {
 	userID := c.Locals("userId").(string)
 
 	// Change password
-	err := h.customerService.ChangePassword(userID, req.CurrentPassword, req.NewPassword)
+	customer, err := h.customerService.ChangePassword(userID, req.CurrentPassword, req.NewPassword)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
 			err.Error(), nil,
 		))
+	}
+
+	err = h.customerService.CreateCustomerLog("account", "Member Change Password", "Customer changed their password", *customer)
+	if err != nil {
+		return err
 	}
 
 	return c.JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))

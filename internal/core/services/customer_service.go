@@ -153,6 +153,8 @@ func (s *CustomerService) mapCustomerToDTO(customer *models.Customer) (customerD
 
 			orderProfile.OrderTicketLog = append(orderProfile.OrderTicketLog, ticketDTO)
 		}
+
+		cust.OrderTicketGroups = append(cust.OrderTicketGroups, orderProfile)
 	}
 
 	return cust, nil

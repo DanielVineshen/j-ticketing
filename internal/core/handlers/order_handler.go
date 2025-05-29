@@ -77,10 +77,10 @@ func (h *OrderHandler) GetOrderTicketGroups(c *fiber.Ctx) error {
 	if userType == "admin" && (userRole == "SYSADMIN" || userRole == "ADMIN") {
 		// Admin can optionally filter by customer ID
 		filterCustId := c.Query("custId")
-		response, err = h.orderService.GetAllOrderTicketGroups(filterCustId, "", "")
+		response, err = h.orderService.GetAllOrderTicketGroups(filterCustId, "", "", "")
 	} else if userType == "customer" {
 		// Customer can only see their own orders
-		response, err = h.orderService.GetAllOrderTicketGroups(custId, "", "")
+		response, err = h.orderService.GetAllOrderTicketGroups(custId, "", "", "")
 	} else {
 		return c.Status(fiber.StatusForbidden).JSON(models.NewBaseErrorResponse(
 			"You are not authorized to view these orders", nil,
@@ -433,20 +433,22 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 
 func (h *OrderHandler) GetOrderManagement(c *fiber.Ctx) error {
 	startDate := c.Query("startDate")
-	if startDate == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			"Missing start date", nil,
-		))
-	}
+	//if startDate == "" {
+	//	return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+	//		"Missing start date", nil,
+	//	))
+	//}
 
 	endDate := c.Query("endDate")
-	if endDate == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			"Missing end date", nil,
-		))
-	}
+	//if endDate == "" {
+	//	return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+	//		"Missing end date", nil,
+	//	))
+	//}
 
-	orderTicketGroups, err := h.orderService.GetAllOrderTicketGroups("", startDate, endDate)
+	orderNo := c.Query("orderNo")
+
+	orderTicketGroups, err := h.orderService.GetAllOrderTicketGroups("", orderNo, startDate, endDate)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
 			"Could not get order ticket groups: "+err.Error(), nil,

@@ -22,11 +22,23 @@ type DetailedCustomerResponse struct {
 }
 
 type DetailedCustomer struct {
-	CustID           string                `json:"custId"`
-	Email            string                `json:"email"`
-	FullName         string                `json:"fullName"`
-	IdentificationNo string                `json:"identificationNo"`
-	IsDisabled       bool                  `json:"isDisabled"`
-	ContactNo        string                `json:"contactNo"`
-	OrderTicketGroup []dto.OrderProfileDTO `json:"orderTicketGroup"`
+	CustID            string                `json:"custId"`
+	Email             string                `json:"email"`
+	FullName          string                `json:"fullName"`
+	IdentificationNo  string                `json:"identificationNo"`
+	IsDisabled        bool                  `json:"isDisabled"`
+	ContactNo         string                `json:"contactNo"`
+	OrderTicketGroups []dto.OrderProfileDTO `json:"orderTicketGroup"`
+	CustomerLogs      []CustomerLog         `json:"customersLogs"`
+}
+
+type CustomerLog struct {
+	CustLogId uint   `json:"custLogId"`
+	CustId    string `json:"custId"`
+	Type      string `json:"type"`
+	Title     string `json:"title"`
+	Message   string `json:"message"`
+	Date      string `json:"date"`
+	CreatedAt string `json:"createdAt"`
+	UpdatedAt string `json:"updatedAt"`
 }

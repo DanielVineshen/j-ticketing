@@ -59,13 +59,31 @@ func (s *customerService) GetAllCustomers() (customerDto.DetailedCustomerRespons
 
 func (s *customerService) mapCustomerToDTO(customer *models.Customer) (customerDto.DetailedCustomer, error) {
 	cust := customerDto.DetailedCustomer{
-		CustID:           customer.CustId,
-		Email:            customer.Email,
-		FullName:         customer.FullName,
-		IdentificationNo: customer.IdentificationNo,
-		IsDisabled:       customer.IsDisabled,
-		ContactNo:        getStringFromNullString(customer.ContactNo),
-		OrderTicketGroup: make([]orderDto.OrderProfileDTO, 0),
+		CustID:            customer.CustId,
+		Email:             customer.Email,
+		FullName:          customer.FullName,
+		IdentificationNo:  customer.IdentificationNo,
+		IsDisabled:        customer.IsDisabled,
+		ContactNo:         getStringFromNullString(customer.ContactNo),
+		OrderTicketGroups: make([]orderDto.OrderProfileDTO, 0),
+		CustomerLogs:      make([]customerDto.CustomerLog, 0),
+	}
+
+	customerLogs := customer.CustomerLogs
+
+	for _, log := range customerLogs {
+		customerLog := customerDto.CustomerLog{
+			CustLogId: log.CustLogId,
+			CustId:    log.CustId,
+			Type:      log.Type,
+			Title:     log.Title,
+			Message:   log.Message,
+			Date:      log.Date,
+			CreatedAt: log.CreatedAt.Format(time.RFC3339),
+			UpdatedAt: log.UpdatedAt.Format(time.RFC3339),
+		}
+
+		cust.CustomerLogs = append(cust.CustomerLogs, customerLog)
 	}
 
 	orderTicketGroups := customer.OrderTicketGroups

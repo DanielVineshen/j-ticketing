@@ -98,6 +98,7 @@ func main() {
 	ticketDetailRepo := repositories.NewTicketDetailRepository(database)
 	orderTicketGroupRepo := repositories.NewOrderTicketGroupRepository(database)
 	orderTicketInfoRepo := repositories.NewOrderTicketInfoRepository(database)
+	orderTicketLogRepo := repositories.NewOrderTicketLogRepository(database)
 
 	// Initialize services
 	paymentService := service.NewPaymentService(
@@ -117,9 +118,20 @@ func main() {
 		ticketDetailRepo,
 		cfg,
 	)
+	orderService := service.NewOrderService(
+		orderTicketGroupRepo,
+		orderTicketInfoRepo,
+		ticketGroupRepo,
+		tagRepo,
+		groupGalleryRepo,
+		ticketDetailRepo,
+		&paymentConfig,
+		ticketGroupService,
+		orderTicketLogRepo,
+	)
 	pdfService := service.NewPDFService()
 
-	emailProcessingService := jobs.NewEmailProcessingService(paymentService, orderTicketGroupRepo, orderTicketInfoRepo, paymentConfig, emailService, ticketGroupService, pdfService)
+	emailProcessingService := jobs.NewEmailProcessingService(paymentService, orderTicketGroupRepo, orderTicketInfoRepo, paymentConfig, emailService, ticketGroupService, pdfService, orderService)
 
 	go runScheduler(emailProcessingService)
 

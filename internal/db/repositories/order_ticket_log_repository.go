@@ -16,6 +16,6 @@ func NewOrderTicketLogRepository(db *gorm.DB) *OrderTicketLogRepository {
 }
 
 // Create creates a new audit log
-func (r *OrderTicketLogRepository) Create(auditLog *models.OrderTicketLog) error {
-	return r.db.Create(auditLog).Error
+func (r *OrderTicketLogRepository) Create(orderTicketLog *models.OrderTicketLog) error {
+	return r.db.Create(orderTicketLog).Error
 }

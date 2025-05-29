@@ -25,16 +25,23 @@ type PaymentHandler struct {
 	emailService       email.EmailService
 	ticketGroupService *services.TicketGroupService
 	pdfService         *services.PDFService
+	orderService       *services.OrderService
 }
 
 // NewPaymentHandler creates a new instance of PaymentHandler
-func NewPaymentHandler(paymentService *services.PaymentService, paymentConfig payment.PaymentConfig, emailService email.EmailService, ticketGroupService *services.TicketGroupService, pdfService *services.PDFService) *PaymentHandler {
+func NewPaymentHandler(paymentService *services.PaymentService,
+	paymentConfig payment.PaymentConfig,
+	emailService email.EmailService,
+	ticketGroupService *services.TicketGroupService,
+	pdfService *services.PDFService,
+	orderService *services.OrderService) *PaymentHandler {
 	return &PaymentHandler{
 		paymentService:     paymentService,
 		paymentConfig:      paymentConfig,
 		emailService:       emailService,
 		ticketGroupService: ticketGroupService,
 		pdfService:         pdfService,
+		orderService:       orderService,
 	}
 }
 
@@ -80,15 +87,18 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 			dbStatus = "failed"
 		}
 
-		var ticketInfos []email.TicketInfo
-		var orderItems []email.OrderInfo
 		// This would go after the database update but before the redirect
 		if dbStatus == "success" {
 			// Only call the Zoo API if payment was successful
-			orderItems, ticketInfos, err = h.paymentService.PostToZooAPI(transactionData.OrderNo)
+			orderTicketGroup, orderItems, ticketInfos, err := h.paymentService.PostToZooAPI(transactionData.OrderNo)
 			if err != nil {
 				log.Printf("Error posting to Johor Zoo API: %v", err)
 				// Continue with redirect even if this fails, we can retry later
+			} else {
+				err = h.orderService.CreateOrderTicketLog("order", "QR Code Assigned", "Order was assigned with qr codes for each ticket", "QR Service", orderTicketGroup)
+				if err != nil {
+					return err
+				}
 			}
 
 			ticketGroup, err := h.ticketGroupService.GetTicketGroup(order.TicketGroupId)
@@ -128,6 +138,11 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 				log.Printf("Failed to send tickets email to %s: %v", order.BuyerEmail, err)
 				// Continue anyway since the password has been reset
 			} else {
+				err = h.orderService.CreateOrderTicketLog("order", "Email Sent", "Email for the order was successfully sent out with its receipt", "Email Service", orderTicketGroup)
+				if err != nil {
+					return err
+				}
+
 				order.IsEmailSent = true
 				// Save the updated order
 				err = h.paymentService.UpdateOrderTicketGroup(order)
@@ -341,15 +356,18 @@ func (h *PaymentHandler) PaymentRedirect(c *fiber.Ctx) error {
 			dbStatus = "failed"
 		}
 
-		var ticketInfos []email.TicketInfo
-		var orderItems []email.OrderInfo
 		// This would go after the database update but before the redirect
 		if dbStatus == "success" {
 			// Only call the Zoo API if payment was successful
-			orderItems, ticketInfos, err = h.paymentService.PostToZooAPI(transactionData.OrderNo)
+			orderTicketGroup, orderItems, ticketInfos, err := h.paymentService.PostToZooAPI(transactionData.OrderNo)
 			if err != nil {
 				log.Printf("Error posting to Johor Zoo API: %v", err)
 				// Continue with redirect even if this fails, we can retry later
+			} else {
+				err = h.orderService.CreateOrderTicketLog("order", "QR Code Assigned", "Order was assigned with qr codes for each ticket", "QR Service", orderTicketGroup)
+				if err != nil {
+					return err
+				}
 			}
 
 			ticketGroup, err := h.ticketGroupService.GetTicketGroup(order.TicketGroupId)
@@ -389,6 +407,11 @@ func (h *PaymentHandler) PaymentRedirect(c *fiber.Ctx) error {
 				log.Printf("Failed to send tickets email to %s: %v", order.BuyerEmail, err)
 				// Continue anyway since the password has been reset
 			} else {
+				err = h.orderService.CreateOrderTicketLog("order", "Email Sent", "Email for the order was successfully sent out with its receipt", "Email Service", orderTicketGroup)
+				if err != nil {
+					return err
+				}
+
 				order.IsEmailSent = true
 				// Save the updated order
 				err = h.paymentService.UpdateOrderTicketGroup(order)

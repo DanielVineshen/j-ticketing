@@ -33,6 +33,7 @@ type OrderService struct {
 	ticketDetailRepo     *repositories.TicketDetailRepository
 	paymentConfig        *payment.PaymentConfig
 	ticketGroupService   *TicketGroupService
+	orderTicketLogRepo   *repositories.OrderTicketLogRepository
 }
 
 // NewOrderService creates a new order service
@@ -45,6 +46,7 @@ func NewOrderService(
 	ticketDetailRepo *repositories.TicketDetailRepository,
 	paymentConfig *payment.PaymentConfig,
 	ticketGroupService *TicketGroupService,
+	orderTicketLogRepo *repositories.OrderTicketLogRepository,
 ) *OrderService {
 	return &OrderService{
 		orderTicketGroupRepo: orderTicketGroupRepo,
@@ -55,6 +57,7 @@ func NewOrderService(
 		ticketDetailRepo:     ticketDetailRepo,
 		paymentConfig:        paymentConfig,
 		ticketGroupService:   ticketGroupService,
+		orderTicketLogRepo:   orderTicketLogRepo,
 	}
 }
 
@@ -309,28 +312,28 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 }
 
 // CreateOrder creates a new order ticket group and returns the order ID
-func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderRequest) (uint, error) {
+func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderRequest) (*models.OrderTicketGroup, error) {
 	// Validate ticket group exists
 	ticketGroup, err := s.ticketGroupRepo.FindByID(req.TicketGroupId)
 	if err != nil {
-		return 0, fmt.Errorf("ticket group not found: %w", err)
+		return nil, fmt.Errorf("ticket group not found: %w", err)
 	}
 
 	// Ensure ticket group is active
 	if !ticketGroup.IsActive {
-		return 0, errors.New("ticket group is not active")
+		return nil, errors.New("ticket group is not active")
 	}
 
 	// Parse and validate date
 	orderDate, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
-		return 0, fmt.Errorf("invalid date format: %w", err)
+		return nil, fmt.Errorf("invalid date format: %w", err)
 	}
 
 	// Retrieve available ticket variants for validation and pricing
 	ticketVariantsResponse, err := s.ticketGroupService.GetTicketVariants(req.TicketGroupId, req.Date)
 	if err != nil {
-		return 0, fmt.Errorf("failed to retrieve ticket variants: %w", err)
+		return nil, fmt.Errorf("failed to retrieve ticket variants: %w", err)
 	}
 
 	// Create a map for easier lookup of ticket variants
@@ -342,7 +345,7 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 	// Validate that all requested tickets exist in available variants
 	for _, ticket := range req.Tickets {
 		if _, exists := ticketVariantMap[ticket.TicketId]; !exists {
-			return 0, fmt.Errorf("ticket ID %s is not available for this group and date", ticket.TicketId)
+			return nil, fmt.Errorf("ticket ID %s is not available for this group and date", ticket.TicketId)
 		}
 	}
 
@@ -380,13 +383,13 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 	if req.PaymentType == "fpx" {
 		// Validate bank code if FPX payment is selected
 		if req.BankCode == "" {
-			return 0, errors.New("bank code is required for FPX payment")
+			return nil, errors.New("bank code is required for FPX payment")
 		}
 
 		// Lookup the bank name based on the code
 		bankName, err := s.getBankNameByCode(req.BankCode, req.Mode)
 		if err != nil {
-			return 0, fmt.Errorf("invalid bank code: %w", err)
+			return nil, fmt.Errorf("invalid bank code: %w", err)
 		}
 
 		// Set bank code and name
@@ -410,7 +413,7 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 		variant, exists := ticketVariantMap[ticket.TicketId]
 		if !exists {
 			// This should never happen as we've already validated all tickets
-			return 0, fmt.Errorf("unexpected error: ticket ID %s not found", ticket.TicketId)
+			return nil, fmt.Errorf("unexpected error: ticket ID %s not found", ticket.TicketId)
 		}
 
 		// Use the unit price from the variant
@@ -444,13 +447,13 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 
 	// Check if totalAmount == 0
 	if totalAmount == 0 {
-		return 0, fmt.Errorf("failed to create order: total amount for tickets must be more than 0")
+		return nil, fmt.Errorf("failed to create order: total amount for tickets must be more than 0")
 	}
 
 	// Save order ticket group to get the ID
-	err = s.orderTicketGroupRepo.Create(orderTicketGroup)
+	orderTicketGroup, err = s.orderTicketGroupRepo.Create(orderTicketGroup)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create order: %w", err)
+		return nil, fmt.Errorf("failed to create order: %w", err)
 	}
 
 	// Now that we have the OrderTicketGroupId, update all orderTicketInfos
@@ -462,17 +465,17 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 	orderTicketGroup.TotalAmount = totalAmount
 	err = s.orderTicketGroupRepo.Update(orderTicketGroup)
 	if err != nil {
-		return 0, fmt.Errorf("failed to update order total amount: %w", err)
+		return nil, fmt.Errorf("failed to update order total amount: %w", err)
 	}
 
 	// Save all ticket info entries
 	err = s.orderTicketInfoRepo.BatchCreate(orderTicketInfos)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create order tickets: %w", err)
+		return nil, fmt.Errorf("failed to create order tickets: %w", err)
 	}
 
 	// Return the order ID
-	return orderTicketGroup.OrderTicketGroupId, nil
+	return orderTicketGroup, nil
 }
 
 // CreateOrder creates a new free order ticket group and returns the order ID
@@ -589,7 +592,7 @@ func (s *OrderService) CreateFreeOrder(custId string, req *orderDto.CreateFreeOr
 	}
 
 	// If we pass the validation, save the order ticket group
-	err = s.orderTicketGroupRepo.Create(orderTicketGroup)
+	orderTicketGroup, err = s.orderTicketGroupRepo.Create(orderTicketGroup)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create order: %w", err)
 	}
@@ -605,7 +608,7 @@ func (s *OrderService) CreateFreeOrder(custId string, req *orderDto.CreateFreeOr
 		return nil, fmt.Errorf("failed to create order tickets: %w", err)
 	}
 
-	// Return the order ID
+	// Return the order
 	return orderTicketGroup, nil
 }
 
@@ -694,6 +697,33 @@ func (s *OrderService) getBankNameByCode(bankCode, mode string) (string, error) 
 	}
 
 	return "", fmt.Errorf("failed to retrieve bank list")
+}
+
+func (s *OrderService) CreateOrderTicketLog(logType string, title string, message string, performedBy string, orderTicketGroup *models.OrderTicketGroup) error {
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+
+	if performedBy == "" {
+		performedBy = "System"
+	}
+
+	orderTicketLog := models.OrderTicketLog{
+		OrderTicketGroupId: orderTicketGroup.OrderTicketGroupId,
+		Type:               logType,
+		Title:              title,
+		Message:            message,
+		Date:               malaysiaTime,
+		PerformedBy:        sql.NullString{String: performedBy, Valid: true},
+	}
+
+	err = s.orderTicketLogRepo.Create(&orderTicketLog)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Utility functions for generating IDs and tokens

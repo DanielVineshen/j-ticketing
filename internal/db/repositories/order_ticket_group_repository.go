@@ -132,8 +132,14 @@ func (r *OrderTicketGroupRepository) FindByOrderNo(orderNo string) (*models.Orde
 }
 
 // Create creates a new order ticket group
-func (r *OrderTicketGroupRepository) Create(orderTicketGroup *models.OrderTicketGroup) error {
-	return r.db.Create(orderTicketGroup).Error
+func (r *OrderTicketGroupRepository) Create(orderTicketGroup *models.OrderTicketGroup) (*models.OrderTicketGroup, error) {
+	result := r.db.Create(orderTicketGroup)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	// GORM automatically populates the ID and timestamps in the original struct
+	return orderTicketGroup, nil
 }
 
 // Update updates an order ticket group

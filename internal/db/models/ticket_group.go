@@ -20,8 +20,8 @@ type TicketGroup struct {
 	AttachmentSize         int64          `gorm:"column:attachment_size;type:bigint;not null"`
 	ContentType            string         `gorm:"column:content_type;type:varchar(255);not null"`
 	UniqueExtension        string         `gorm:"column:unique_extension;type:varchar(255);not null"`
-	ActiveEndDate          sql.NullString `gorm:"column:active_end_date;type:char(8);null"`
-	ActiveStartDate        sql.NullString `gorm:"column:active_start_date;type:char(8);null"`
+	ActiveEndDate          sql.NullString `gorm:"column:active_end_date;type:varchar(255);null"`
+	ActiveStartDate        sql.NullString `gorm:"column:active_start_date;type:varchar(255);null"`
 	IsActive               bool           `gorm:"column:is_active;type:boolean;not null"`
 	IsTicketInternal       string         `gorm:"column:is_ticket_internal;type:varchar(255);not null"`
 	LocationAddress        string         `gorm:"column:location_address;type:text;not null"`

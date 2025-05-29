@@ -20,10 +20,17 @@ type EmailProcessingService struct {
 	emailService         email.EmailService
 	ticketGroupService   *services.TicketGroupService
 	pdfService           *services.PDFService
+	orderService         *services.OrderService
 }
 
 // NewEmailProcessingService creates a new EmailProcessingService
-func NewEmailProcessingService(paymentService *services.PaymentService, orderTicketGroupRepo *repositories.OrderTicketGroupRepository, orderTicketInfoRepo *repositories.OrderTicketInfoRepository, paymentConfig payment.PaymentConfig, emailService email.EmailService, ticketGroupService *services.TicketGroupService, pdfService *services.PDFService) *EmailProcessingService {
+func NewEmailProcessingService(paymentService *services.PaymentService,
+	orderTicketGroupRepo *repositories.OrderTicketGroupRepository,
+	orderTicketInfoRepo *repositories.OrderTicketInfoRepository,
+	paymentConfig payment.PaymentConfig, emailService email.EmailService,
+	ticketGroupService *services.TicketGroupService,
+	pdfService *services.PDFService,
+	orderService *services.OrderService) *EmailProcessingService {
 	return &EmailProcessingService{
 		paymentService:       paymentService,
 		orderTicketGroupRepo: orderTicketGroupRepo,
@@ -32,6 +39,7 @@ func NewEmailProcessingService(paymentService *services.PaymentService, orderTic
 		emailService:         emailService,
 		ticketGroupService:   ticketGroupService,
 		pdfService:           pdfService,
+		orderService:         orderService,
 	}
 }
 
@@ -71,13 +79,15 @@ func (s *EmailProcessingService) processOrder(order *models.OrderTicketGroup) er
 
 	}
 
-	var orderItems []email.OrderInfo
-	var ticketInfos []email.TicketInfo
 	// Only call the Zoo API if payment was successful
-	orderItems, ticketInfos, err = s.paymentService.PostToZooAPI(order.OrderNo)
+	orderTicketGroup, orderItems, ticketInfos, err := s.paymentService.PostToZooAPI(order.OrderNo)
 	if err != nil {
 		log.Printf("Error posting to Johor Zoo API: %v", err)
-		// Continue with redirect even if this fails, we can retry later
+	} else {
+		err = s.orderService.CreateOrderTicketLog("order", "QR Code Assigned", "Order was assigned with qr codes for each ticket", "QR Service", orderTicketGroup)
+		if err != nil {
+			return err
+		}
 	}
 
 	ticketGroup, err := s.ticketGroupService.GetTicketGroup(order.TicketGroupId)
@@ -117,6 +127,11 @@ func (s *EmailProcessingService) processOrder(order *models.OrderTicketGroup) er
 		log.Printf("Failed to send tickets email to %s: %v", order.BuyerEmail, err)
 		// Continue anyway since the password has been reset
 	} else {
+		err = s.orderService.CreateOrderTicketLog("order", "Email Sent", "Email for the order was successfully sent out with its receipt", "Email Service", orderTicketGroup)
+		if err != nil {
+			return err
+		}
+
 		order.IsEmailSent = true
 		// Save the updated order
 		err = s.paymentService.UpdateOrderTicketGroup(order)

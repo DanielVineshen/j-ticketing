@@ -222,7 +222,7 @@ func (h *OrderHandler) CreateOrderTicketGroup(c *fiber.Ctx) error {
 	}
 
 	// Create the order using the custId we determined
-	orderID, err := h.orderService.CreateOrder(custId, &req)
+	orderTicketGroup, err := h.orderService.CreateOrder(custId, &req)
 	if err != nil {
 		// Determine appropriate error code based on the error
 		if strings.Contains(err.Error(), "not found") {
@@ -240,13 +240,18 @@ func (h *OrderHandler) CreateOrderTicketGroup(c *fiber.Ctx) error {
 		}
 	}
 
+	err = h.orderService.CreateOrderTicketLog("order", "Order Created", "Order was created via Online channel", "System", orderTicketGroup)
+	if err != nil {
+		return err
+	}
+
 	// Generate the checkout URL
-	checkoutURL := h.generateCheckoutURL(orderID, req.PaymentType)
+	checkoutURL := h.generateCheckoutURL(orderTicketGroup.TicketGroupId, req.PaymentType)
 
 	// Return success response with redirect information
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(map[string]interface{}{
 		"redirectURL": checkoutURL,
-		"orderID":     orderID,
+		"orderID":     orderTicketGroup.TicketGroupId,
 	}))
 }
 
@@ -337,11 +342,21 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 		}
 	}
 
+	err = h.orderService.CreateOrderTicketLog("order", "Order Created", "Order was created via Online channel", "System", orderTicketGroup)
+	if err != nil {
+		return err
+	}
+
 	// Only call the Zoo API if payment was successful
-	orderItems, ticketInfos, err := h.paymentService.PostToZooAPI(orderTicketGroup.OrderNo)
+	_, orderItems, ticketInfos, err := h.paymentService.PostToZooAPI(orderTicketGroup.OrderNo)
 	if err != nil {
 		log.Printf("Error posting to Johor Zoo API: %v", err)
 		// Continue with redirect even if this fails, we can retry later
+	} else {
+		err = h.orderService.CreateOrderTicketLog("order", "QR Code Assigned", "Order was assigned with qr codes for each ticket", "QR Service", orderTicketGroup)
+		if err != nil {
+			return err
+		}
 	}
 
 	ticketGroup, err := h.ticketGroupService.GetTicketGroup(orderTicketGroup.TicketGroupId)
@@ -380,10 +395,16 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 	if err != nil {
 		log.Printf("Failed to send tickets email to %s: %v", orderTicketGroup.BuyerEmail, err)
 		// Continue anyway since the password has been reset
+	} else {
+		err = h.orderService.CreateOrderTicketLog("order", "Email Sent", "Email for the order was successfully sent out with its receipt", "Email Service", orderTicketGroup)
+		if err != nil {
+			return err
+		}
+
+		orderTicketGroup.IsEmailSent = true
+		// Save the updated order
+		err = h.paymentService.UpdateOrderTicketGroup(orderTicketGroup)
 	}
-	orderTicketGroup.IsEmailSent = true
-	// Save the updated order
-	err = h.paymentService.UpdateOrderTicketGroup(orderTicketGroup)
 	if err != nil {
 		return err
 	}

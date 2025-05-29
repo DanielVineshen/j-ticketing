@@ -117,6 +117,7 @@ func main() {
 	orderTicketGroupRepo := repositories.NewOrderTicketGroupRepository(database)
 	orderTicketInfoRepo := repositories.NewOrderTicketInfoRepository(database)
 	bannerRepo := repositories.NewBannerRepository(database)
+	orderTicketLogRepo := repositories.NewOrderTicketLogRepository(database)
 
 	// Initialize services
 	paymentService := service.NewPaymentService(
@@ -154,6 +155,7 @@ func main() {
 		ticketDetailRepo,
 		&paymentConfig,
 		ticketGroupService,
+		orderTicketLogRepo,
 	)
 	customerService := service.NewCustomerService(customerRepo)
 	bannerService := service.NewBannerService(bannerRepo)
@@ -168,7 +170,7 @@ func main() {
 	groupGalleryHandler := handlers.NewGroupGalleryHandler(groupGalleryService)
 	simplePDFHandler := handlers.NewPDFHandler()
 	orderHandler := handlers.NewOrderHandler(orderService, customerService, jwtService, paymentService, emailService, ticketGroupService, paymentConfig, pdfService)
-	paymentHandler := handlers.NewPaymentHandler(paymentService, paymentConfig, emailService, ticketGroupService, pdfService)
+	paymentHandler := handlers.NewPaymentHandler(paymentService, paymentConfig, emailService, ticketGroupService, pdfService, orderService)
 	pdfHandler := handlers.NewPDFHandler()
 
 	// Create Fiber app with adapted error handler for slog

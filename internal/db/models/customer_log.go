@@ -12,7 +12,7 @@ type CustomerLog struct {
 	Type      string    `gorm:"column:type;type:varchar(255);not null"`
 	Title     string    `gorm:"column:title;type:varchar(255);not null"`
 	Message   string    `gorm:"column:message;type:text;not null"`
-	Date      string    `gorm:"column:date;type:char(14);not null"`
+	Date      string    `gorm:"column:date;type:varchar(255);not null"`
 	CreatedAt time.Time `gorm:"column:created_at;type:datetime;not null"`
 	UpdatedAt time.Time `gorm:"column:updated_at;type:datetime;not null"`
 

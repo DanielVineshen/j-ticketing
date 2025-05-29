@@ -14,7 +14,7 @@ type Notification struct {
 	Type           string         `gorm:"column:type;type:varchar(255);not null"`
 	Title          string         `gorm:"column:title;type:varchar(255);not null"`
 	Message        sql.NullString `gorm:"column:message;type:text;not null"`
-	Date           string         `gorm:"column:date;type:char(14);null"`
+	Date           string         `gorm:"column:date;type:varchar(255);null"`
 	IsRead         bool           `gorm:"column:is_read;type:boolean;default:false;not null"`
 	IsDeleted      bool           `gorm:"column:is_deleted;type:boolean;default:false;not null"`
 	CreatedAt      time.Time      `gorm:"column:created_at;type:datetime;not null"`

@@ -81,26 +81,26 @@ func (s *PaymentService) UpdateOrderTicketGroup(orderTicketGroup *models.OrderTi
 }
 
 // Define the function to post to the Zoo API
-func (s *PaymentService) PostToZooAPI(orderNo string) ([]email.OrderInfo, []email.TicketInfo, error) {
+func (s *PaymentService) PostToZooAPI(orderNo string) (*models.OrderTicketGroup, []email.OrderInfo, []email.TicketInfo, error) {
 	// Find the order first
-	order, err := s.orderTicketGroupRepo.FindByOrderNo(orderNo)
+	orderTicketGroup, err := s.orderTicketGroupRepo.FindByOrderNo(orderNo)
 	if err != nil {
 		log.Printf("Error finding order %s: %v", orderNo, err)
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	if order == nil {
+	if orderTicketGroup == nil {
 		log.Printf("Order not found: %s", orderNo)
-		return nil, nil, fmt.Errorf("order not found: %s", orderNo)
+		return nil, nil, nil, fmt.Errorf("order not found: %s", orderNo)
 	}
 
-	ticketGroupName := order.TicketGroup.GroupName
+	ticketGroupName := orderTicketGroup.TicketGroup.GroupName
 	fmt.Printf(ticketGroupName)
 
 	// Get the order ticket items
-	orderTickets, err := s.orderTicketInfoRepo.FindByOrderTicketGroupID(order.OrderTicketGroupId)
+	orderTickets, err := s.orderTicketInfoRepo.FindByOrderTicketGroupID(orderTicketGroup.OrderTicketGroupId)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get order tickets: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to get order tickets: %w", err)
 	}
 
 	// Build the request
@@ -129,13 +129,13 @@ func (s *PaymentService) PostToZooAPI(orderNo string) ([]email.OrderInfo, []emai
 		// Convert to JSON
 		jsonData, err := json.Marshal(payload)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to marshal JSON: %w", err)
+			return nil, nil, nil, fmt.Errorf("failed to marshal JSON: %w", err)
 		}
 
 		// Get a fresh token from the token generation endpoint
 		token, err := generateZooAPIToken(s.cfg)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to generate API token: %w", err)
+			return nil, nil, nil, fmt.Errorf("failed to generate API token: %w", err)
 		}
 
 		// Create a new HTTP client
@@ -153,7 +153,7 @@ func (s *PaymentService) PostToZooAPI(orderNo string) ([]email.OrderInfo, []emai
 
 		req, err := http.NewRequest("POST", s.cfg.ZooAPI.ZooBaseURL+"/api/JohorZoo/"+value, bytes.NewBuffer(jsonData))
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create request: %w", err)
+			return nil, nil, nil, fmt.Errorf("failed to create request: %w", err)
 		}
 
 		// Add headers
@@ -163,7 +163,7 @@ func (s *PaymentService) PostToZooAPI(orderNo string) ([]email.OrderInfo, []emai
 		// Send the request
 		resp, err := client.Do(req)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to send request: %w", err)
+			return nil, nil, nil, fmt.Errorf("failed to send request: %w", err)
 		}
 		defer func(Body io.ReadCloser) {
 			err := Body.Close()
@@ -175,26 +175,26 @@ func (s *PaymentService) PostToZooAPI(orderNo string) ([]email.OrderInfo, []emai
 		// Read the response
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to read response: %w", err)
+			return nil, nil, nil, fmt.Errorf("failed to read response: %w", err)
 		}
 
 		// Check if the response status is OK
 		if resp.StatusCode != http.StatusOK {
-			return nil, nil, fmt.Errorf("API returned non-OK status: %d, body: %s", resp.StatusCode, string(body))
+			return nil, nil, nil, fmt.Errorf("API returned non-OK status: %d, body: %s", resp.StatusCode, string(body))
 		}
 
 		// Parse the response
 		var zooResponse payment.ZooTicketResponse
 		err = json.Unmarshal(body, &zooResponse)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to parse response: %w", err)
+			return nil, nil, nil, fmt.Errorf("failed to parse response: %w", err)
 		}
 
 		zooTicketInfos = zooResponse.Tickets
 
 		// Check if the status code is OK
 		if zooResponse.StatusCode != "OK" {
-			return nil, nil, fmt.Errorf("API returned status code: %s", zooResponse.StatusCode)
+			return nil, nil, nil, fmt.Errorf("API returned status code: %s", zooResponse.StatusCode)
 		}
 
 		// Update each ticket with the data from the API
@@ -273,7 +273,7 @@ func (s *PaymentService) PostToZooAPI(orderNo string) ([]email.OrderInfo, []emai
 
 	orderItems := ConvertZooTicketsToOrderItems(zooTicketInfos)
 
-	return orderItems, ticketInfos, nil
+	return orderTicketGroup, orderItems, ticketInfos, nil
 }
 
 // Function to generate a token for the Zoo API

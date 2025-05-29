@@ -43,15 +43,26 @@ func (r *OrderTicketGroupRepository) FindAll() ([]models.OrderTicketGroup, error
 	return orderTicketGroups, result.Error
 }
 
-func (r *OrderTicketGroupRepository) FindByDateRange(startDate, endDate string) ([]models.OrderTicketGroup, error) {
+func (r *OrderTicketGroupRepository) FindByDateRange(orderNo string, startDate, endDate string) ([]models.OrderTicketGroup, error) {
 	var orders []models.OrderTicketGroup
 
-	// Add time boundaries for precision
-	startDateTime := startDate + " 00:00:00"
-	endDateTime := endDate + " 23:59:59"
+	// Start with base query
+	query := r.db
 
-	result := r.db.
-		Where("transaction_date >= ? AND transaction_date <= ?", startDateTime, endDateTime).
+	// Add orderNo filter if provided
+	if orderNo != "" {
+		query = query.Where("order_no = ?", orderNo)
+	}
+
+	// Add date range filter if both dates provided
+	if startDate != "" && endDate != "" {
+		startDateTime := startDate + " 00:00:00"
+		endDateTime := endDate + " 23:59:59"
+		query = query.Where("transaction_date >= ? AND transaction_date <= ?", startDateTime, endDateTime)
+	}
+
+	// Execute query with preloads
+	result := query.
 		Preload("OrderTicketLogs", func(db *gorm.DB) *gorm.DB {
 			return db.Order("created_at DESC")
 		}).

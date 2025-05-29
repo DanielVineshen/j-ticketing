@@ -160,7 +160,7 @@ func (s *authService) LoginCustomer(email, password string) (*dto.TokenResponse,
 		IdentificationNo: customer.IdentificationNo,
 		IsDisabled:       customer.IsDisabled,
 		ContactNo:        customer.ContactNo.String,
-		Role:             userClaims.UserType,
+		Role:             userClaims.Role,
 		FullName:         customer.FullName,
 	}
 

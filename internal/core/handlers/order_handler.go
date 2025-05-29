@@ -247,12 +247,12 @@ func (h *OrderHandler) CreateOrderTicketGroup(c *fiber.Ctx) error {
 	}
 
 	// Generate the checkout URL
-	checkoutURL := h.generateCheckoutURL(orderTicketGroup.TicketGroupId, req.PaymentType)
+	checkoutURL := h.generateCheckoutURL(orderTicketGroup.OrderTicketGroupId, req.PaymentType)
 
 	// Return success response with redirect information
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(map[string]interface{}{
 		"redirectURL": checkoutURL,
-		"orderID":     orderTicketGroup.TicketGroupId,
+		"orderID":     orderTicketGroup.OrderTicketGroupId,
 	}))
 }
 

@@ -100,12 +100,12 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 			}
 
 			// Only call the Zoo API if payment was successful
-			orderTicketGroup, orderItems, ticketInfos, err := h.paymentService.PostToZooAPI(transactionData.OrderNo)
+			_, orderItems, ticketInfos, err := h.paymentService.PostToZooAPI(transactionData.OrderNo)
 			if err != nil {
 				log.Printf("Error posting to Johor Zoo API: %v", err)
 				// Continue with redirect even if this fails, we can retry later
 			} else {
-				err = h.orderService.CreateOrderTicketLog("order", "QR Code Assigned", "Order was assigned with qr codes for each ticket", "QR Service", orderTicketGroup)
+				err = h.orderService.CreateOrderTicketLog("order", "QR Code Assigned", "Order was assigned with qr codes for each ticket", "QR Service", order)
 				if err != nil {
 					return err
 				}
@@ -148,7 +148,7 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 				log.Printf("Failed to send tickets email to %s: %v", order.BuyerEmail, err)
 				// Continue anyway since the password has been reset
 			} else {
-				err = h.orderService.CreateOrderTicketLog("order", "Email Sent", "Email for the order was successfully sent out with its receipt", "Email Service", orderTicketGroup)
+				err = h.orderService.CreateOrderTicketLog("order", "Email Sent", "Email for the order was successfully sent out with its receipt", "Email Service", order)
 				if err != nil {
 					return err
 				}

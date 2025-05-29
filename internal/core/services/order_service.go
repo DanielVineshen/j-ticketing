@@ -34,6 +34,7 @@ type OrderService struct {
 	paymentConfig        *payment.PaymentConfig
 	ticketGroupService   *TicketGroupService
 	orderTicketLogRepo   *repositories.OrderTicketLogRepository
+	customerService      *CustomerService
 }
 
 // NewOrderService creates a new order service
@@ -47,6 +48,7 @@ func NewOrderService(
 	paymentConfig *payment.PaymentConfig,
 	ticketGroupService *TicketGroupService,
 	orderTicketLogRepo *repositories.OrderTicketLogRepository,
+	customerService *CustomerService,
 ) *OrderService {
 	return &OrderService{
 		orderTicketGroupRepo: orderTicketGroupRepo,
@@ -58,6 +60,7 @@ func NewOrderService(
 		paymentConfig:        paymentConfig,
 		ticketGroupService:   ticketGroupService,
 		orderTicketLogRepo:   orderTicketLogRepo,
+		customerService:      customerService,
 	}
 }
 
@@ -480,7 +483,7 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 }
 
 // CreateOrder creates a new free order ticket group and returns the order ID
-func (s *OrderService) CreateFreeOrder(custId string, req *orderDto.CreateFreeOrderRequest) (*models.OrderTicketGroup, error) {
+func (s *OrderService) CreateFreeOrder(cust models.Customer, req *orderDto.CreateFreeOrderRequest) (*models.OrderTicketGroup, error) {
 	// Validate ticket group exists
 	ticketGroup, err := s.ticketGroupRepo.FindByID(req.TicketGroupId)
 	if err != nil {
@@ -530,7 +533,7 @@ func (s *OrderService) CreateFreeOrder(custId string, req *orderDto.CreateFreeOr
 	// Create order ticket group
 	orderTicketGroup := &models.OrderTicketGroup{
 		TicketGroupId:     req.TicketGroupId,
-		CustId:            custId,
+		CustId:            cust.CustId,
 		TransactionId:     "",
 		OrderNo:           orderNo,
 		TransactionStatus: "success",
@@ -607,6 +610,11 @@ func (s *OrderService) CreateFreeOrder(custId string, req *orderDto.CreateFreeOr
 	err = s.orderTicketInfoRepo.BatchCreate(orderTicketInfos)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create order tickets: %w", err)
+	}
+
+	err = s.customerService.CreateCustomerLog("purchase", "Purchase Completed", "Ticket package purchased via Online", cust)
+	if err != nil {
+		return nil, err
 	}
 
 	// Return the order

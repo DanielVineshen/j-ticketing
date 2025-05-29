@@ -26,6 +26,7 @@ type PaymentHandler struct {
 	ticketGroupService *services.TicketGroupService
 	pdfService         *services.PDFService
 	orderService       *services.OrderService
+	customerService    *services.CustomerService
 }
 
 // NewPaymentHandler creates a new instance of PaymentHandler
@@ -34,7 +35,8 @@ func NewPaymentHandler(paymentService *services.PaymentService,
 	emailService email.EmailService,
 	ticketGroupService *services.TicketGroupService,
 	pdfService *services.PDFService,
-	orderService *services.OrderService) *PaymentHandler {
+	orderService *services.OrderService,
+	customerService *services.CustomerService) *PaymentHandler {
 	return &PaymentHandler{
 		paymentService:     paymentService,
 		paymentConfig:      paymentConfig,
@@ -42,6 +44,7 @@ func NewPaymentHandler(paymentService *services.PaymentService,
 		ticketGroupService: ticketGroupService,
 		pdfService:         pdfService,
 		orderService:       orderService,
+		customerService:    customerService,
 	}
 }
 
@@ -63,6 +66,8 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 		return fmt.Errorf("order not found: %s", transactionData.OrderNo)
 	}
 
+	cust := order.Customer
+
 	var dbStatus = order.TransactionStatus
 	if dbStatus != "success" {
 		// Update the order in the database
@@ -71,6 +76,11 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 			log.Printf("Error updating order: %v", err)
 			// Continue with the redirect even if the update fails
 			// This ensures the user sees a response, and we can fix the data later if needed
+		}
+
+		err = h.customerService.CreateCustomerLog("purchase", "Purchase Completed", "Ticket package purchased via Online", cust)
+		if err != nil {
+			return err
 		}
 
 		// Extract and process payment status and other details

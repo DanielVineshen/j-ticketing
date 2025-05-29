@@ -7,6 +7,7 @@ import (
 	orderDto "j-ticketing/internal/core/dto/order"
 	"j-ticketing/internal/core/dto/payment"
 	services "j-ticketing/internal/core/services"
+	dbModels "j-ticketing/internal/db/models"
 	"j-ticketing/pkg/email"
 	"j-ticketing/pkg/errors"
 	"j-ticketing/pkg/jwt"
@@ -276,12 +277,10 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 	claims, err := h.jwtService.ValidateToken(token)
 
 	// Variable to hold the customer ID
-	var custId string
+	var cust dbModels.Customer
 
 	// Check if token exists (user is authenticated)
 	if err == nil && claims.UserID != "" {
-		custId = claims.UserID
-
 		customer, err := h.customerService.GetCustomerByID(claims.UserID)
 		if err == nil {
 			req.Email = customer.Email
@@ -321,14 +320,14 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 				))
 			}
 
-			custId = newCustomer.CustId
+			cust = *newCustomer
 		} else {
-			custId = customer.CustId
+			cust = *customer
 		}
 	}
 
 	// Create the order using the custId we determined
-	orderTicketGroup, err := h.orderService.CreateFreeOrder(custId, &req)
+	orderTicketGroup, err := h.orderService.CreateFreeOrder(cust, &req)
 	if err != nil {
 		// Determine appropriate error code based on the error
 		if strings.Contains(err.Error(), "not found") {

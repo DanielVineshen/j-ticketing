@@ -14,31 +14,31 @@ import (
 )
 
 // CustomerService handles customer-related operations
-type CustomerService interface {
-	GetAllCustomers() (customerDto.DetailedCustomerResponse, error)
-	RegisterCustomer(email, password, identificationNo, fullName, contactNo string) (*models.Customer, error)
-	GetCustomerByID(id string) (*models.Customer, error)
-	UpdateCustomer(id string, req dto.UpdateCustomerRequest) (*models.Customer, error)
-	ChangePassword(id, currentPassword, newPassword string) (*models.Customer, error)
-	ListCustomers() ([]models.Customer, error)
-	GetCustomerByEmail(email string) (*models.Customer, error)
-	CreateCustomerLog(logType string, title string, message string, customer models.Customer) error
-}
+//type CustomerService interface {
+//	GetAllCustomers() (customerDto.DetailedCustomerResponse, error)
+//	RegisterCustomer(email, password, identificationNo, fullName, contactNo string) (*models.Customer, error)
+//	GetCustomerByID(id string) (*models.Customer, error)
+//	UpdateCustomer(id string, req dto.UpdateCustomerRequest) (*models.Customer, error)
+//	ChangePassword(id, currentPassword, newPassword string) (*models.Customer, error)
+//	ListCustomers() ([]models.Customer, error)
+//	GetCustomerByEmail(email string) (*models.Customer, error)
+//	CreateCustomerLog(logType string, title string, message string, customer models.Customer) error
+//}
 
-type customerService struct {
+type CustomerService struct {
 	customerRepo    repositories.CustomerRepository
 	customerLogRepo *repositories.CustomerLogRepository
 }
 
 // NewCustomerService creates a new customer service
-func NewCustomerService(customerRepo repositories.CustomerRepository, customerLogRepo *repositories.CustomerLogRepository) CustomerService {
-	return &customerService{
+func NewCustomerService(customerRepo repositories.CustomerRepository, customerLogRepo *repositories.CustomerLogRepository) *CustomerService {
+	return &CustomerService{
 		customerRepo:    customerRepo,
 		customerLogRepo: customerLogRepo,
 	}
 }
 
-func (s *customerService) GetAllCustomers() (customerDto.DetailedCustomerResponse, error) {
+func (s *CustomerService) GetAllCustomers() (customerDto.DetailedCustomerResponse, error) {
 	customers, err := s.customerRepo.FindAll()
 	if err != nil {
 		return customerDto.DetailedCustomerResponse{}, err
@@ -60,7 +60,7 @@ func (s *customerService) GetAllCustomers() (customerDto.DetailedCustomerRespons
 	return response, nil
 }
 
-func (s *customerService) mapCustomerToDTO(customer *models.Customer) (customerDto.DetailedCustomer, error) {
+func (s *CustomerService) mapCustomerToDTO(customer *models.Customer) (customerDto.DetailedCustomer, error) {
 	cust := customerDto.DetailedCustomer{
 		CustID:            customer.CustId,
 		Email:             customer.Email,
@@ -158,13 +158,13 @@ func (s *customerService) mapCustomerToDTO(customer *models.Customer) (customerD
 	return cust, nil
 }
 
-func (s *customerService) GetCustomerByEmail(email string) (*models.Customer, error) {
+func (s *CustomerService) GetCustomerByEmail(email string) (*models.Customer, error) {
 	// This simply calls the repository's FindByEmail method
 	return s.customerRepo.FindByEmail(email)
 }
 
 // RegisterCustomer registers a new customer
-func (s *customerService) RegisterCustomer(email, password, identificationNo, fullName, contactNo string) (*models.Customer, error) {
+func (s *CustomerService) RegisterCustomer(email, password, identificationNo, fullName, contactNo string) (*models.Customer, error) {
 	// Check if email already exists
 	existingCustomer, err := s.customerRepo.FindByEmail(email)
 	if err == nil && existingCustomer != nil {
@@ -225,12 +225,12 @@ func (s *customerService) RegisterCustomer(email, password, identificationNo, fu
 }
 
 // GetCustomerByID retrieves a customer by ID
-func (s *customerService) GetCustomerByID(id string) (*models.Customer, error) {
+func (s *CustomerService) GetCustomerByID(id string) (*models.Customer, error) {
 	return s.customerRepo.FindByID(id)
 }
 
 // UpdateCustomer updates a customer's information
-func (s *customerService) UpdateCustomer(id string, req dto.UpdateCustomerRequest) (*models.Customer, error) {
+func (s *CustomerService) UpdateCustomer(id string, req dto.UpdateCustomerRequest) (*models.Customer, error) {
 	customer, err := s.customerRepo.FindByID(id)
 	if err != nil {
 		return nil, err
@@ -257,7 +257,7 @@ func (s *customerService) UpdateCustomer(id string, req dto.UpdateCustomerReques
 }
 
 // ChangePassword changes a customer's password
-func (s *customerService) ChangePassword(id, currentPassword, newPassword string) (*models.Customer, error) {
+func (s *CustomerService) ChangePassword(id, currentPassword, newPassword string) (*models.Customer, error) {
 	customer, err := s.customerRepo.FindByID(id)
 	if err != nil {
 		return nil, err
@@ -286,7 +286,7 @@ func (s *customerService) ChangePassword(id, currentPassword, newPassword string
 }
 
 // ListCustomers lists all customers
-func (s *customerService) ListCustomers() ([]models.Customer, error) {
+func (s *CustomerService) ListCustomers() ([]models.Customer, error) {
 	customers, err := s.customerRepo.List()
 	if err != nil {
 		return nil, err
@@ -303,7 +303,7 @@ func (s *customerService) ListCustomers() ([]models.Customer, error) {
 	return customers, nil
 }
 
-func (s *customerService) CreateCustomerLog(logType string, title string, message string, customer models.Customer) error {
+func (s *CustomerService) CreateCustomerLog(logType string, title string, message string, customer models.Customer) error {
 	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
 	if err != nil {
 		return err

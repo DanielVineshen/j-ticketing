@@ -120,7 +120,7 @@ func (r *OrderTicketGroupRepository) FindEmailPendingOrderTicketGroups() ([]mode
 func (r *OrderTicketGroupRepository) FindByOrderNo(orderNo string) (*models.OrderTicketGroup, error) {
 	var order models.OrderTicketGroup
 
-	result := r.db.Where("order_no = ?", orderNo).First(&order)
+	result := r.db.Where("order_no = ?", orderNo).Preload("Customer").First(&order)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil // No error, but order not found

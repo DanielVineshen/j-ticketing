@@ -147,6 +147,7 @@ func main() {
 		cfg.JWT.AccessTokenTTL,
 		cfg.JWT.RefreshTokenTTL,
 	)
+	customerService := service.NewCustomerService(customerRepo, customerLogRepo)
 	orderService := service.NewOrderService(
 		orderTicketGroupRepo,
 		orderTicketInfoRepo,
@@ -157,21 +158,21 @@ func main() {
 		&paymentConfig,
 		ticketGroupService,
 		orderTicketLogRepo,
+		customerService,
 	)
-	customerService := service.NewCustomerService(customerRepo, customerLogRepo)
 	bannerService := service.NewBannerService(bannerRepo)
 	groupGalleryService := service.NewGroupGalleryService(groupGalleryRepo)
 	pdfService := service.NewPDFService()
 
 	// Initialize handlers
 	ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService)
-	authHandler := handlers.NewAuthHandler(authService, emailService, customerService)
-	customerHandler := handlers.NewCustomerHandler(customerService)
+	authHandler := handlers.NewAuthHandler(authService, emailService, *customerService)
+	customerHandler := handlers.NewCustomerHandler(*customerService)
 	bannerHandler := handlers.NewBannerHandler(bannerService)
 	groupGalleryHandler := handlers.NewGroupGalleryHandler(groupGalleryService)
 	simplePDFHandler := handlers.NewPDFHandler()
-	orderHandler := handlers.NewOrderHandler(orderService, customerService, jwtService, paymentService, emailService, ticketGroupService, paymentConfig, pdfService)
-	paymentHandler := handlers.NewPaymentHandler(paymentService, paymentConfig, emailService, ticketGroupService, pdfService, orderService)
+	orderHandler := handlers.NewOrderHandler(orderService, *customerService, jwtService, paymentService, emailService, ticketGroupService, paymentConfig, pdfService)
+	paymentHandler := handlers.NewPaymentHandler(paymentService, paymentConfig, emailService, ticketGroupService, pdfService, orderService, customerService)
 	pdfHandler := handlers.NewPDFHandler()
 
 	// Create Fiber app with adapted error handler for slog

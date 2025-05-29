@@ -70,13 +70,27 @@ func (r *OrderTicketGroupRepository) FindByID(id uint) (*models.OrderTicketGroup
 func (r *OrderTicketGroupRepository) FindByCustomerID(custID string) ([]models.OrderTicketGroup, error) {
 	var orderTicketGroups []models.OrderTicketGroup
 	result := r.db.Where("cust_id = ?", custID).
-		Preload("OrderTicketLogs").
-		Preload("TicketGroup").
-		Preload("TicketGroup.TicketTags").
-		Preload("TicketGroup.TicketTags.Tag").
-		Preload("TicketGroup.GroupGalleries").
-		Preload("TicketGroup.TicketDetails").
-		Preload("OrderTicketInfos").
+		Preload("OrderTicketLogs", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
+		Preload("TicketGroup", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
+		Preload("TicketGroup.TicketTags", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
+		Preload("TicketGroup.TicketTags.Tag", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
+		Preload("TicketGroup.GroupGalleries", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
+		Preload("TicketGroup.TicketDetails", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
+		Preload("OrderTicketInfos", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
 		Order("order_ticket_group_id DESC").
 		Find(&orderTicketGroups)
 	return orderTicketGroups, result.Error

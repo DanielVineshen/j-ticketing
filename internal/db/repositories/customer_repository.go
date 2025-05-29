@@ -40,9 +40,15 @@ func (r *customerRepository) FindAll() ([]models.Customer, error) {
 		Preload("CustomerLogs", func(db *gorm.DB) *gorm.DB {
 			return db.Order("created_at DESC")
 		}).
-		Preload("OrderTicketGroups").
-		Preload("OrderTicketGroups.OrderTicketInfos").
-		Preload("OrderTicketGroups.OrderTicketLogs").
+		Preload("OrderTicketGroups", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
+		Preload("OrderTicketGroups.OrderTicketInfos", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
+		Preload("OrderTicketGroups.OrderTicketLogs", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
 		Order("created_at DESC").
 		Find(&customers)
 

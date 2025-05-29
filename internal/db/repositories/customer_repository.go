@@ -37,6 +37,9 @@ func (r *customerRepository) Create(customer *models.Customer) error {
 func (r *customerRepository) FindAll() ([]models.Customer, error) {
 	var customers []models.Customer
 	result := r.db.
+		Preload("CustomerLogs", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
 		Preload("OrderTicketGroups").
 		Preload("OrderTicketGroups.OrderTicketInfos").
 		Preload("OrderTicketGroups.OrderTicketLogs").

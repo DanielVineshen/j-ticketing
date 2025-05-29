@@ -164,7 +164,13 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, pay
 		}
 		formData.Set("jp_total_amount", totalAmount)
 		formData.Set("jp_product_id", productId)
-		formData.Set("jp_product_desc", productDesc[0:25])
+		var truncatedDesc string
+		if len(productDesc) > 25 {
+			truncatedDesc = productDesc[0:25]
+		} else {
+			truncatedDesc = productDesc
+		}
+		formData.Set("jp_product_desc", truncatedDesc)
 		formData.Set("jp_email", buyerEmail)
 		formData.Set("method", method)
 		formData.Set("jp_redirect_url", redirectUrl)

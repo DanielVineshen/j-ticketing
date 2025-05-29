@@ -247,12 +247,12 @@ func (h *OrderHandler) CreateOrderTicketGroup(c *fiber.Ctx) error {
 	}
 
 	// Generate the checkout URL
-	checkoutURL := h.generateCheckoutURL(orderTicketGroup.TicketGroupId, req.PaymentType)
+	checkoutURL := h.generateCheckoutURL(orderTicketGroup.OrderTicketGroupId, req.PaymentType)
 
 	// Return success response with redirect information
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(map[string]interface{}{
 		"redirectURL": checkoutURL,
-		"orderID":     orderTicketGroup.TicketGroupId,
+		"orderID":     orderTicketGroup.OrderTicketGroupId,
 	}))
 }
 
@@ -295,6 +295,8 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 				errors.USER_NOT_AUTHORIZED.Message, nil,
 			))
 		}
+
+		cust = *customer
 	} else {
 		// Check if any of the required fields are empty strings
 		if req.Email == "" || req.IdentificationNo == "" || req.FullName == "" || req.ContactNo == "" {
@@ -327,7 +329,7 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 	}
 
 	// Create the order using the custId we determined
-	orderTicketGroup, err := h.orderService.CreateFreeOrder(cust, &req)
+	orderTicketGroup, err := h.orderService.CreateFreeOrder(&cust, &req)
 	if err != nil {
 		// Determine appropriate error code based on the error
 		if strings.Contains(err.Error(), "not found") {

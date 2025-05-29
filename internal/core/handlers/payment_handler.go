@@ -78,11 +78,6 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 			// This ensures the user sees a response, and we can fix the data later if needed
 		}
 
-		err = h.customerService.CreateCustomerLog("purchase", "Purchase Completed", "Ticket package purchased via Online", cust)
-		if err != nil {
-			return err
-		}
-
 		// Extract and process payment status and other details
 		status := transactionData.StatusTransaksi
 		log.Printf("Payment status detected: %s", status)
@@ -99,13 +94,18 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 
 		// This would go after the database update but before the redirect
 		if dbStatus == "success" {
+			err = h.customerService.CreateCustomerLog("purchase", "Purchase Completed", "Ticket package purchased via Online", cust)
+			if err != nil {
+				return err
+			}
+
 			// Only call the Zoo API if payment was successful
-			orderTicketGroup, orderItems, ticketInfos, err := h.paymentService.PostToZooAPI(transactionData.OrderNo)
+			_, orderItems, ticketInfos, err := h.paymentService.PostToZooAPI(transactionData.OrderNo)
 			if err != nil {
 				log.Printf("Error posting to Johor Zoo API: %v", err)
 				// Continue with redirect even if this fails, we can retry later
 			} else {
-				err = h.orderService.CreateOrderTicketLog("order", "QR Code Assigned", "Order was assigned with qr codes for each ticket", "QR Service", orderTicketGroup)
+				err = h.orderService.CreateOrderTicketLog("order", "QR Code Assigned", "Order was assigned with qr codes for each ticket", "QR Service", order)
 				if err != nil {
 					return err
 				}
@@ -148,7 +148,7 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 				log.Printf("Failed to send tickets email to %s: %v", order.BuyerEmail, err)
 				// Continue anyway since the password has been reset
 			} else {
-				err = h.orderService.CreateOrderTicketLog("order", "Email Sent", "Email for the order was successfully sent out with its receipt", "Email Service", orderTicketGroup)
+				err = h.orderService.CreateOrderTicketLog("order", "Email Sent", "Email for the order was successfully sent out with its receipt", "Email Service", order)
 				if err != nil {
 					return err
 				}
@@ -159,6 +159,21 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 			}
 			if err != nil {
 				log.Printf("Failed to update order ticket group: %v", err)
+			}
+		} else {
+			err = h.customerService.CreateCustomerLog("purchase", "Purchase Failed", "Ticket package failed via Online", cust)
+			if err != nil {
+				return err
+			}
+
+			orderTicketGroup, err := h.orderService.GetOrderTicketGroupRaw(order.TicketGroupId)
+			if err != nil {
+				log.Printf("Error finding ticket group %s: %v", order.TicketGroupId, err)
+			} else {
+				err = h.orderService.CreateOrderTicketLog("order", "Order Created", "Order was created via Online channel", "System", orderTicketGroup)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -342,6 +357,8 @@ func (h *PaymentHandler) PaymentRedirect(c *fiber.Ctx) error {
 		return fmt.Errorf("order not found: %s", transactionData.OrderNo)
 	}
 
+	cust := order.Customer
+
 	var dbStatus = order.TransactionStatus
 	if dbStatus != "success" {
 		// Update the order in the database
@@ -368,6 +385,11 @@ func (h *PaymentHandler) PaymentRedirect(c *fiber.Ctx) error {
 
 		// This would go after the database update but before the redirect
 		if dbStatus == "success" {
+			err = h.customerService.CreateCustomerLog("purchase", "Purchase Completed", "Ticket package purchased via Online", cust)
+			if err != nil {
+				return err
+			}
+
 			// Only call the Zoo API if payment was successful
 			orderTicketGroup, orderItems, ticketInfos, err := h.paymentService.PostToZooAPI(transactionData.OrderNo)
 			if err != nil {
@@ -430,6 +452,21 @@ func (h *PaymentHandler) PaymentRedirect(c *fiber.Ctx) error {
 				log.Printf("Failed to update order ticket group: %v", err)
 			}
 		} else {
+			err = h.customerService.CreateCustomerLog("purchase", "Purchase Failed", "Ticket package failed via Online", cust)
+			if err != nil {
+				return err
+			}
+
+			orderTicketGroup, err := h.orderService.GetOrderTicketGroupRaw(order.TicketGroupId)
+			if err != nil {
+				log.Printf("Error finding ticket group %s: %v", order.TicketGroupId, err)
+			} else {
+				err = h.orderService.CreateOrderTicketLog("order", "Order Created", "Order was created via Online channel", "System", orderTicketGroup)
+				if err != nil {
+					return err
+				}
+			}
+
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"status":  "error",
 				"message": "Payment processed failed",

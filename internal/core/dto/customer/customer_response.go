@@ -28,7 +28,7 @@ type DetailedCustomer struct {
 	IdentificationNo  string                `json:"identificationNo"`
 	IsDisabled        bool                  `json:"isDisabled"`
 	ContactNo         string                `json:"contactNo"`
-	OrderTicketGroups []dto.OrderProfileDTO `json:"orderTicketGroup"`
+	OrderTicketGroups []dto.OrderProfileDTO `json:"orderTicketGroups"`
 	CustomerLogs      []CustomerLog         `json:"customersLogs"`
 }
 

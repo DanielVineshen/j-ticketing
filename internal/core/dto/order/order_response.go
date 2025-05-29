@@ -62,6 +62,7 @@ type OrderTicketInfoDTO struct {
 type OrderTicketLogDTO struct {
 	OrderTicketLogId   uint   `json:"orderTicketLogId"`
 	OrderTicketGroupId uint   `json:"orderTicketGroupId"`
+	PerformedBy        string `json:"performedBy"`
 	Type               string `json:"type"`
 	Title              string `json:"title"`
 	Message            string `json:"message"`

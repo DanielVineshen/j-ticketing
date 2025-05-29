@@ -190,6 +190,7 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 		ticketDTO := orderDto.OrderTicketLogDTO{
 			OrderTicketLogId:   ticket.OrderTicketLogId,
 			OrderTicketGroupId: ticket.OrderTicketGroupId,
+			PerformedBy:        getStringFromNullString(ticket.PerformedBy),
 			Type:               ticket.Type,
 			Title:              ticket.Title,
 			Message:            ticket.Message,

@@ -142,6 +142,7 @@ func (s *customerService) mapCustomerToDTO(customer *models.Customer) (customerD
 			ticketDTO := orderDto.OrderTicketLogDTO{
 				OrderTicketLogId:   ticket.OrderTicketLogId,
 				OrderTicketGroupId: ticket.OrderTicketGroupId,
+				PerformedBy:        getStringFromNullString(ticket.PerformedBy),
 				Type:               ticket.Type,
 				Title:              ticket.Title,
 				Message:            ticket.Message,

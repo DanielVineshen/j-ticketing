@@ -310,11 +310,11 @@ func (s *CustomerService) CreateCustomerLog(logType string, title string, messag
 	}
 
 	customerLog := models.CustomerLog{
-		Customer: customer,
-		Type:     logType,
-		Title:    title,
-		Message:  message,
-		Date:     malaysiaTime,
+		CustId:  customer.CustId,
+		Type:    logType,
+		Title:   title,
+		Message: message,
+		Date:    malaysiaTime,
 	}
 
 	err = s.customerLogRepo.Create(&customerLog)

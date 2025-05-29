@@ -100,6 +100,17 @@ func (s *OrderService) GetAllOrderTicketGroups(custId string, startDate string, 
 }
 
 // GetOrderTicketGroup retrieves a specific order ticket group
+func (s *OrderService) GetOrderTicketGroupRaw(orderTicketGroupId uint) (*models.OrderTicketGroup, error) {
+	// Use FindWithOrderTicketGroupId to get the order with its relations
+	order, err := s.orderTicketGroupRepo.FindWithOrderTicketGroupId(orderTicketGroupId)
+	if err != nil {
+		return nil, err
+	}
+
+	return order, nil
+}
+
+// GetOrderTicketGroup retrieves a specific order ticket group
 func (s *OrderService) GetOrderTicketGroup(orderTicketGroupId uint) (*orderDto.OrderTicketGroupDTO, error) {
 	// Use FindWithOrderTicketGroupId to get the order with its relations
 	order, err := s.orderTicketGroupRepo.FindWithOrderTicketGroupId(orderTicketGroupId)
@@ -483,7 +494,7 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 }
 
 // CreateOrder creates a new free order ticket group and returns the order ID
-func (s *OrderService) CreateFreeOrder(cust models.Customer, req *orderDto.CreateFreeOrderRequest) (*models.OrderTicketGroup, error) {
+func (s *OrderService) CreateFreeOrder(cust *models.Customer, req *orderDto.CreateFreeOrderRequest) (*models.OrderTicketGroup, error) {
 	// Validate ticket group exists
 	ticketGroup, err := s.ticketGroupRepo.FindByID(req.TicketGroupId)
 	if err != nil {
@@ -612,7 +623,7 @@ func (s *OrderService) CreateFreeOrder(cust models.Customer, req *orderDto.Creat
 		return nil, fmt.Errorf("failed to create order tickets: %w", err)
 	}
 
-	err = s.customerService.CreateCustomerLog("purchase", "Purchase Completed", "Ticket package purchased via Online", cust)
+	err = s.customerService.CreateCustomerLog("purchase", "Purchase Completed", "Ticket package purchased via Online", *cust)
 	if err != nil {
 		return nil, err
 	}

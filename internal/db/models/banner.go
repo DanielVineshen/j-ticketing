@@ -11,8 +11,8 @@ type Banner struct {
 	Placement       int       `gorm:"column:placement;not null"`
 	RedirectURL     string    `gorm:"column:redirect_url;type:varchar(255);not null"`
 	UploadedBy      string    `gorm:"column:uploaded_by;type:varchar(255);not null"`
-	ActiveEndDate   string    `gorm:"column:active_end_date;type:char(8);not null"`
-	ActiveStartDate string    `gorm:"column:active_start_date;type:char(8);not null"`
+	ActiveEndDate   string    `gorm:"column:active_end_date;type:varchar(255);not null"`
+	ActiveStartDate string    `gorm:"column:active_start_date;type:varchar(255);not null"`
 	IsActive        bool      `gorm:"column:is_active;type:boolean;not null"`
 	Duration        int       `gorm:"column:duration;not null"`
 	AttachmentName  string    `gorm:"column:attachment_name;type:varchar(255);not null"`

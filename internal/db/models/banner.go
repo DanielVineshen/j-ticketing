@@ -9,7 +9,7 @@ import (
 type Banner struct {
 	BannerId        uint      `gorm:"primaryKey;column:banner_id;type:bigint unsigned AUTO_INCREMENT"`
 	Placement       int       `gorm:"column:placement;not null"`
-	RedirectURL     string    `gorm:"column:redirect_url;type:varchar(255);not null"`
+	RedirectURL     string    `gorm:"column:redirect_url;type:varchar(255); null"`
 	UploadedBy      string    `gorm:"column:uploaded_by;type:varchar(255);not null"`
 	ActiveEndDate   string    `gorm:"column:active_end_date;type:varchar(255);not null"`
 	ActiveStartDate string    `gorm:"column:active_start_date;type:varchar(255);not null"`

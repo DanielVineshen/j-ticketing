@@ -42,6 +42,22 @@ func (h *BannerHandler) GetAllBanners(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(models.NewBaseSuccessResponse(response))
 }
 
+// GetFilteredBanners retrieves all filtered banners
+func (h *BannerHandler) GetFilteredBanners(c *fiber.Ctx) error {
+	banners, err := h.bannerService.GetFilteredBanners()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
+			"Failed to retrieve banners", nil,
+		))
+	}
+
+	response := dto.BannerListResponse{
+		Banners: banners,
+	}
+
+	return c.Status(fiber.StatusOK).JSON(models.NewBaseSuccessResponse(response))
+}
+
 // CreateBanner creates a new banner with file upload
 func (h *BannerHandler) CreateBanner(c *fiber.Ctx) error {
 	// Get the customer ID from the context (set by auth middleware)

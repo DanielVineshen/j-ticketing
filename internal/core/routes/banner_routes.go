@@ -15,10 +15,11 @@ func SetupBannerRoutes(app *fiber.App, bannerHandler *handlers.BannerHandler, jw
 	banner := app.Group("/api/banners")
 
 	// Public routes (no authentication required)
+	banner.Get("/", bannerHandler.GetFilteredBanners)
 	banner.Get("/attachment/:uniqueExtension", bannerHandler.GetBannerImage)
 
 	// CRUD routes (add authentication middleware as needed)
-	banner.Get("/", bannerHandler.GetAllBanners)
+	banner.Get("/all", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN"), bannerHandler.GetAllBanners)
 	banner.Post("/", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN"), bannerHandler.CreateBanner)
 	banner.Put("/", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN"), bannerHandler.UpdateBanner)
 	banner.Delete("/", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN"), bannerHandler.DeleteBanner)

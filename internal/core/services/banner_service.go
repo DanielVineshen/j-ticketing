@@ -28,20 +28,89 @@ func NewBannerService(bannerRepo *repositories.BannerRepository) *BannerService 
 	}
 }
 
-// GetAllBanners retrieves all active banners within their active date range
+// GetAllBanners retrieves all banners (no filtering) - DEBUG VERSION
 func (s *BannerService) GetAllBanners() ([]dto.Banner, error) {
+	// Debug: Log the start of the function
+	fmt.Println("DEBUG: GetAllBanners started")
+
 	bannerModels, err := s.bannerRepo.FindAll()
 	if err != nil {
-		return []dto.Banner{}, nil // Return empty array instead of nil on error
+		// Debug: Log the error
+		fmt.Printf("DEBUG: Repository error: %v\n", err)
+		// Return empty array instead of nil on error
+		return make([]dto.Banner, 0), nil
+	}
+
+	// Debug: Log how many banners were found
+	fmt.Printf("DEBUG: Found %d banners in database\n", len(bannerModels))
+
+	// If no banners found, return empty array (not nil slice)
+	if len(bannerModels) == 0 {
+		fmt.Println("DEBUG: No banners found, returning empty array")
+		return make([]dto.Banner, 0), nil
+	}
+
+	// Initialize with capacity to avoid nil slice
+	banners := make([]dto.Banner, 0, len(bannerModels))
+
+	for i, model := range bannerModels {
+		// Debug: Log each banner processing
+		fmt.Printf("DEBUG: Processing banner %d - ID: %d, Name: %s\n", i+1, model.BannerId, model.AttachmentName)
+
+		// Convert timestamps to Malaysia time with yyyy-MM-dd HH:mm:ss format
+		formattedCreatedAt := s.formatTimestampToMalaysia(model.CreatedAt)
+		formattedUpdatedAt := s.formatTimestampToMalaysia(model.UpdatedAt)
+
+		// Debug: Log formatted timestamps
+		fmt.Printf("DEBUG: Formatted timestamps - Created: %s, Updated: %s\n", formattedCreatedAt, formattedUpdatedAt)
+
+		banner := dto.Banner{
+			BannerId:        model.BannerId,
+			Placement:       model.Placement,
+			RedirectURL:     model.RedirectURL,
+			UploadedBy:      model.UploadedBy,
+			ActiveEndDate:   model.ActiveEndDate,   // Keep original yyyy-MM-dd format
+			ActiveStartDate: model.ActiveStartDate, // Keep original yyyy-MM-dd format
+			IsActive:        model.IsActive,
+			Duration:        model.Duration,
+			AttachmentName:  model.AttachmentName,
+			AttachmentPath:  model.AttachmentPath,
+			AttachmentSize:  model.AttachmentSize,
+			ContentType:     model.ContentType,
+			UniqueExt:       model.UniqueExt,
+			CreatedAt:       formattedCreatedAt,
+			UpdatedAt:       formattedUpdatedAt,
+		}
+		banners = append(banners, banner)
+	}
+
+	// Debug: Log final result
+	fmt.Printf("DEBUG: Returning %d banners\n", len(banners))
+	return banners, nil
+}
+
+// GetFilteredBanners retrieves only active banners within their active date range
+func (s *BannerService) GetFilteredBanners() ([]dto.Banner, error) {
+	bannerModels, err := s.bannerRepo.FindAll()
+	if err != nil {
+		// Return empty array instead of nil on error
+		return make([]dto.Banner, 0), nil
 	}
 
 	// If no banners found, return empty array
 	if len(bannerModels) == 0 {
-		return []dto.Banner{}, nil
+		return make([]dto.Banner, 0), nil
 	}
 
-	var banners []dto.Banner
-	currentDate := time.Now().Format("2006-01-02") // Get current date in yyyy-MM-dd format
+	// Initialize with capacity
+	banners := make([]dto.Banner, 0, len(bannerModels))
+
+	// Get current date in Malaysia timezone for consistency
+	currentDate, err := s.getCurrentMalaysiaDate()
+	if err != nil {
+		// Fallback to UTC date if Malaysia time fails
+		currentDate = time.Now().Format("2006-01-02")
+	}
 
 	for _, model := range bannerModels {
 		// Check if banner is active and within the active date range
@@ -71,11 +140,7 @@ func (s *BannerService) GetAllBanners() ([]dto.Banner, error) {
 		}
 	}
 
-	// Return empty array if no active banners found
-	if len(banners) == 0 {
-		return []dto.Banner{}, nil
-	}
-
+	// Always return initialized slice (never nil)
 	return banners, nil
 }
 
@@ -165,17 +230,17 @@ func (s *BannerService) UpdateBanner(request *dto.UpdateBannerRequest, file *mul
 		return nil, err
 	}
 
-	// Get storage path
-	storagePath := os.Getenv("BANNER_STORAGE_PATH")
-	if storagePath == "" {
-		return nil, errors.New("BANNER_STORAGE_PATH environment variable not set")
-	}
-
 	var uniqueFileName string
 	var oldUniqueFileName string
 
 	// Handle file upload if new file is provided
 	if file != nil {
+		// Get storage path
+		storagePath := os.Getenv("BANNER_STORAGE_PATH")
+		if storagePath == "" {
+			return nil, errors.New("BANNER_STORAGE_PATH environment variable not set")
+		}
+
 		// Upload new file
 		uniqueFileName, err = s.fileUtil.UploadAttachmentFile(file, storagePath)
 		if err != nil {
@@ -188,11 +253,18 @@ func (s *BannerService) UpdateBanner(request *dto.UpdateBannerRequest, file *mul
 		existingBanner.AttachmentSize = file.Size
 		existingBanner.ContentType = file.Header.Get("Content-Type")
 		existingBanner.UniqueExt = uniqueFileName
+
+		// Update uploadedBy only when new file is provided
+		existingBanner.UploadedBy = request.UploadedBy
 	}
 
 	// Update other fields (keep dates in original yyyy-MM-dd format)
 	existingBanner.RedirectURL = request.RedirectURL
-	existingBanner.UploadedBy = request.UploadedBy
+	// Don't update UploadedBy if no file provided - keep original
+	if file == nil {
+		// Keep original UploadedBy when no file is provided
+		// existingBanner.UploadedBy stays unchanged
+	}
 	existingBanner.ActiveEndDate = request.ActiveEndDate     // Keep original yyyy-MM-dd format
 	existingBanner.ActiveStartDate = request.ActiveStartDate // Keep original yyyy-MM-dd format
 	existingBanner.IsActive = request.IsActive
@@ -203,14 +275,20 @@ func (s *BannerService) UpdateBanner(request *dto.UpdateBannerRequest, file *mul
 	if err := s.bannerRepo.Update(existingBanner); err != nil {
 		// Delete new file if database update fails
 		if uniqueFileName != "" {
-			s.fileUtil.DeleteAttachmentFile(uniqueFileName, storagePath)
+			storagePath := os.Getenv("BANNER_STORAGE_PATH")
+			if storagePath != "" {
+				s.fileUtil.DeleteAttachmentFile(uniqueFileName, storagePath)
+			}
 		}
 		return nil, err
 	}
 
 	// Delete old file if new file was uploaded successfully
 	if oldUniqueFileName != "" && uniqueFileName != "" {
-		s.fileUtil.DeleteAttachmentFile(oldUniqueFileName, storagePath)
+		storagePath := os.Getenv("BANNER_STORAGE_PATH")
+		if storagePath != "" {
+			s.fileUtil.DeleteAttachmentFile(oldUniqueFileName, storagePath)
+		}
 	}
 
 	// Convert to response DTO
@@ -218,7 +296,7 @@ func (s *BannerService) UpdateBanner(request *dto.UpdateBannerRequest, file *mul
 		BannerId:        existingBanner.BannerId,
 		Placement:       existingBanner.Placement,
 		RedirectURL:     existingBanner.RedirectURL,
-		UploadedBy:      existingBanner.UploadedBy,
+		UploadedBy:      existingBanner.UploadedBy, // This will be original or updated based on file presence
 		ActiveEndDate:   existingBanner.ActiveEndDate,
 		ActiveStartDate: existingBanner.ActiveStartDate,
 		IsActive:        existingBanner.IsActive,
@@ -313,6 +391,15 @@ func (s *BannerService) validateDateRange(startDateStr, endDateStr string) error
 	return nil
 }
 
+// getCurrentMalaysiaDate gets the current date in Malaysia timezone
+func (s *BannerService) getCurrentMalaysiaDate() (string, error) {
+	malaysiaTime, err := utils.GetCurrentMalaysiaTime()
+	if err != nil {
+		return "", err
+	}
+	return malaysiaTime.Format("2006-01-02"), nil
+}
+
 // isBannerActiveAndValid checks if banner is active and within the active date range
 func (s *BannerService) isBannerActiveAndValid(banner models.Banner, currentDate string) bool {
 	// Check if banner is marked as active
@@ -336,9 +423,9 @@ func (s *BannerService) isBannerActiveAndValid(banner models.Banner, currentDate
 		return false
 	}
 
-	// Check if current date is within the active range (inclusive)
+	// Check if current date is within the active range (inclusive of both start and end dates)
 	return (current.Equal(startDate) || current.After(startDate)) &&
-		(current.Equal(endDate) || current.Before(endDate))
+		(current.Before(endDate) || current.Equal(endDate))
 }
 
 // formatTimestampToMalaysia converts UTC timestamp to Malaysia time in yyyy-MM-dd HH:mm:ss format

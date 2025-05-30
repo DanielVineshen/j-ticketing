@@ -308,21 +308,26 @@ func (s *DashboardService) getCustomerAnalysis(startDate, endDate string) (*Cust
 
 // getNotificationAnalysis retrieves notification analysis data
 func (s *DashboardService) getNotificationAnalysis(startDate, endDate string) (*NotificationAnalysis, error) {
-	// Count total unread notifications (no date filter)
-	totalCount, err := s.notificationRepo.CountByDateRangeUnread("", "")
+	// Get all unread notifications
+	unreadNotifications, err := s.notificationRepo.FindUnread()
 	if err != nil {
-		return nil, fmt.Errorf("failed to count notifications: %w", err)
+		return nil, fmt.Errorf("failed to get unread notifications: %w", err)
 	}
 
-	// Get latest 10 unread notifications (no date filter for logs)
-	notifications, err := s.notificationRepo.FindByDateRangeUnread("", "", 10)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get notification logs: %w", err)
+	// Count total unread notifications
+	totalCount := len(unreadNotifications)
+
+	// Limit to latest 10 notifications for logs (they're already ordered by created_at DESC)
+	var notificationsForLogs []models.Notification
+	if len(unreadNotifications) > 10 {
+		notificationsForLogs = unreadNotifications[:10]
+	} else {
+		notificationsForLogs = unreadNotifications
 	}
 
 	// Convert to response format
-	notificationLogs := make([]NotificationLogData, 0, len(notifications))
-	for _, notification := range notifications {
+	notificationLogs := make([]NotificationLogData, 0, len(notificationsForLogs))
+	for _, notification := range notificationsForLogs {
 		performedBy := ""
 		if notification.PerformedBy.Valid {
 			performedBy = notification.PerformedBy.String
@@ -347,7 +352,7 @@ func (s *DashboardService) getNotificationAnalysis(startDate, endDate string) (*
 	}
 
 	return &NotificationAnalysis{
-		TotalNotifications: int(totalCount),
+		TotalNotifications: totalCount,
 		NotificationLogs:   notificationLogs,
 	}, nil
 }

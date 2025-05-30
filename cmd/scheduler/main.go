@@ -217,14 +217,14 @@ func runScheduler(orderService *jobs.EmailProcessingService) {
 
 		// Calculate how long the processing took
 		processingDuration := time.Since(startTime)
-		nextRunAt := time.Now().Add(10 * time.Minute)
+		nextRunAt := time.Now().Add(2 * time.Minute)
 
 		// Log completion and wait time
-		log.Printf("INFO: Scheduler run complete, waiting 10 minutes until next run (processing_duration=%v, next_run_at=%v)",
+		log.Printf("INFO: Scheduler run complete, waiting 2 minutes until next run (processing_duration=%v, next_run_at=%v)",
 			processingDuration, nextRunAt.Format(time.RFC3339))
 
-		// Wait exactly 10 minutes before the next run, regardless of how long processing took
-		time.Sleep(10 * time.Minute)
+		// Wait exactly 2 minutes before the next run, regardless of how long processing took
+		time.Sleep(2 * time.Minute)
 	}
 }
 

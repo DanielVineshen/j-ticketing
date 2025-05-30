@@ -100,13 +100,12 @@ func (n *NotificationService) GetAll() ([]notificationDto.NotificationDetails, e
 		return nil, err
 	}
 
-	var notificationDetailsList []notificationDto.NotificationDetails
+	var notificationDetailsList = make([]notificationDto.NotificationDetails, 0)
 
 	for _, notification := range notifications {
 		notificationDetail := notificationDto.NotificationDetails{
 			NotificationID: notification.NotificationId,
 			PerformedBy:    getStringFromNullString(notification.PerformedBy),
-			// Add other fields as needed
 			AuthorityLevel: notification.AuthorityLevel,
 			Type:           notification.Type,
 			Title:          notification.Title,
@@ -119,7 +118,7 @@ func (n *NotificationService) GetAll() ([]notificationDto.NotificationDetails, e
 		}
 		notificationDetailsList = append(notificationDetailsList, notificationDetail)
 	}
-	
+
 	return notificationDetailsList, nil
 }
 

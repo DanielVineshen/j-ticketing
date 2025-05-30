@@ -14,4 +14,6 @@ func SetupNotificationRoutes(app *fiber.App, notificationHandler *handlers.Notif
 
 	// Public routes (no authentication required)
 	notification.Get("/notifications", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), notificationHandler.GetAllNotifications)
+
+	notification.Put("/notification", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), notificationHandler.UpdateNotifications)
 }

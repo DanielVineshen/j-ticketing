@@ -28,41 +28,26 @@ func NewBannerService(bannerRepo *repositories.BannerRepository) *BannerService 
 	}
 }
 
-// GetAllBanners retrieves all banners (no filtering) - DEBUG VERSION
+// GetAllBanners retrieves all banners (no filtering)
 func (s *BannerService) GetAllBanners() ([]dto.Banner, error) {
-	// Debug: Log the start of the function
-	fmt.Println("DEBUG: GetAllBanners started")
-
 	bannerModels, err := s.bannerRepo.FindAll()
 	if err != nil {
-		// Debug: Log the error
-		fmt.Printf("DEBUG: Repository error: %v\n", err)
 		// Return empty array instead of nil on error
 		return make([]dto.Banner, 0), nil
 	}
 
-	// Debug: Log how many banners were found
-	fmt.Printf("DEBUG: Found %d banners in database\n", len(bannerModels))
-
 	// If no banners found, return empty array (not nil slice)
 	if len(bannerModels) == 0 {
-		fmt.Println("DEBUG: No banners found, returning empty array")
 		return make([]dto.Banner, 0), nil
 	}
 
 	// Initialize with capacity to avoid nil slice
 	banners := make([]dto.Banner, 0, len(bannerModels))
 
-	for i, model := range bannerModels {
-		// Debug: Log each banner processing
-		fmt.Printf("DEBUG: Processing banner %d - ID: %d, Name: %s\n", i+1, model.BannerId, model.AttachmentName)
-
+	for _, model := range bannerModels {
 		// Convert timestamps to Malaysia time with yyyy-MM-dd HH:mm:ss format
 		formattedCreatedAt := s.formatTimestampToMalaysia(model.CreatedAt)
 		formattedUpdatedAt := s.formatTimestampToMalaysia(model.UpdatedAt)
-
-		// Debug: Log formatted timestamps
-		fmt.Printf("DEBUG: Formatted timestamps - Created: %s, Updated: %s\n", formattedCreatedAt, formattedUpdatedAt)
 
 		banner := dto.Banner{
 			BannerId:        model.BannerId,
@@ -84,8 +69,6 @@ func (s *BannerService) GetAllBanners() ([]dto.Banner, error) {
 		banners = append(banners, banner)
 	}
 
-	// Debug: Log final result
-	fmt.Printf("DEBUG: Returning %d banners\n", len(banners))
 	return banners, nil
 }
 

@@ -101,6 +101,7 @@ func main() {
 	orderTicketLogRepo := repositories.NewOrderTicketLogRepository(database)
 	customerRepo := repositories.NewCustomerRepository(database)
 	customerLogRepo := repositories.NewCustomerLogRepository(database)
+	ticketVariantRepo := repositories.NewTicketVariantRepository(database)
 
 	// Initialize services
 	paymentService := service.NewPaymentService(
@@ -118,6 +119,7 @@ func main() {
 		tagRepo,
 		groupGalleryRepo,
 		ticketDetailRepo,
+		ticketVariantRepo,
 		cfg,
 	)
 	customerService := service.NewCustomerService(customerRepo, customerLogRepo)

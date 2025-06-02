@@ -104,20 +104,45 @@ func (s *TicketGroupService) GetTicketGroupById(id uint) (*dto.TicketGroupDTO, e
 
 	// Create the ticket group DTO
 	ticketGroupDTO := &dto.TicketGroupDTO{
-		TicketGroupId:   ticketGroup.TicketGroupId,
-		GroupType:       ticketGroup.GroupType,
-		GroupName:       ticketGroup.GroupName,
-		GroupDesc:       ticketGroup.GroupDesc,
-		OperatingHours:  ticketGroup.OperatingHours,
-		PricePrefix:     ticketGroup.PricePrefix,
-		PriceSuffix:     ticketGroup.PriceSuffix,
-		AttachmentName:  ticketGroup.AttachmentName,
-		AttachmentPath:  ticketGroup.AttachmentPath,
-		AttachmentSize:  ticketGroup.AttachmentSize,
-		ContentType:     ticketGroup.ContentType,
-		UniqueExtension: ticketGroup.UniqueExtension,
-		IsActive:        ticketGroup.IsActive,
-		Tags:            tagDTOs,
+		TicketGroupId:          ticketGroup.TicketGroupId,
+		OrderTicketLimit:       ticketGroup.OrderTicketLimit,
+		ScanSetting:            ticketGroup.ScanSetting,
+		GroupType:              ticketGroup.GroupType,
+		GroupNameBm:            ticketGroup.GroupNameBm,
+		GroupNameEn:            ticketGroup.GroupNameEn,
+		GroupNameCn:            ticketGroup.GroupNameCn,
+		GroupDescBm:            ticketGroup.GroupDescBm,
+		GroupDescEn:            ticketGroup.GroupDescEn,
+		GroupDescCn:            ticketGroup.GroupDescCn,
+		GroupRedirectionSpanBm: nullStringToPointer(ticketGroup.GroupRedirectionSpanBm),
+		GroupRedirectionSpanEn: nullStringToPointer(ticketGroup.GroupRedirectionSpanEn),
+		GroupRedirectionSpanCn: nullStringToPointer(ticketGroup.GroupRedirectionSpanCn),
+		GroupRedirectionUrl:    nullStringToPointer(ticketGroup.GroupRedirectionUrl),
+		GroupSlot1Bm:           nullStringToPointer(ticketGroup.GroupSlot1Bm),
+		GroupSlot1En:           nullStringToPointer(ticketGroup.GroupSlot1En),
+		GroupSlot1Cn:           nullStringToPointer(ticketGroup.GroupSlot1Cn),
+		GroupSlot2Bm:           nullStringToPointer(ticketGroup.GroupSlot2Bm),
+		GroupSlot2En:           nullStringToPointer(ticketGroup.GroupSlot2En),
+		GroupSlot2Cn:           nullStringToPointer(ticketGroup.GroupSlot2Cn),
+		GroupSlot3Bm:           nullStringToPointer(ticketGroup.GroupSlot3Bm),
+		GroupSlot3En:           nullStringToPointer(ticketGroup.GroupSlot3En),
+		GroupSlot3Cn:           nullStringToPointer(ticketGroup.GroupSlot3Cn),
+		GroupSlot4Bm:           nullStringToPointer(ticketGroup.GroupSlot4Bm),
+		GroupSlot4En:           nullStringToPointer(ticketGroup.GroupSlot4En),
+		GroupSlot4Cn:           nullStringToPointer(ticketGroup.GroupSlot4Cn),
+		PricePrefixBm:          ticketGroup.PricePrefixBm,
+		PricePrefixEn:          ticketGroup.PricePrefixEn,
+		PricePrefixCn:          ticketGroup.PricePrefixCn,
+		PriceSuffixBm:          ticketGroup.PriceSuffixBm,
+		PriceSuffixEn:          ticketGroup.PriceSuffixEn,
+		PriceSuffixCn:          ticketGroup.PriceSuffixCn,
+		AttachmentName:         ticketGroup.AttachmentName,
+		AttachmentPath:         ticketGroup.AttachmentPath,
+		AttachmentSize:         ticketGroup.AttachmentSize,
+		ContentType:            ticketGroup.ContentType,
+		UniqueExtension:        ticketGroup.UniqueExtension,
+		IsActive:               ticketGroup.IsActive,
+		Tags:                   tagDTOs,
 	}
 
 	return ticketGroupDTO, nil
@@ -150,20 +175,45 @@ func (s *TicketGroupService) buildTicketGroupResponse(ticketGroups []models.Tick
 
 		// Create the ticket group DTO
 		ticketGroupDTO := dto.TicketGroupDTO{
-			TicketGroupId:   ticketGroup.TicketGroupId,
-			GroupType:       ticketGroup.GroupType,
-			GroupName:       ticketGroup.GroupName,
-			GroupDesc:       ticketGroup.GroupDesc,
-			OperatingHours:  ticketGroup.OperatingHours,
-			PricePrefix:     ticketGroup.PricePrefix,
-			PriceSuffix:     ticketGroup.PriceSuffix,
-			AttachmentName:  ticketGroup.AttachmentName,
-			AttachmentPath:  ticketGroup.AttachmentPath,
-			AttachmentSize:  ticketGroup.AttachmentSize,
-			ContentType:     ticketGroup.ContentType,
-			UniqueExtension: ticketGroup.UniqueExtension,
-			IsActive:        ticketGroup.IsActive,
-			Tags:            tagDTOs,
+			TicketGroupId:          ticketGroup.TicketGroupId,
+			OrderTicketLimit:       ticketGroup.OrderTicketLimit,
+			ScanSetting:            ticketGroup.ScanSetting,
+			GroupType:              ticketGroup.GroupType,
+			GroupNameBm:            ticketGroup.GroupNameBm,
+			GroupNameEn:            ticketGroup.GroupNameEn,
+			GroupNameCn:            ticketGroup.GroupNameCn,
+			GroupDescBm:            ticketGroup.GroupDescBm,
+			GroupDescEn:            ticketGroup.GroupDescEn,
+			GroupDescCn:            ticketGroup.GroupDescCn,
+			GroupRedirectionSpanBm: nullStringToPointer(ticketGroup.GroupRedirectionSpanBm),
+			GroupRedirectionSpanEn: nullStringToPointer(ticketGroup.GroupRedirectionSpanEn),
+			GroupRedirectionSpanCn: nullStringToPointer(ticketGroup.GroupRedirectionSpanCn),
+			GroupRedirectionUrl:    nullStringToPointer(ticketGroup.GroupRedirectionUrl),
+			GroupSlot1Bm:           nullStringToPointer(ticketGroup.GroupSlot1Bm),
+			GroupSlot1En:           nullStringToPointer(ticketGroup.GroupSlot1En),
+			GroupSlot1Cn:           nullStringToPointer(ticketGroup.GroupSlot1Cn),
+			GroupSlot2Bm:           nullStringToPointer(ticketGroup.GroupSlot2Bm),
+			GroupSlot2En:           nullStringToPointer(ticketGroup.GroupSlot2En),
+			GroupSlot2Cn:           nullStringToPointer(ticketGroup.GroupSlot2Cn),
+			GroupSlot3Bm:           nullStringToPointer(ticketGroup.GroupSlot3Bm),
+			GroupSlot3En:           nullStringToPointer(ticketGroup.GroupSlot3En),
+			GroupSlot3Cn:           nullStringToPointer(ticketGroup.GroupSlot3Cn),
+			GroupSlot4Bm:           nullStringToPointer(ticketGroup.GroupSlot4Bm),
+			GroupSlot4En:           nullStringToPointer(ticketGroup.GroupSlot4En),
+			GroupSlot4Cn:           nullStringToPointer(ticketGroup.GroupSlot4Cn),
+			PricePrefixBm:          ticketGroup.PricePrefixBm,
+			PricePrefixEn:          ticketGroup.PricePrefixEn,
+			PricePrefixCn:          ticketGroup.PricePrefixCn,
+			PriceSuffixBm:          ticketGroup.PriceSuffixBm,
+			PriceSuffixEn:          ticketGroup.PriceSuffixEn,
+			PriceSuffixCn:          ticketGroup.PriceSuffixCn,
+			AttachmentName:         ticketGroup.AttachmentName,
+			AttachmentPath:         ticketGroup.AttachmentPath,
+			AttachmentSize:         ticketGroup.AttachmentSize,
+			ContentType:            ticketGroup.ContentType,
+			UniqueExtension:        ticketGroup.UniqueExtension,
+			IsActive:               ticketGroup.IsActive,
+			Tags:                   tagDTOs,
 		}
 
 		response.TicketGroups = append(response.TicketGroups, ticketGroupDTO)
@@ -208,52 +258,102 @@ func (s *TicketGroupService) GetTicketProfile(ticketGroupId uint) (*dto.TicketPr
 		return nil, err
 	}
 
-	// 6. Parse organiser facilities from string to string array
-	var organiserFacilities []string
-	if ticketGroup.OrganiserFacilities != "" {
-		// Split the string based on the semicolon separator
-		organiserFacilities = strings.Split(ticketGroup.OrganiserFacilities, ";")
-
-		// Optional: Trim any whitespace from each facility
-		for i, facility := range organiserFacilities {
-			organiserFacilities[i] = strings.TrimSpace(facility)
+	// Parse organiser facilities from string to string array
+	var organiserFacilitiesBm []string
+	facilitiesBmStr := getStringFromNullString(ticketGroup.OrganiserFacilitiesBm)
+	if facilitiesBmStr != "" {
+		organiserFacilitiesBm = strings.Split(facilitiesBmStr, ";")
+		for i, facility := range organiserFacilitiesBm {
+			organiserFacilitiesBm[i] = strings.TrimSpace(facility)
 		}
 	} else {
-		organiserFacilities = []string{} // Empty array if no facilities
+		organiserFacilitiesBm = []string{}
 	}
 
-	// 7. Create the response
+	var organiserFacilitiesEn []string
+	facilitiesEnStr := getStringFromNullString(ticketGroup.OrganiserFacilitiesEn)
+	if facilitiesEnStr != "" {
+		organiserFacilitiesEn = strings.Split(facilitiesEnStr, ";")
+		for i, facility := range organiserFacilitiesEn {
+			organiserFacilitiesEn[i] = strings.TrimSpace(facility)
+		}
+	} else {
+		organiserFacilitiesEn = []string{}
+	}
+
+	var organiserFacilitiesCn []string
+	facilitiesCnStr := getStringFromNullString(ticketGroup.OrganiserFacilitiesCn)
+	if facilitiesCnStr != "" {
+		organiserFacilitiesCn = strings.Split(facilitiesCnStr, ";")
+		for i, facility := range organiserFacilitiesCn {
+			organiserFacilitiesCn[i] = strings.TrimSpace(facility)
+		}
+	} else {
+		organiserFacilitiesCn = []string{}
+	}
+
+	// Build the ticket profile DTO
 	profile := &dto.TicketProfileDTO{
-		TicketGroupId:            ticketGroup.TicketGroupId,
-		GroupType:                ticketGroup.GroupType,
-		GroupName:                ticketGroup.GroupName,
-		GroupDesc:                ticketGroup.GroupDesc,
-		OperatingHours:           ticketGroup.OperatingHours,
-		PricePrefix:              ticketGroup.PricePrefix,
-		PriceSuffix:              ticketGroup.PriceSuffix,
-		AttachmentName:           ticketGroup.AttachmentName,
-		AttachmentPath:           ticketGroup.AttachmentPath,
-		AttachmentSize:           ticketGroup.AttachmentSize,
-		ContentType:              ticketGroup.ContentType,
-		UniqueExtension:          ticketGroup.UniqueExtension,
-		IsActive:                 ticketGroup.IsActive,
-		IsTicketInternal:         ticketGroup.IsTicketInternal,
-		TicketIds:                ticketGroup.TicketIds.String,
-		Tags:                     tagDTOs,
-		GroupGallery:             galleryItems,
-		TicketDetails:            ticketDetails,
-		LocationAddress:          ticketGroup.LocationAddress,
-		LocationMapEmbedUrl:      ticketGroup.LocationMapUrl,
-		OrganiserName:            ticketGroup.OrganiserName,
-		OrganiserAddress:         ticketGroup.OrganiserAddress,
-		OrganiserDescriptionHtml: ticketGroup.OrganiserDescHtml,
-		OrganiserContact:         ticketGroup.OrganiserContact,
-		OrganiserEmail:           ticketGroup.OrganiserEmail,
-		OrganiserWebsite:         ticketGroup.OrganiserWebsite,
-		OrganiserOperatingHours:  ticketGroup.OrganiserOperatingHour,
-		OrganiserFacilities:      organiserFacilities,
-		CreatedAt:                ticketGroup.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:                ticketGroup.UpdatedAt.Format(time.RFC3339),
+		TicketGroupId:              ticketGroup.TicketGroupId,
+		OrderTicketLimit:           ticketGroup.OrderTicketLimit,
+		ScanSetting:                ticketGroup.ScanSetting,
+		GroupType:                  ticketGroup.GroupType,
+		GroupNameBm:                ticketGroup.GroupNameBm,
+		GroupNameEn:                ticketGroup.GroupNameEn,
+		GroupNameCn:                ticketGroup.GroupNameCn,
+		GroupDescBm:                ticketGroup.GroupDescBm,
+		GroupDescEn:                ticketGroup.GroupDescEn,
+		GroupDescCn:                ticketGroup.GroupDescCn,
+		GroupRedirectionSpanBm:     nullStringToPointer(ticketGroup.GroupRedirectionSpanBm),
+		GroupRedirectionSpanEn:     nullStringToPointer(ticketGroup.GroupRedirectionSpanEn),
+		GroupRedirectionSpanCn:     nullStringToPointer(ticketGroup.GroupRedirectionSpanCn),
+		GroupRedirectionUrl:        nullStringToPointer(ticketGroup.GroupRedirectionUrl),
+		GroupSlot1Bm:               nullStringToPointer(ticketGroup.GroupSlot1Bm),
+		GroupSlot1En:               nullStringToPointer(ticketGroup.GroupSlot1En),
+		GroupSlot1Cn:               nullStringToPointer(ticketGroup.GroupSlot1Cn),
+		GroupSlot2Bm:               nullStringToPointer(ticketGroup.GroupSlot2Bm),
+		GroupSlot2En:               nullStringToPointer(ticketGroup.GroupSlot2En),
+		GroupSlot2Cn:               nullStringToPointer(ticketGroup.GroupSlot2Cn),
+		GroupSlot3Bm:               nullStringToPointer(ticketGroup.GroupSlot3Bm),
+		GroupSlot3En:               nullStringToPointer(ticketGroup.GroupSlot3En),
+		GroupSlot3Cn:               nullStringToPointer(ticketGroup.GroupSlot3Cn),
+		GroupSlot4Bm:               nullStringToPointer(ticketGroup.GroupSlot4Bm),
+		GroupSlot4En:               nullStringToPointer(ticketGroup.GroupSlot4En),
+		GroupSlot4Cn:               nullStringToPointer(ticketGroup.GroupSlot4Cn),
+		PricePrefixBm:              ticketGroup.PricePrefixBm,
+		PricePrefixEn:              ticketGroup.PricePrefixEn,
+		PricePrefixCn:              ticketGroup.PricePrefixCn,
+		PriceSuffixBm:              ticketGroup.PriceSuffixBm,
+		PriceSuffixEn:              ticketGroup.PriceSuffixEn,
+		PriceSuffixCn:              ticketGroup.PriceSuffixCn,
+		AttachmentName:             ticketGroup.AttachmentName,
+		AttachmentPath:             ticketGroup.AttachmentPath,
+		AttachmentSize:             ticketGroup.AttachmentSize,
+		ContentType:                ticketGroup.ContentType,
+		UniqueExtension:            ticketGroup.UniqueExtension,
+		IsActive:                   ticketGroup.IsActive,
+		IsTicketInternal:           ticketGroup.IsTicketInternal,
+		TicketIds:                  ticketGroup.TicketIds.String,
+		Tags:                       tagDTOs,
+		GroupGallery:               galleryItems,
+		TicketDetails:              ticketDetails,
+		LocationAddress:            ticketGroup.LocationAddress,
+		LocationMapEmbedUrl:        ticketGroup.LocationMapUrl,
+		OrganiserNameBm:            ticketGroup.OrganiserNameBm,
+		OrganiserNameEn:            ticketGroup.OrganiserNameEn,
+		OrganiserNameCn:            ticketGroup.OrganiserNameCn,
+		OrganiserAddress:           ticketGroup.OrganiserAddress,
+		OrganiserDescriptionHtmlBm: ticketGroup.OrganiserDescHtmlBm,
+		OrganiserDescriptionHtmlEn: ticketGroup.OrganiserDescHtmlEn,
+		OrganiserDescriptionHtmlCn: ticketGroup.OrganiserDescHtmlCn,
+		OrganiserContact:           nullStringToPointer(ticketGroup.OrganiserContact),
+		OrganiserEmail:             nullStringToPointer(ticketGroup.OrganiserEmail),
+		OrganiserWebsite:           nullStringToPointer(ticketGroup.OrganiserWebsite),
+		OrganiserFacilitiesBm:      organiserFacilitiesBm,
+		OrganiserFacilitiesEn:      organiserFacilitiesEn,
+		OrganiserFacilitiesCn:      organiserFacilitiesCn,
+		CreatedAt:                  ticketGroup.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:                  ticketGroup.UpdatedAt.Format(time.RFC3339),
 	}
 
 	// 8. Handle optional date fields
@@ -328,7 +428,7 @@ func (s *TicketGroupService) GetTicketVariants(ticketGroupId uint, date string) 
 	}
 
 	// Get available ticket items from the external API
-	ticketItems, err := s.zooAPIClient.GetTicketItems(ticketGroup.GroupName, date)
+	ticketItems, err := s.zooAPIClient.GetTicketItems(ticketGroup.GroupNameBm, date)
 	if err != nil {
 		return nil, err
 	}

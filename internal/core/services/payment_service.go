@@ -94,7 +94,7 @@ func (s *PaymentService) PostToZooAPI(orderNo string) (*models.OrderTicketGroup,
 		return nil, nil, nil, fmt.Errorf("order not found: %s", orderNo)
 	}
 
-	ticketGroupName := orderTicketGroup.TicketGroup.GroupName
+	ticketGroupName := orderTicketGroup.TicketGroup.GroupNameBm
 	fmt.Printf(ticketGroupName)
 
 	// Get the order ticket items

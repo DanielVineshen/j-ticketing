@@ -259,51 +259,101 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 	}
 
 	// Parse organiser facilities from string to string array
-	var organiserFacilities []string
-	if ticketGroup.OrganiserFacilities != "" {
-		// Split the string based on the semicolon separator
-		organiserFacilities = strings.Split(ticketGroup.OrganiserFacilities, ";")
-
-		// Trim any whitespace from each facility
-		for i, facility := range organiserFacilities {
-			organiserFacilities[i] = strings.TrimSpace(facility)
+	var organiserFacilitiesBm []string
+	facilitiesBmStr := getStringFromNullString(ticketGroup.OrganiserFacilitiesBm)
+	if facilitiesBmStr != "" {
+		organiserFacilitiesBm = strings.Split(facilitiesBmStr, ";")
+		for i, facility := range organiserFacilitiesBm {
+			organiserFacilitiesBm[i] = strings.TrimSpace(facility)
 		}
 	} else {
-		organiserFacilities = []string{} // Empty array if no facilities
+		organiserFacilitiesBm = []string{}
+	}
+
+	var organiserFacilitiesEn []string
+	facilitiesEnStr := getStringFromNullString(ticketGroup.OrganiserFacilitiesEn)
+	if facilitiesEnStr != "" {
+		organiserFacilitiesEn = strings.Split(facilitiesEnStr, ";")
+		for i, facility := range organiserFacilitiesEn {
+			organiserFacilitiesEn[i] = strings.TrimSpace(facility)
+		}
+	} else {
+		organiserFacilitiesEn = []string{}
+	}
+
+	var organiserFacilitiesCn []string
+	facilitiesCnStr := getStringFromNullString(ticketGroup.OrganiserFacilitiesCn)
+	if facilitiesCnStr != "" {
+		organiserFacilitiesCn = strings.Split(facilitiesCnStr, ";")
+		for i, facility := range organiserFacilitiesCn {
+			organiserFacilitiesCn[i] = strings.TrimSpace(facility)
+		}
+	} else {
+		organiserFacilitiesCn = []string{}
 	}
 
 	// Build the ticket profile DTO
 	ticketProfile := ticketGroupDto.TicketProfileDTO{
-		TicketGroupId:            ticketGroup.TicketGroupId,
-		GroupType:                ticketGroup.GroupType,
-		GroupName:                ticketGroup.GroupName,
-		GroupDesc:                ticketGroup.GroupDesc,
-		OperatingHours:           ticketGroup.OperatingHours,
-		PricePrefix:              ticketGroup.PricePrefix,
-		PriceSuffix:              ticketGroup.PriceSuffix,
-		AttachmentName:           ticketGroup.AttachmentName,
-		AttachmentPath:           ticketGroup.AttachmentPath,
-		AttachmentSize:           ticketGroup.AttachmentSize,
-		ContentType:              ticketGroup.ContentType,
-		UniqueExtension:          ticketGroup.UniqueExtension,
-		IsActive:                 ticketGroup.IsActive,
-		IsTicketInternal:         ticketGroup.IsTicketInternal,
-		TicketIds:                ticketGroup.TicketIds.String,
-		Tags:                     tagDTOs,
-		GroupGallery:             galleryDTOs,
-		TicketDetails:            detailDTOs,
-		LocationAddress:          ticketGroup.LocationAddress,
-		LocationMapEmbedUrl:      ticketGroup.LocationMapUrl,
-		OrganiserName:            ticketGroup.OrganiserName,
-		OrganiserAddress:         ticketGroup.OrganiserAddress,
-		OrganiserDescriptionHtml: ticketGroup.OrganiserDescHtml,
-		OrganiserContact:         ticketGroup.OrganiserContact,
-		OrganiserEmail:           ticketGroup.OrganiserEmail,
-		OrganiserWebsite:         ticketGroup.OrganiserWebsite,
-		OrganiserOperatingHours:  ticketGroup.OrganiserOperatingHour,
-		OrganiserFacilities:      organiserFacilities,
-		CreatedAt:                ticketGroup.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:                ticketGroup.UpdatedAt.Format(time.RFC3339),
+		TicketGroupId:              ticketGroup.TicketGroupId,
+		OrderTicketLimit:           ticketGroup.OrderTicketLimit,
+		ScanSetting:                ticketGroup.ScanSetting,
+		GroupType:                  ticketGroup.GroupType,
+		GroupNameBm:                ticketGroup.GroupNameBm,
+		GroupNameEn:                ticketGroup.GroupNameEn,
+		GroupNameCn:                ticketGroup.GroupNameCn,
+		GroupDescBm:                ticketGroup.GroupDescBm,
+		GroupDescEn:                ticketGroup.GroupDescEn,
+		GroupDescCn:                ticketGroup.GroupDescCn,
+		GroupRedirectionSpanBm:     nullStringToPointer(ticketGroup.GroupRedirectionSpanBm),
+		GroupRedirectionSpanEn:     nullStringToPointer(ticketGroup.GroupRedirectionSpanEn),
+		GroupRedirectionSpanCn:     nullStringToPointer(ticketGroup.GroupRedirectionSpanCn),
+		GroupRedirectionUrl:        nullStringToPointer(ticketGroup.GroupRedirectionUrl),
+		GroupSlot1Bm:               nullStringToPointer(ticketGroup.GroupSlot1Bm),
+		GroupSlot1En:               nullStringToPointer(ticketGroup.GroupSlot1En),
+		GroupSlot1Cn:               nullStringToPointer(ticketGroup.GroupSlot1Cn),
+		GroupSlot2Bm:               nullStringToPointer(ticketGroup.GroupSlot2Bm),
+		GroupSlot2En:               nullStringToPointer(ticketGroup.GroupSlot2En),
+		GroupSlot2Cn:               nullStringToPointer(ticketGroup.GroupSlot2Cn),
+		GroupSlot3Bm:               nullStringToPointer(ticketGroup.GroupSlot3Bm),
+		GroupSlot3En:               nullStringToPointer(ticketGroup.GroupSlot3En),
+		GroupSlot3Cn:               nullStringToPointer(ticketGroup.GroupSlot3Cn),
+		GroupSlot4Bm:               nullStringToPointer(ticketGroup.GroupSlot4Bm),
+		GroupSlot4En:               nullStringToPointer(ticketGroup.GroupSlot4En),
+		GroupSlot4Cn:               nullStringToPointer(ticketGroup.GroupSlot4Cn),
+		PricePrefixBm:              ticketGroup.PricePrefixBm,
+		PricePrefixEn:              ticketGroup.PricePrefixEn,
+		PricePrefixCn:              ticketGroup.PricePrefixCn,
+		PriceSuffixBm:              ticketGroup.PriceSuffixBm,
+		PriceSuffixEn:              ticketGroup.PriceSuffixEn,
+		PriceSuffixCn:              ticketGroup.PriceSuffixCn,
+		AttachmentName:             ticketGroup.AttachmentName,
+		AttachmentPath:             ticketGroup.AttachmentPath,
+		AttachmentSize:             ticketGroup.AttachmentSize,
+		ContentType:                ticketGroup.ContentType,
+		UniqueExtension:            ticketGroup.UniqueExtension,
+		IsActive:                   ticketGroup.IsActive,
+		IsTicketInternal:           ticketGroup.IsTicketInternal,
+		TicketIds:                  ticketGroup.TicketIds.String,
+		Tags:                       tagDTOs,
+		GroupGallery:               galleryDTOs,
+		TicketDetails:              detailDTOs,
+		LocationAddress:            ticketGroup.LocationAddress,
+		LocationMapEmbedUrl:        ticketGroup.LocationMapUrl,
+		OrganiserNameBm:            ticketGroup.OrganiserNameBm,
+		OrganiserNameEn:            ticketGroup.OrganiserNameEn,
+		OrganiserNameCn:            ticketGroup.OrganiserNameCn,
+		OrganiserAddress:           ticketGroup.OrganiserAddress,
+		OrganiserDescriptionHtmlBm: ticketGroup.OrganiserDescHtmlBm,
+		OrganiserDescriptionHtmlEn: ticketGroup.OrganiserDescHtmlEn,
+		OrganiserDescriptionHtmlCn: ticketGroup.OrganiserDescHtmlCn,
+		OrganiserContact:           nullStringToPointer(ticketGroup.OrganiserContact),
+		OrganiserEmail:             nullStringToPointer(ticketGroup.OrganiserEmail),
+		OrganiserWebsite:           nullStringToPointer(ticketGroup.OrganiserWebsite),
+		OrganiserFacilitiesBm:      organiserFacilitiesBm,
+		OrganiserFacilitiesEn:      organiserFacilitiesEn,
+		OrganiserFacilitiesCn:      organiserFacilitiesCn,
+		CreatedAt:                  ticketGroup.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:                  ticketGroup.UpdatedAt.Format(time.RFC3339),
 	}
 
 	// Handle optional date fields
@@ -385,7 +435,7 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 		TotalAmount:       0, // Will be updated after calculating tickets
 		BuyerName:         req.FullName,
 		BuyerEmail:        req.Email,
-		ProductDesc:       ticketGroup.GroupName,
+		ProductDesc:       ticketGroup.GroupNameBm,
 		IsEmailSent:       false,
 		CreatedAt:         time.Now(),
 		UpdatedAt:         time.Now(),
@@ -552,7 +602,7 @@ func (s *OrderService) CreateFreeOrder(cust *models.Customer, req *orderDto.Crea
 		TotalAmount:       0,
 		BuyerName:         req.FullName,
 		BuyerEmail:        req.Email,
-		ProductDesc:       ticketGroup.GroupName,
+		ProductDesc:       ticketGroup.GroupNameBm,
 		IsEmailSent:       false,
 		CreatedAt:         time.Now(),
 		UpdatedAt:         time.Now(),

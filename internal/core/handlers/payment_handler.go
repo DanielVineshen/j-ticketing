@@ -156,7 +156,7 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 			total := utils.CalculateOrderTotal(orderItems)
 
 			orderOverview := email.OrderOverview{
-				TicketGroup:  ticketGroup.GroupName,
+				TicketGroup:  ticketGroup.GroupNameBm,
 				FullName:     order.BuyerName,
 				PurchaseDate: order.TransactionDate,
 				EntryDate:    orderItems[0].EntryDate,
@@ -505,7 +505,7 @@ func (h *PaymentHandler) PaymentRedirect(c *fiber.Ctx) error {
 			total := utils.CalculateOrderTotal(orderItems)
 
 			orderOverview := email.OrderOverview{
-				TicketGroup:  ticketGroup.GroupName,
+				TicketGroup:  ticketGroup.GroupNameBm,
 				FullName:     order.BuyerName,
 				PurchaseDate: order.TransactionDate,
 				EntryDate:    orderItems[0].EntryDate,

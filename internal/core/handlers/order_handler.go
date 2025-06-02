@@ -451,7 +451,7 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 	total := utils.CalculateOrderTotal(orderItems)
 
 	orderOverview := email.OrderOverview{
-		TicketGroup:  ticketGroup.GroupName,
+		TicketGroup:  ticketGroup.GroupNameBm,
 		FullName:     orderTicketGroup.BuyerName,
 		PurchaseDate: orderTicketGroup.TransactionDate,
 		EntryDate:    orderItems[0].EntryDate,

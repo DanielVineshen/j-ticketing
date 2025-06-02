@@ -98,7 +98,7 @@ func (s *EmailProcessingService) processOrder(order *models.OrderTicketGroup) er
 	total := utils.CalculateOrderTotal(orderItems)
 
 	orderOverview := email.OrderOverview{
-		TicketGroup:  ticketGroup.GroupName,
+		TicketGroup:  ticketGroup.GroupNameBm,
 		FullName:     order.BuyerName,
 		PurchaseDate: order.TransactionDate,
 		EntryDate:    orderItems[0].EntryDate,

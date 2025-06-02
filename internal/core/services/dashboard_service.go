@@ -246,7 +246,7 @@ func (s *DashboardService) getProductAnalysis(startDate, endDate string) (*Produ
 		}
 
 		trend := ProductTrend{
-			TrendType:    ticketGroup.GroupName,
+			TrendType:    ticketGroup.GroupNameEn,
 			TrendResults: s.generateProductTrendData(dailySales, startDate, endDate),
 		}
 		productTrends = append(productTrends, trend)

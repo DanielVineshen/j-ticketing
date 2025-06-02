@@ -16,12 +16,13 @@ import (
 
 // TicketGroupService handles ticket group-related operations
 type TicketGroupService struct {
-	ticketGroupRepo  *repositories.TicketGroupRepository
-	tagRepo          *repositories.TagRepository
-	groupGalleryRepo *repositories.GroupGalleryRepository
-	ticketDetailRepo *repositories.TicketDetailRepository
-	zooAPIClient     *external.ZooAPIClient
-	config           *config.Config
+	ticketGroupRepo   *repositories.TicketGroupRepository
+	tagRepo           *repositories.TagRepository
+	groupGalleryRepo  *repositories.GroupGalleryRepository
+	ticketDetailRepo  *repositories.TicketDetailRepository
+	ticketVariantRepo *repositories.TicketVariantRepository
+	zooAPIClient      *external.ZooAPIClient
+	config            *config.Config
 }
 
 // NewTicketGroupService creates a new instance of TicketGroupService
@@ -30,6 +31,7 @@ func NewTicketGroupService(
 	tagRepo *repositories.TagRepository,
 	groupGalleryRepo *repositories.GroupGalleryRepository,
 	ticketDetailRepo *repositories.TicketDetailRepository,
+	ticketVariantRepo *repositories.TicketVariantRepository,
 	cfg *config.Config,
 ) *TicketGroupService {
 	zooAPIClient := external.NewZooAPIClient(
@@ -39,12 +41,13 @@ func NewTicketGroupService(
 	)
 
 	return &TicketGroupService{
-		ticketGroupRepo:  ticketGroupRepo,
-		tagRepo:          tagRepo,
-		groupGalleryRepo: groupGalleryRepo,
-		ticketDetailRepo: ticketDetailRepo,
-		zooAPIClient:     zooAPIClient,
-		config:           cfg,
+		ticketGroupRepo:   ticketGroupRepo,
+		tagRepo:           tagRepo,
+		groupGalleryRepo:  groupGalleryRepo,
+		ticketDetailRepo:  ticketDetailRepo,
+		ticketVariantRepo: ticketVariantRepo,
+		zooAPIClient:      zooAPIClient,
+		config:            cfg,
 	}
 }
 
@@ -258,6 +261,11 @@ func (s *TicketGroupService) GetTicketProfile(ticketGroupId uint) (*dto.TicketPr
 		return nil, err
 	}
 
+	ticketVariants, err := s.getLocalTicketVariants(ticketGroup.TicketGroupId)
+	if err != nil {
+		return nil, err
+	}
+
 	// Parse organiser facilities from string to string array
 	var organiserFacilitiesBm []string
 	facilitiesBmStr := getStringFromNullString(ticketGroup.OrganiserFacilitiesBm)
@@ -337,6 +345,7 @@ func (s *TicketGroupService) GetTicketProfile(ticketGroupId uint) (*dto.TicketPr
 		Tags:                       tagDTOs,
 		GroupGallery:               galleryItems,
 		TicketDetails:              ticketDetails,
+		TicketVariants:             ticketVariants,
 		LocationAddress:            ticketGroup.LocationAddress,
 		LocationMapEmbedUrl:        ticketGroup.LocationMapUrl,
 		OrganiserNameBm:            ticketGroup.OrganiserNameBm,
@@ -419,6 +428,33 @@ func (s *TicketGroupService) getTicketDetails(ticketGroupId uint) ([]dto.TicketD
 	return detailDTOs, nil
 }
 
+func (s *TicketGroupService) getLocalTicketVariants(ticketGroupId uint) ([]dto.TicketVariantDTO, error) {
+	// This would be implemented by calling a repository method
+	// Create a TicketVariantRepository or use this from another service
+	variants, err := s.ticketVariantRepo.FindByTicketGroupID(ticketGroupId)
+	if err != nil {
+		return nil, err
+	}
+
+	variantDTOs := make([]dto.TicketVariantDTO, 0, len(variants))
+	for _, variant := range variants {
+		variantDTOs = append(variantDTOs, dto.TicketVariantDTO{
+			TicketVariantId: &variant.TicketVariantId,
+			TicketGroupId:   &variant.TicketGroupId,
+			TicketId:        &variant.TicketId,
+			NameBm:          variant.NameBm,
+			NameEn:          variant.NameEn,
+			NameCn:          variant.NameCn,
+			DescBm:          variant.DescBm,
+			DescEn:          variant.DescEn,
+			DescCn:          variant.DescCn,
+			UnitPrice:       variant.UnitPrice,
+		})
+	}
+
+	return variantDTOs, nil
+}
+
 // GetTicketVariants retrieves ticket variants for a specific ticket group and date
 func (s *TicketGroupService) GetTicketVariants(ticketGroupId uint, date string) (*dto.TicketVariantResponse, error) {
 	// First, check if the ticket group exists
@@ -427,47 +463,74 @@ func (s *TicketGroupService) GetTicketVariants(ticketGroupId uint, date string) 
 		return nil, err
 	}
 
-	// Get available ticket items from the external API
-	ticketItems, err := s.zooAPIClient.GetTicketItems(ticketGroup.GroupNameBm, date)
-	if err != nil {
-		return nil, err
-	}
+	ticketVariants := make([]dto.TicketVariantDTO, 0)
+	if !ticketGroup.IsTicketInternal {
+		// Get available ticket items from the external API
+		ticketItems, err := s.zooAPIClient.GetTicketItems(ticketGroup.GroupNameBm, date)
+		if err != nil {
+			return nil, err
+		}
 
-	// Check if the ticket group has specific ticket IDs to filter
-	var allowedTicketIDs map[string]bool
-	if ticketGroup.TicketIds.Valid && ticketGroup.TicketIds.String != "" {
-		// Split the comma-separated list of ticket IDs
-		ticketIDsRaw := strings.Split(ticketGroup.TicketIds.String, ";")
-		allowedTicketIDs = make(map[string]bool)
+		// Check if the ticket group has specific ticket IDs to filter
+		var allowedTicketIDs map[string]bool
+		if ticketGroup.TicketIds.Valid && ticketGroup.TicketIds.String != "" {
+			// Split the comma-separated list of ticket IDs
+			ticketIDsRaw := strings.Split(ticketGroup.TicketIds.String, ";")
+			allowedTicketIDs = make(map[string]bool)
 
-		for _, id := range ticketIDsRaw {
-			id = strings.TrimSpace(id)
-			if id != "" {
-				allowedTicketIDs[id] = true
+			for _, id := range ticketIDsRaw {
+				id = strings.TrimSpace(id)
+				if id != "" {
+					allowedTicketIDs[id] = true
+				}
 			}
 		}
-	}
 
-	// Convert the ticket items to DTOs, filtering by the allowed ticket IDs if necessary
-	ticketVariants := make([]dto.TicketVariantDTO, 0)
-	for _, item := range ticketItems {
-		// Skip if we have a filter and this item is not in the allowed list
-		if allowedTicketIDs != nil && !allowedTicketIDs[item.ItemId] {
-			continue
+		for _, item := range ticketItems {
+			// Skip if we have a filter and this item is not in the allowed list
+			if allowedTicketIDs != nil && !allowedTicketIDs[item.ItemId] {
+				continue
+			}
+
+			variant := dto.TicketVariantDTO{
+				TicketVariantId: nil,
+				TicketGroupId:   nil,
+				TicketId:        &item.ItemId,
+				NameBm:          item.ItemDescription,
+				NameEn:          item.ItemDesc1,
+				NameCn:          item.ItemDesc2,
+				DescBm:          "",
+				DescEn:          "",
+				DescCn:          "",
+				UnitPrice:       item.UnitPrice,
+				PrintType:       &item.PrintType,
+			}
+
+			ticketVariants = append(ticketVariants, variant)
+		}
+	} else {
+		ticketItems, err := s.ticketVariantRepo.FindByTicketGroupID(ticketGroup.TicketGroupId)
+		if err != nil {
+			return nil, err
 		}
 
-		// Create the DTO
-		variant := dto.TicketVariantDTO{
-			TicketId:  item.ItemId,
-			UnitPrice: item.UnitPrice,
-			ItemDesc1: item.ItemDescription,
-			ItemDesc2: item.ItemDesc1,
-			ItemDesc3: item.ItemDesc2,
-			PrintType: item.PrintType,
-			Qty:       item.Qty,
-		}
+		for _, item := range ticketItems {
+			variant := dto.TicketVariantDTO{
+				TicketVariantId: &item.TicketVariantId,
+				TicketGroupId:   &item.TicketGroupId,
+				TicketId:        nil,
+				NameBm:          item.NameBm,
+				NameEn:          item.NameEn,
+				NameCn:          item.NameCn,
+				DescBm:          item.DescBm,
+				DescEn:          item.DescEn,
+				DescCn:          item.DescCn,
+				UnitPrice:       item.UnitPrice,
+				PrintType:       nil,
+			}
 
-		ticketVariants = append(ticketVariants, variant)
+			ticketVariants = append(ticketVariants, variant)
+		}
 	}
 
 	// Create the response

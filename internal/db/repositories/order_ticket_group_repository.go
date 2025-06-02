@@ -37,6 +37,7 @@ func (r *OrderTicketGroupRepository) FindAll() ([]models.OrderTicketGroup, error
 		Preload("TicketGroup.TicketTags.Tag").
 		Preload("TicketGroup.GroupGalleries").
 		Preload("TicketGroup.TicketDetails").
+		Preload("TicketGroup.TicketVariants").
 		Preload("OrderTicketInfos").
 		Order("order_ticket_group_id DESC").
 		Find(&orderTicketGroups)
@@ -79,6 +80,7 @@ func (r *OrderTicketGroupRepository) FindByDateRange(orderNo string, startDate, 
 		Preload("TicketGroup.TicketTags.Tag").
 		Preload("TicketGroup.GroupGalleries").
 		Preload("TicketGroup.TicketDetails").
+		Preload("TicketGroup.TicketVariants").
 		Order("order_ticket_group_id DESC").
 		Find(&orders)
 
@@ -118,6 +120,9 @@ func (r *OrderTicketGroupRepository) FindByCustomerID(custID string) ([]models.O
 			return db.Order("created_at DESC")
 		}).
 		Preload("OrderTicketInfos", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
+		Preload("TicketGroup.TicketVariants", func(db *gorm.DB) *gorm.DB {
 			return db.Order("created_at DESC")
 		}).
 		Order("order_ticket_group_id DESC").

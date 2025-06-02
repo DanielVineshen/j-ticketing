@@ -143,6 +143,8 @@ type TicketProfileDTO struct {
 	OrganiserFacilitiesEn      []string `json:"organiserFacilitiesEn"`
 	OrganiserFacilitiesCn      []string `json:"organiserFacilitiesCn"`
 
+	TicketVariants []TicketVariantDTO `json:"ticketVariants"`
+
 	CreatedAt string `json:"createdAt"`
 	UpdatedAt string `json:"updatedAt"`
 }
@@ -164,4 +166,18 @@ type TicketDetailDTO struct {
 	TitleIcon      string `json:"titleIcon"`
 	RawHtml        string `json:"rawHtml"`
 	DisplayFlag    bool   `json:"displayFlag"`
+}
+
+type TicketVariantDTO struct {
+	TicketVariantId *uint   `json:"ticketVariantId"`
+	TicketGroupId   *uint   `json:"ticketGroupId"`
+	TicketId        *string `json:"ticketId"`
+	NameBm          string  `json:"nameBm"`
+	NameEn          string  `json:"nameEn"`
+	NameCn          string  `json:"nameCn"`
+	DescBm          string  `json:"descBm"`
+	DescEn          string  `json:"descEn"`
+	DescCn          string  `json:"descCn"`
+	UnitPrice       float64 `json:"unitPrice"`
+	PrintType       *string `json:"printType"`
 }

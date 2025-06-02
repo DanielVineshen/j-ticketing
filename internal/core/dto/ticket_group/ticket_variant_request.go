@@ -18,7 +18,7 @@ type TicketVariantResponse struct {
 }
 
 // TicketVariantDTO represents the data transfer object for a ticket variant
-type TicketVariantDTO struct {
+type TicketVariantReqDTO struct {
 	TicketId  string  `json:"ticketId"`
 	UnitPrice float64 `json:"unitPrice"`
 	ItemDesc1 string  `json:"itemDesc1"`

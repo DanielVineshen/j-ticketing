@@ -122,6 +122,7 @@ func (s *CustomerService) mapCustomerToDTO(customer *models.Customer) (customerD
 				UnitPrice:          info.UnitPrice,
 				ItemDesc1:          info.ItemDesc1,
 				ItemDesc2:          info.ItemDesc2,
+				ItemDesc3:          info.ItemDesc3,
 				PrintType:          info.PrintType,
 				QuantityBought:     info.QuantityBought,
 				EncryptedId:        info.EncryptedId,

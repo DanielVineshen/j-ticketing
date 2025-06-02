@@ -49,6 +49,7 @@ type OrderTicketInfoDTO struct {
 	UnitPrice          float64 `json:"unitPrice"`
 	ItemDesc1          string  `json:"itemDesc1"`
 	ItemDesc2          string  `json:"itemDesc2"`
+	ItemDesc3          string  `json:"itemDesc3"`
 	PrintType          string  `json:"printType"`
 	QuantityBought     int     `json:"quantityBought"`
 	Twbid              string  `json:"twbid,omitempty"`

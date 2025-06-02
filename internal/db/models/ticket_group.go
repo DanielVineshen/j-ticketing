@@ -96,6 +96,7 @@ type TicketGroup struct {
 	GroupGalleries    []GroupGallery     `gorm:"foreignKey:TicketGroupId"`
 	TicketDetails     []TicketDetail     `gorm:"foreignKey:TicketGroupId"`
 	TicketTags        []TicketTag        `gorm:"foreignKey:TicketGroupId"`
+	TicketVariants    []TicketVariant    `gorm:"foreignKey:TicketGroupId"`
 }
 
 // TableName overrides the table name

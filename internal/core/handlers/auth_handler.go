@@ -2,29 +2,32 @@
 package handlers
 
 import (
+	"fmt"
+	"github.com/gofiber/fiber/v2"
 	dto "j-ticketing/internal/core/dto/auth"
 	service "j-ticketing/internal/core/services"
 	"j-ticketing/pkg/email"
 	"j-ticketing/pkg/models"
+	"j-ticketing/pkg/utils"
 	"log"
 	"strings"
-
-	"github.com/gofiber/fiber/v2"
 )
 
 // AuthHandler handles authentication related HTTP requests
 type AuthHandler struct {
-	authService     service.AuthService
-	emailService    email.EmailService
-	customerService service.CustomerService
+	authService         service.AuthService
+	emailService        email.EmailService
+	customerService     service.CustomerService
+	notificationService service.NotificationService
 }
 
 // NewAuthHandler creates a new authentication handler
-func NewAuthHandler(authService service.AuthService, emailService email.EmailService, customerService service.CustomerService) *AuthHandler {
+func NewAuthHandler(authService service.AuthService, emailService email.EmailService, customerService service.CustomerService, notificationService service.NotificationService) *AuthHandler {
 	return &AuthHandler{
-		authService:     authService,
-		emailService:    emailService,
-		customerService: customerService,
+		authService:         authService,
+		emailService:        emailService,
+		customerService:     customerService,
+		notificationService: notificationService,
 	}
 }
 
@@ -213,6 +216,23 @@ func (h *AuthHandler) CreateCustomer(c *fiber.Ctx) error {
 		return err
 	}
 
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s (%s) has created an account", customer.Email, customer.FullName)
+	err = h.notificationService.CreateNotification(
+		"system",
+		"system",
+		"Customer",
+		"New customer created",
+		message,
+		malaysiaTime,
+	)
+	if err != nil {
+		return err
+	}
+
 	// Create a response object that doesn't include sensitive data
 	response := map[string]interface{}{
 		"custId":           customer.CustId,
@@ -255,6 +275,23 @@ func (h *AuthHandler) ResetCustomerPassword(c *fiber.Ctx) error {
 	}
 
 	err = h.customerService.CreateCustomerLog("account", "Member Reset Password", "Customer reset their password", *customer)
+	if err != nil {
+		return err
+	}
+
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s (%s) has reset their password", customer.Email, customer.FullName)
+	err = h.notificationService.CreateNotification(
+		customer.FullName,
+		"customer",
+		"Customer",
+		"Customer reset password",
+		message,
+		malaysiaTime,
+	)
 	if err != nil {
 		return err
 	}

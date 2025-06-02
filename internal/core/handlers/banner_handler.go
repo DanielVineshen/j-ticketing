@@ -2,9 +2,11 @@
 package handlers
 
 import (
+	"fmt"
 	dto "j-ticketing/internal/core/dto/banner"
 	service "j-ticketing/internal/core/services"
 	"j-ticketing/pkg/models"
+	"j-ticketing/pkg/utils"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -16,13 +18,15 @@ import (
 
 // BannerHandler handles requests for banner operations
 type BannerHandler struct {
-	bannerService *service.BannerService
+	bannerService       *service.BannerService
+	notificationService service.NotificationService
 }
 
 // NewBannerHandler creates a new banner handler
-func NewBannerHandler(bannerService *service.BannerService) *BannerHandler {
+func NewBannerHandler(bannerService *service.BannerService, notificationService service.NotificationService) *BannerHandler {
 	return &BannerHandler{
-		bannerService: bannerService,
+		bannerService:       bannerService,
+		notificationService: notificationService,
 	}
 }
 
@@ -62,6 +66,8 @@ func (h *BannerHandler) GetFilteredBanners(c *fiber.Ctx) error {
 func (h *BannerHandler) CreateBanner(c *fiber.Ctx) error {
 	// Get the customer ID from the context (set by auth middleware)
 	adminUserName, ok := c.Locals("username").(string)
+	adminFullName, ok := c.Locals("fullName").(string)
+	adminRole, ok := c.Locals("role").(string)
 
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
@@ -116,6 +122,23 @@ func (h *BannerHandler) CreateBanner(c *fiber.Ctx) error {
 		))
 	}
 
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s has uploaded a new banner", adminFullName)
+	err = h.notificationService.CreateNotification(
+		adminFullName,
+		adminRole,
+		"Banner",
+		"Upload new banner",
+		message,
+		malaysiaTime,
+	)
+	if err != nil {
+		return err
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
 
@@ -123,6 +146,8 @@ func (h *BannerHandler) CreateBanner(c *fiber.Ctx) error {
 func (h *BannerHandler) UpdateBanner(c *fiber.Ctx) error {
 	// Get the customer ID from the context (set by auth middleware)
 	adminUserName, ok := c.Locals("username").(string)
+	adminFullName, ok := c.Locals("fullName").(string)
+	adminRole, ok := c.Locals("role").(string)
 
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
@@ -173,11 +198,28 @@ func (h *BannerHandler) UpdateBanner(c *fiber.Ctx) error {
 	}
 
 	// Update banner through service
-	_, err = h.bannerService.UpdateBanner(request, file)
+	banner, err := h.bannerService.UpdateBanner(request, file)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
 			err.Error(), nil,
 		))
+	}
+
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s has updated an existing banner id: %s", adminFullName, strconv.Itoa(int(banner.BannerId)))
+	err = h.notificationService.CreateNotification(
+		adminFullName,
+		adminRole,
+		"Banner",
+		"Update existing banner",
+		message,
+		malaysiaTime,
+	)
+	if err != nil {
+		return err
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
@@ -185,6 +227,15 @@ func (h *BannerHandler) UpdateBanner(c *fiber.Ctx) error {
 
 // DeleteBanner deletes a banner by ID
 func (h *BannerHandler) DeleteBanner(c *fiber.Ctx) error {
+	adminFullName, ok := c.Locals("fullName").(string)
+	adminRole, ok := c.Locals("role").(string)
+
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
+			"User not authenticated", nil,
+		))
+	}
+
 	var request dto.DeleteBannerRequest
 	if err := c.BodyParser(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
@@ -203,6 +254,23 @@ func (h *BannerHandler) DeleteBanner(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
 			err.Error(), nil,
 		))
+	}
+
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s has deleted an existing banner id: %s", adminFullName, strconv.Itoa(int(request.BannerId)))
+	err = h.notificationService.CreateNotification(
+		adminFullName,
+		adminRole,
+		"Banner",
+		"Delete existing banner",
+		message,
+		malaysiaTime,
+	)
+	if err != nil {
+		return err
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))

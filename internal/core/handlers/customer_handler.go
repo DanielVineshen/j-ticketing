@@ -2,22 +2,26 @@
 package handlers
 
 import (
+	"fmt"
 	dto "j-ticketing/internal/core/dto/customer"
 	service "j-ticketing/internal/core/services"
 	"j-ticketing/pkg/models"
+	"j-ticketing/pkg/utils"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 // CustomerHandler handles customer-related HTTP requests
 type CustomerHandler struct {
-	customerService service.CustomerService
+	customerService     service.CustomerService
+	notificationService service.NotificationService
 }
 
 // NewCustomerHandler creates a new customer handler
-func NewCustomerHandler(customerService service.CustomerService) *CustomerHandler {
+func NewCustomerHandler(customerService service.CustomerService, notificationService service.NotificationService) *CustomerHandler {
 	return &CustomerHandler{
-		customerService: customerService,
+		customerService:     customerService,
+		notificationService: notificationService,
 	}
 }
 
@@ -89,6 +93,23 @@ func (h *CustomerHandler) UpdateCustomer(c *fiber.Ctx) error {
 		return err
 	}
 
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s (%s) has updated their profile", customer.Email, customer.FullName)
+	err = h.notificationService.CreateNotification(
+		customer.FullName,
+		"customer",
+		"Customer",
+		"Customer update profile",
+		message,
+		malaysiaTime,
+	)
+	if err != nil {
+		return err
+	}
+
 	return c.JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
 
@@ -114,6 +135,23 @@ func (h *CustomerHandler) ChangePassword(c *fiber.Ctx) error {
 	}
 
 	err = h.customerService.CreateCustomerLog("account", "Member Change Password", "Customer changed their password", *customer)
+	if err != nil {
+		return err
+	}
+
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s (%s) has changed their password", customer.Email, customer.FullName)
+	err = h.notificationService.CreateNotification(
+		customer.FullName,
+		"customer",
+		"Customer",
+		"Customer changed password",
+		message,
+		malaysiaTime,
+	)
 	if err != nil {
 		return err
 	}

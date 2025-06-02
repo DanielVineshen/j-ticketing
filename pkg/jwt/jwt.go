@@ -47,6 +47,7 @@ func (s *jwtService) GenerateToken(userClaims *dto.UserClaims, isRefreshToken bo
 		"userId":   userClaims.UserID,
 		"username": userClaims.Username,
 		"userType": userClaims.UserType,
+		"fullName": userClaims.FullName,
 		"role":     userClaims.Role,
 		"roles":    userClaims.Roles,
 		"exp":      time.Now().Add(expiration).Unix(),
@@ -94,6 +95,7 @@ func (s *jwtService) ValidateToken(tokenString string) (*dto.UserClaims, error) 
 	// Extract user info from claims
 	userID, _ := claims["userId"].(string)
 	username, _ := claims["username"].(string)
+	fullName, _ := claims["fullName"].(string)
 	userType, _ := claims["userType"].(string)
 	role, _ := claims["role"].(string)
 
@@ -112,6 +114,7 @@ func (s *jwtService) ValidateToken(tokenString string) (*dto.UserClaims, error) 
 		UserID:   userID,
 		Username: username,
 		UserType: userType,
+		FullName: fullName,
 		Role:     role,
 		Roles:    roles,
 	}

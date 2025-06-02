@@ -38,6 +38,7 @@ func Protected(jwtService jwt.JWTService) fiber.Handler {
 		c.Locals("userId", claims.UserID)
 		c.Locals("username", claims.Username)
 		c.Locals("userType", claims.UserType)
+		c.Locals("fullName", claims.FullName)
 		c.Locals("role", claims.Role)
 		c.Locals("roles", claims.Roles)
 

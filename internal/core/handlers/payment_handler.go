@@ -20,13 +20,14 @@ import (
 )
 
 type PaymentHandler struct {
-	paymentService     *services.PaymentService
-	paymentConfig      payment.PaymentConfig
-	emailService       email.EmailService
-	ticketGroupService *services.TicketGroupService
-	pdfService         *services.PDFService
-	orderService       *services.OrderService
-	customerService    *services.CustomerService
+	paymentService      *services.PaymentService
+	paymentConfig       payment.PaymentConfig
+	emailService        email.EmailService
+	ticketGroupService  *services.TicketGroupService
+	pdfService          *services.PDFService
+	orderService        *services.OrderService
+	customerService     *services.CustomerService
+	notificationService *services.NotificationService
 }
 
 // NewPaymentHandler creates a new instance of PaymentHandler
@@ -36,15 +37,17 @@ func NewPaymentHandler(paymentService *services.PaymentService,
 	ticketGroupService *services.TicketGroupService,
 	pdfService *services.PDFService,
 	orderService *services.OrderService,
-	customerService *services.CustomerService) *PaymentHandler {
+	customerService *services.CustomerService,
+	notificationService *services.NotificationService) *PaymentHandler {
 	return &PaymentHandler{
-		paymentService:     paymentService,
-		paymentConfig:      paymentConfig,
-		emailService:       emailService,
-		ticketGroupService: ticketGroupService,
-		pdfService:         pdfService,
-		orderService:       orderService,
-		customerService:    customerService,
+		paymentService:      paymentService,
+		paymentConfig:       paymentConfig,
+		emailService:        emailService,
+		ticketGroupService:  ticketGroupService,
+		pdfService:          pdfService,
+		orderService:        orderService,
+		customerService:     customerService,
+		notificationService: notificationService,
 	}
 }
 
@@ -99,6 +102,23 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 				return err
 			}
 
+			malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+			if err != nil {
+				return err
+			}
+			message := fmt.Sprintf("%s (%s) has completed their purchase for order no: %s", cust.Email, cust.FullName, transactionData.OrderNo)
+			err = h.notificationService.CreateNotification(
+				cust.FullName,
+				"customer",
+				"Order",
+				"Customer successful purchase order",
+				message,
+				malaysiaTime,
+			)
+			if err != nil {
+				return err
+			}
+
 			// Only call the Zoo API if payment was successful
 			_, orderItems, ticketInfos, err := h.paymentService.PostToZooAPI(transactionData.OrderNo)
 			if err != nil {
@@ -106,6 +126,23 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 				// Continue with redirect even if this fails, we can retry later
 			} else {
 				err = h.orderService.CreateOrderTicketLog("order", "QR Code Assigned", "Order was assigned with qr codes for each ticket", "QR Service", order)
+				if err != nil {
+					return err
+				}
+
+				malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+				if err != nil {
+					return err
+				}
+				message := fmt.Sprintf("%s has been assigned with qr codes for their tickets", transactionData.OrderNo)
+				err = h.notificationService.CreateNotification(
+					"system",
+					"system",
+					"Order",
+					"Order assigned qr codes",
+					message,
+					malaysiaTime,
+				)
 				if err != nil {
 					return err
 				}
@@ -153,6 +190,23 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 					return err
 				}
 
+				malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+				if err != nil {
+					return err
+				}
+				message := fmt.Sprintf("%s has sent out the email to the customer", transactionData.OrderNo)
+				err = h.notificationService.CreateNotification(
+					"system",
+					"system",
+					"Order",
+					"Order email sent",
+					message,
+					malaysiaTime,
+				)
+				if err != nil {
+					return err
+				}
+
 				order.IsEmailSent = true
 				// Save the updated order
 				err = h.paymentService.UpdateOrderTicketGroup(order)
@@ -160,20 +214,27 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 			if err != nil {
 				log.Printf("Failed to update order ticket group: %v", err)
 			}
-		} else {
+		} else if dbStatus == "failed" {
 			err = h.customerService.CreateCustomerLog("purchase", "Purchase Failed", "Ticket package failed via Online", cust)
 			if err != nil {
 				return err
 			}
 
-			orderTicketGroup, err := h.orderService.GetOrderTicketGroupRaw(order.TicketGroupId)
+			malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
 			if err != nil {
-				log.Printf("Error finding ticket group %s: %v", order.TicketGroupId, err)
-			} else {
-				err = h.orderService.CreateOrderTicketLog("order", "Order Created", "Order was created via Online channel", "System", orderTicketGroup)
-				if err != nil {
-					return err
-				}
+				return err
+			}
+			message := fmt.Sprintf("%s (%s) has failed to complete purchase for order no: %s", cust.Email, cust.FullName, transactionData.OrderNo)
+			err = h.notificationService.CreateNotification(
+				cust.FullName,
+				"customer",
+				"Order",
+				"Customer failed purchase order",
+				message,
+				malaysiaTime,
+			)
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -390,6 +451,23 @@ func (h *PaymentHandler) PaymentRedirect(c *fiber.Ctx) error {
 				return err
 			}
 
+			malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+			if err != nil {
+				return err
+			}
+			message := fmt.Sprintf("%s (%s) has completed their purchase for order no: %s", cust.Email, cust.FullName, transactionData.OrderNo)
+			err = h.notificationService.CreateNotification(
+				cust.FullName,
+				"customer",
+				"Order",
+				"Customer successful purchase order",
+				message,
+				malaysiaTime,
+			)
+			if err != nil {
+				return err
+			}
+
 			// Only call the Zoo API if payment was successful
 			orderTicketGroup, orderItems, ticketInfos, err := h.paymentService.PostToZooAPI(transactionData.OrderNo)
 			if err != nil {
@@ -397,6 +475,23 @@ func (h *PaymentHandler) PaymentRedirect(c *fiber.Ctx) error {
 				// Continue with redirect even if this fails, we can retry later
 			} else {
 				err = h.orderService.CreateOrderTicketLog("order", "QR Code Assigned", "Order was assigned with qr codes for each ticket", "QR Service", orderTicketGroup)
+				if err != nil {
+					return err
+				}
+
+				malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+				if err != nil {
+					return err
+				}
+				message := fmt.Sprintf("%s has been assigned with qr codes for their tickets", transactionData.OrderNo)
+				err = h.notificationService.CreateNotification(
+					"system",
+					"system",
+					"Order",
+					"Order assigned qr codes",
+					message,
+					malaysiaTime,
+				)
 				if err != nil {
 					return err
 				}
@@ -444,6 +539,23 @@ func (h *PaymentHandler) PaymentRedirect(c *fiber.Ctx) error {
 					return err
 				}
 
+				malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+				if err != nil {
+					return err
+				}
+				message := fmt.Sprintf("%s has sent out the email to the customer", transactionData.OrderNo)
+				err = h.notificationService.CreateNotification(
+					"system",
+					"system",
+					"Order",
+					"Order email sent",
+					message,
+					malaysiaTime,
+				)
+				if err != nil {
+					return err
+				}
+
 				order.IsEmailSent = true
 				// Save the updated order
 				err = h.paymentService.UpdateOrderTicketGroup(order)
@@ -451,22 +563,29 @@ func (h *PaymentHandler) PaymentRedirect(c *fiber.Ctx) error {
 			if err != nil {
 				log.Printf("Failed to update order ticket group: %v", err)
 			}
-		} else {
+		} else if dbStatus == "failed" {
 			err = h.customerService.CreateCustomerLog("purchase", "Purchase Failed", "Ticket package failed via Online", cust)
 			if err != nil {
 				return err
 			}
 
-			orderTicketGroup, err := h.orderService.GetOrderTicketGroupRaw(order.TicketGroupId)
+			malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
 			if err != nil {
-				log.Printf("Error finding ticket group %s: %v", order.TicketGroupId, err)
-			} else {
-				err = h.orderService.CreateOrderTicketLog("order", "Order Created", "Order was created via Online channel", "System", orderTicketGroup)
-				if err != nil {
-					return err
-				}
+				return err
 			}
-
+			message := fmt.Sprintf("%s (%s) has failed to complete purchase for order no: %s", cust.Email, cust.FullName, transactionData.OrderNo)
+			err = h.notificationService.CreateNotification(
+				cust.FullName,
+				"customer",
+				"Order",
+				"Customer failed purchase order",
+				message,
+				malaysiaTime,
+			)
+			if err != nil {
+				return err
+			}
+		} else {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"status":  "error",
 				"message": "Payment processed failed",

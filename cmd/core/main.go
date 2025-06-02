@@ -174,13 +174,13 @@ func main() {
 
 	// Initialize handlers
 	ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService)
-	authHandler := handlers.NewAuthHandler(authService, emailService, *customerService)
-	customerHandler := handlers.NewCustomerHandler(*customerService)
-	bannerHandler := handlers.NewBannerHandler(bannerService)
+	authHandler := handlers.NewAuthHandler(authService, emailService, *customerService, *notificationService)
+	customerHandler := handlers.NewCustomerHandler(*customerService, *notificationService)
+	bannerHandler := handlers.NewBannerHandler(bannerService, *notificationService)
 	groupGalleryHandler := handlers.NewGroupGalleryHandler(groupGalleryService)
 	simplePDFHandler := handlers.NewPDFHandler()
-	orderHandler := handlers.NewOrderHandler(orderService, *customerService, jwtService, paymentService, emailService, ticketGroupService, paymentConfig, pdfService)
-	paymentHandler := handlers.NewPaymentHandler(paymentService, paymentConfig, emailService, ticketGroupService, pdfService, orderService, customerService)
+	orderHandler := handlers.NewOrderHandler(orderService, *customerService, jwtService, paymentService, emailService, ticketGroupService, paymentConfig, pdfService, *notificationService)
+	paymentHandler := handlers.NewPaymentHandler(paymentService, paymentConfig, emailService, ticketGroupService, pdfService, orderService, customerService, notificationService)
 	dashboardHandler := handlers.NewDashboardHandler(dashboardService)
 	pdfHandler := handlers.NewPDFHandler()
 	notificationHandler := handlers.NewNotificationHandler(*notificationService)

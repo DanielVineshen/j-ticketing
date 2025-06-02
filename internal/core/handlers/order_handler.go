@@ -20,27 +20,37 @@ import (
 
 // OrderHandler handles HTTP requests for orders
 type OrderHandler struct {
-	orderService       *services.OrderService
-	customerService    services.CustomerService
-	jwtService         jwt.JWTService
-	paymentService     *services.PaymentService
-	emailService       email.EmailService
-	ticketGroupService *services.TicketGroupService
-	paymentConfig      payment.PaymentConfig
-	pdfService         *services.PDFService
+	orderService        *services.OrderService
+	customerService     services.CustomerService
+	jwtService          jwt.JWTService
+	paymentService      *services.PaymentService
+	emailService        email.EmailService
+	ticketGroupService  *services.TicketGroupService
+	paymentConfig       payment.PaymentConfig
+	pdfService          *services.PDFService
+	notificationService services.NotificationService
 }
 
 // NewOrderHandler creates a new instance of OrderHandler
-func NewOrderHandler(orderService *services.OrderService, customerService services.CustomerService, jwtService jwt.JWTService, paymentService *services.PaymentService, emailService email.EmailService, ticketGroupService *services.TicketGroupService, paymentConfig payment.PaymentConfig, pdfService *services.PDFService) *OrderHandler {
+func NewOrderHandler(orderService *services.OrderService,
+	customerService services.CustomerService,
+	jwtService jwt.JWTService,
+	paymentService *services.PaymentService,
+	emailService email.EmailService,
+	ticketGroupService *services.TicketGroupService,
+	paymentConfig payment.PaymentConfig,
+	pdfService *services.PDFService,
+	notificationService services.NotificationService) *OrderHandler {
 	return &OrderHandler{
-		orderService:       orderService,
-		customerService:    customerService,
-		jwtService:         jwtService,
-		paymentService:     paymentService,
-		emailService:       emailService,
-		ticketGroupService: ticketGroupService,
-		paymentConfig:      paymentConfig,
-		pdfService:         pdfService,
+		orderService:        orderService,
+		customerService:     customerService,
+		jwtService:          jwtService,
+		paymentService:      paymentService,
+		emailService:        emailService,
+		ticketGroupService:  ticketGroupService,
+		paymentConfig:       paymentConfig,
+		pdfService:          pdfService,
+		notificationService: notificationService,
 	}
 }
 
@@ -246,6 +256,23 @@ func (h *OrderHandler) CreateOrderTicketGroup(c *fiber.Ctx) error {
 		return err
 	}
 
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s (%s) has created an order no: %s", req.Email, req.FullName, orderTicketGroup.OrderNo)
+	err = h.notificationService.CreateNotification(
+		req.FullName,
+		"customer",
+		"Order",
+		"Customer create order",
+		message,
+		malaysiaTime,
+	)
+	if err != nil {
+		return err
+	}
+
 	// Generate the checkout URL
 	checkoutURL := h.generateCheckoutURL(orderTicketGroup.OrderTicketGroupId, req.PaymentType)
 
@@ -348,6 +375,45 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 		return err
 	}
 
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s (%s) has created an order no: %s", req.Email, req.FullName, orderTicketGroup.OrderNo)
+	err = h.notificationService.CreateNotification(
+		req.FullName,
+		"customer",
+		"Order",
+		"Customer create order",
+		message,
+		malaysiaTime,
+	)
+	if err != nil {
+		return err
+	}
+
+	err = h.customerService.CreateCustomerLog("purchase", "Purchase Completed", "Ticket package purchased via Online", cust)
+	if err != nil {
+		return err
+	}
+
+	malaysiaTime, err = utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message = fmt.Sprintf("%s (%s) has completed their purchase for order no: %s", req.Email, req.FullName, orderTicketGroup.OrderNo)
+	err = h.notificationService.CreateNotification(
+		req.FullName,
+		"customer",
+		"Order",
+		"Customer successful purchase order",
+		message,
+		malaysiaTime,
+	)
+	if err != nil {
+		return err
+	}
+
 	// Only call the Zoo API if payment was successful
 	_, orderItems, ticketInfos, err := h.paymentService.PostToZooAPI(orderTicketGroup.OrderNo)
 	if err != nil {
@@ -355,6 +421,23 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 		// Continue with redirect even if this fails, we can retry later
 	} else {
 		err = h.orderService.CreateOrderTicketLog("order", "QR Code Assigned", "Order was assigned with qr codes for each ticket", "QR Service", orderTicketGroup)
+		if err != nil {
+			return err
+		}
+
+		malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+		if err != nil {
+			return err
+		}
+		message := fmt.Sprintf("%s has been assigned with qr codes for their tickets", orderTicketGroup.OrderNo)
+		err = h.notificationService.CreateNotification(
+			"system",
+			"system",
+			"Order",
+			"Order assigned qr codes",
+			message,
+			malaysiaTime,
+		)
 		if err != nil {
 			return err
 		}
@@ -398,6 +481,23 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 		// Continue anyway since the password has been reset
 	} else {
 		err = h.orderService.CreateOrderTicketLog("order", "Email Sent", "Email for the order was successfully sent out with its receipt", "Email Service", orderTicketGroup)
+		if err != nil {
+			return err
+		}
+
+		malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+		if err != nil {
+			return err
+		}
+		message := fmt.Sprintf("%s has sent out the email to the customer", orderTicketGroup.OrderNo)
+		err = h.notificationService.CreateNotification(
+			"system",
+			"system",
+			"Order",
+			"Order email sent",
+			message,
+			malaysiaTime,
+		)
 		if err != nil {
 			return err
 		}

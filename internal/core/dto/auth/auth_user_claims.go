@@ -6,6 +6,7 @@ type UserClaims struct {
 	UserID   string   `json:"userId"`
 	Username string   `json:"username"`
 	UserType string   `json:"userType"` // "admin" or "customer"
-	Role     string   `json:"role"`     // For admin: "SYSADMIN", "ADMIN"; For customer: "CUSTOMER"
-	Roles    []string `json:"roles"`    // Multiple roles if needed
+	FullName string   `json:"fullName"`
+	Role     string   `json:"role"`  // For admin: "SYSADMIN", "ADMIN"; For customer: "CUSTOMER"
+	Roles    []string `json:"roles"` // Multiple roles if needed
 }

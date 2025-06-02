@@ -333,3 +333,10 @@ func getStringFromNullString(ns sql.NullString) string {
 	}
 	return "" // Return empty string if NULL
 }
+
+func nullStringToPointer(ns sql.NullString) *string {
+	if ns.Valid {
+		return &ns.String
+	}
+	return nil
+}

@@ -68,9 +68,9 @@ type ProductTrendData struct {
 
 // CustomerAnalysis represents the customer analysis data structure
 type CustomerAnalysis struct {
-	TotalPayingCustomers int             `json:"totalPayingCustomers"`
-	TotalCustomers       int             `json:"totalCustomers"`
-	CustomerTrend        []CustomerTrend `json:"customerTrend"`
+	TotalCustomers int             `json:"totalCustomers"`
+	TotalMembers   int             `json:"totalMembers"`
+	CustomerTrend  []CustomerTrend `json:"customerTrend"`
 }
 
 type CustomerTrend struct {
@@ -261,15 +261,20 @@ func (s *DashboardService) getProductAnalysis(startDate, endDate string) (*Produ
 
 // getCustomerAnalysis retrieves customer analysis data
 func (s *DashboardService) getCustomerAnalysis(startDate, endDate string) (*CustomerAnalysis, error) {
-	// Get all customers
+	// Get all customers ordered by creation date
 	allCustomers, err := s.customerRepo.FindAll()
 	if err != nil {
 		return nil, err
 	}
 
-	// Filter customers created within the period
+	// Convert start and end dates for filtering
+	startTime, _ := time.Parse(utils.DateOnlyFormat, startDate)
+	endTime, _ := time.Parse(utils.DateOnlyFormat, endDate)
+	endTime = endTime.Add(23*time.Hour + 59*time.Minute + 59*time.Second) // End of day
+
+	// Filter customers for card metrics (created within period)
 	var customersInPeriod []models.Customer
-	var payingCustomersInPeriod []models.Customer
+	var membersInPeriod []models.Customer
 
 	for _, customer := range allCustomers {
 		// Convert UTC CreatedAt to Malaysia timezone
@@ -277,32 +282,25 @@ func (s *DashboardService) getCustomerAnalysis(startDate, endDate string) (*Cust
 		if err != nil {
 			continue
 		}
-		dateStr := malaysiaTime.Format(utils.DateOnlyFormat)
 
-		if s.isDateInRange(dateStr, startDate, endDate) {
+		// Filter for card metrics (within period only)
+		if malaysiaTime.After(startTime.Add(-time.Second)) && malaysiaTime.Before(endTime) {
 			customersInPeriod = append(customersInPeriod, customer)
 
-			// Check if customer has any successful orders
-			hasOrders := false
-			for _, order := range customer.OrderTicketGroups {
-				if order.TransactionStatus == "success" && s.isWithinDateRange(order.TransactionDate, startDate, endDate) {
-					hasOrders = true
-					break
-				}
-			}
-			if hasOrders {
-				payingCustomersInPeriod = append(payingCustomersInPeriod, customer)
+			// Check if customer is a member (has password)
+			if customer.Password.Valid && customer.Password.String != "" {
+				membersInPeriod = append(membersInPeriod, customer)
 			}
 		}
 	}
 
 	// Generate customer trends
-	customerTrends := s.generateCustomerTrends(customersInPeriod, payingCustomersInPeriod, startDate, endDate)
+	customerTrends := s.generateCustomerTrendsNew(allCustomers, startDate, endDate)
 
 	return &CustomerAnalysis{
-		TotalPayingCustomers: len(payingCustomersInPeriod),
-		TotalCustomers:       len(customersInPeriod),
-		CustomerTrend:        customerTrends,
+		TotalCustomers: len(customersInPeriod),
+		TotalMembers:   len(membersInPeriod),
+		CustomerTrend:  customerTrends,
 	}, nil
 }
 
@@ -444,54 +442,66 @@ func (s *DashboardService) generateProductTrendData(dailySales map[string]int, s
 	return results
 }
 
-func (s *DashboardService) generateCustomerTrends(allCustomers, payingCustomers []models.Customer, startDate, endDate string) []CustomerTrend {
+func (s *DashboardService) generateCustomerTrendsNew(allCustomers []models.Customer, startDate, endDate string) []CustomerTrend {
 	dates := s.generateDateRange(startDate, endDate)
 
-	// Aggregate customers by creation date
-	dailyTotal := make(map[string]int)
-	dailyPaying := make(map[string]int)
+	// Count customers by date (for new customers calculation)
+	dailyNewCustomers := make(map[string]int)
+
+	// Calculate cumulative totals efficiently
+	// First, get all customers created before start date
+	startTime, _ := time.Parse(utils.DateOnlyFormat, startDate)
+	customersBeforeStart := 0
 
 	for _, customer := range allCustomers {
+		// Convert UTC CreatedAt to Malaysia timezone
 		malaysiaTime, err := utils.ToMalaysiaTime(customer.CreatedAt)
 		if err != nil {
 			continue
 		}
-		date := malaysiaTime.Format(utils.DateOnlyFormat)
-		dailyTotal[date]++
-	}
 
-	for _, customer := range payingCustomers {
-		malaysiaTime, err := utils.ToMalaysiaTime(customer.CreatedAt)
-		if err != nil {
-			continue
+		dateStr := malaysiaTime.Format(utils.DateOnlyFormat)
+
+		if malaysiaTime.Before(startTime) {
+			customersBeforeStart++
+		} else {
+			// Count for daily new customers
+			dailyNewCustomers[dateStr]++
 		}
-		date := malaysiaTime.Format(utils.DateOnlyFormat)
-		dailyPaying[date]++
 	}
 
 	// Generate trend data
-	totalTrendData := make([]CustomerTrendData, 0)
-	payingTrendData := make([]CustomerTrendData, 0)
+	newCustomerTrendData := make([]CustomerTrendData, 0)
+	totalCustomerTrendData := make([]CustomerTrendData, 0)
+
+	runningTotal := customersBeforeStart
 
 	for _, date := range dates {
-		totalTrendData = append(totalTrendData, CustomerTrendData{
+		// New customers for this date
+		newCustomers := dailyNewCustomers[date]
+
+		// Add new customers to running total
+		runningTotal += newCustomers
+
+		newCustomerTrendData = append(newCustomerTrendData, CustomerTrendData{
 			Date:  date,
-			Total: dailyTotal[date],
+			Total: newCustomers,
 		})
-		payingTrendData = append(payingTrendData, CustomerTrendData{
+
+		totalCustomerTrendData = append(totalCustomerTrendData, CustomerTrendData{
 			Date:  date,
-			Total: dailyPaying[date],
+			Total: runningTotal,
 		})
 	}
 
 	return []CustomerTrend{
 		{
-			TrendType:    "Total Customers",
-			TrendResults: totalTrendData,
+			TrendType:    "New Customers",
+			TrendResults: newCustomerTrendData,
 		},
 		{
-			TrendType:    "Paying Customers",
-			TrendResults: payingTrendData,
+			TrendType:    "Total Customers",
+			TrendResults: totalCustomerTrendData,
 		},
 	}
 }

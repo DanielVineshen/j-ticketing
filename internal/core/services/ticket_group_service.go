@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -515,10 +516,11 @@ func (s *TicketGroupService) GetTicketVariants(ticketGroupId uint, date string) 
 		}
 
 		for _, item := range ticketItems {
+			ticketIdStr := strconv.FormatUint(uint64(item.TicketVariantId), 10)
 			variant := dto.TicketVariantDTO{
 				TicketVariantId: &item.TicketVariantId,
 				TicketGroupId:   &item.TicketGroupId,
-				TicketId:        nil,
+				TicketId:        &ticketIdStr, // Convert uint to string
 				NameBm:          item.NameBm,
 				NameEn:          item.NameEn,
 				NameCn:          item.NameCn,

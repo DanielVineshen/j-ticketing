@@ -17,6 +17,7 @@ import (
 	mathrand "math/rand"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -181,6 +182,7 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 			UnitPrice:          info.UnitPrice,
 			ItemDesc1:          info.ItemDesc1,
 			ItemDesc2:          info.ItemDesc2,
+			ItemDesc3:          info.ItemDesc3,
 			PrintType:          info.PrintType,
 			QuantityBought:     info.QuantityBought,
 			EncryptedId:        info.EncryptedId,
@@ -255,6 +257,21 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 			TitleIcon:      detail.TitleIcon,
 			RawHtml:        detail.RawHtml,
 			DisplayFlag:    detail.DisplayFlag,
+		})
+	}
+
+	ticketVariantsDTOs := make([]ticketGroupDto.TicketVariantDTO, 0, len(ticketGroup.TicketVariants))
+	for _, variant := range ticketGroup.TicketVariants {
+		ticketVariantsDTOs = append(ticketVariantsDTOs, ticketGroupDto.TicketVariantDTO{
+			TicketVariantId: &variant.TicketVariantId,
+			TicketGroupId:   &variant.TicketGroupId,
+			NameBm:          variant.NameBm,
+			NameEn:          variant.NameEn,
+			NameCn:          variant.NameCn,
+			DescBm:          variant.DescBm,
+			DescEn:          variant.DescEn,
+			DescCn:          variant.DescCn,
+			UnitPrice:       variant.UnitPrice,
 		})
 	}
 
@@ -352,6 +369,7 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 		OrganiserFacilitiesBm:      organiserFacilitiesBm,
 		OrganiserFacilitiesEn:      organiserFacilitiesEn,
 		OrganiserFacilitiesCn:      organiserFacilitiesCn,
+		TicketVariants:             ticketVariantsDTOs,
 		CreatedAt:                  ticketGroup.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:                  ticketGroup.UpdatedAt.Format(time.RFC3339),
 	}
@@ -398,10 +416,17 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 		return nil, fmt.Errorf("failed to retrieve ticket variants: %w", err)
 	}
 
-	// Create a map for easier lookup of ticket variants
 	ticketVariantMap := make(map[string]ticketGroupDto.TicketVariantDTO)
-	for _, variant := range ticketVariantsResponse.TicketVariants {
-		ticketVariantMap[variant.TicketId] = variant
+
+	if !ticketGroup.IsTicketInternal {
+		// Create a map for easier lookup of ticket variants
+		for _, variant := range ticketVariantsResponse.TicketVariants {
+			ticketVariantMap[*variant.TicketId] = variant
+		}
+	} else {
+		for _, variant := range ticketVariantsResponse.TicketVariants {
+			ticketVariantMap[strconv.Itoa(int(*variant.TicketVariantId))] = variant
+		}
 	}
 
 	// Validate that all requested tickets exist in available variants
@@ -491,10 +516,11 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 				OrderTicketGroupId: orderTicketGroup.OrderTicketGroupId,
 				ItemId:             ticket.TicketId,
 				UnitPrice:          unitPrice,
-				ItemDesc1:          variant.ItemDesc1, // Use description from API
-				ItemDesc2:          variant.ItemDesc2, // Use description from API
-				PrintType:          variant.PrintType, // Use print type from API
-				QuantityBought:     1,                 // Fixed quantity of 1
+				ItemDesc1:          variant.NameBm,
+				ItemDesc2:          variant.NameEn,
+				ItemDesc3:          variant.NameCn,
+				PrintType:          *variant.PrintType, // Use print type from API
+				QuantityBought:     1,                  // Fixed quantity of 1
 				EncryptedId:        "",
 				AdmitDate:          orderDate.Format("2006-01-02"), // Format the date consistently
 				Variant:            "default",
@@ -565,10 +591,17 @@ func (s *OrderService) CreateFreeOrder(cust *models.Customer, req *orderDto.Crea
 		return nil, fmt.Errorf("failed to retrieve ticket variants: %w", err)
 	}
 
-	// Create a map for easier lookup of ticket variants
 	ticketVariantMap := make(map[string]ticketGroupDto.TicketVariantDTO)
-	for _, variant := range ticketVariantsResponse.TicketVariants {
-		ticketVariantMap[variant.TicketId] = variant
+
+	if !ticketGroup.IsTicketInternal {
+		// Create a map for easier lookup of ticket variants
+		for _, variant := range ticketVariantsResponse.TicketVariants {
+			ticketVariantMap[*variant.TicketId] = variant
+		}
+	} else {
+		for _, variant := range ticketVariantsResponse.TicketVariants {
+			ticketVariantMap[strconv.Itoa(int(*variant.TicketVariantId))] = variant
+		}
 	}
 
 	// Validate that all requested tickets exist in available variants
@@ -632,9 +665,10 @@ func (s *OrderService) CreateFreeOrder(cust *models.Customer, req *orderDto.Crea
 				// OrderTicketGroupId will be set after creating the order
 				ItemId:         ticket.TicketId,
 				UnitPrice:      unitPrice,
-				ItemDesc1:      variant.ItemDesc1,
-				ItemDesc2:      variant.ItemDesc2,
-				PrintType:      variant.PrintType,
+				ItemDesc1:      variant.NameBm,
+				ItemDesc2:      variant.NameEn,
+				ItemDesc3:      variant.NameCn,
+				PrintType:      *variant.PrintType,
 				QuantityBought: 1,
 				EncryptedId:    "",
 				AdmitDate:      orderDate.Format("2006-01-02"),

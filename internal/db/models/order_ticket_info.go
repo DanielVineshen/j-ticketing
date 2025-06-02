@@ -14,6 +14,7 @@ type OrderTicketInfo struct {
 	UnitPrice          float64        `gorm:"column:unit_price;type:decimal(10,2);not null"`
 	ItemDesc1          string         `gorm:"column:item_desc_1;type:varchar(255);not null"`
 	ItemDesc2          string         `gorm:"column:item_desc_2;type:varchar(255);not null"`
+	ItemDesc3          string         `gorm:"column:item_desc_3;type:varchar(255);not null"`
 	PrintType          string         `gorm:"column:print_type;type:varchar(255);not null"`
 	QuantityBought     int            `gorm:"column:quantity_bought;not null"`
 	Twbid              sql.NullString `gorm:"column:twbid;type:varchar(255);null"`

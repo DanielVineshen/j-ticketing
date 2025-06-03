@@ -165,8 +165,27 @@ type UpdateTicketGroupBasicInfoRequest struct {
 	// Location information
 	LocationAddress string `json:"locationAddress" validate:"required,min=1"`
 	LocationMapUrl  string `json:"locationMapUrl" validate:"required,url"`
+
+	TicketTags []TicketTagsRequest `json:"ticketTags" validate:"omitempty,dive"`
 }
 
 type DeleteTicketGroupGalleryRequest struct {
 	GroupGalleryId uint `json:"groupGalleryId" validate:"required,min=1"`
+}
+
+type UpdateTicketGroupDetailsRequest struct {
+	TicketGroupId uint                  `json:"ticketGroupId" validate:"required,min=1"`
+	TicketDetails []UpdateTicketDetails `json:"ticketDetails" validate:"required,min=1,dive"`
+}
+
+type UpdateTicketDetails struct {
+	TicketDetailId uint   `json:"ticketDetailId" validate:"required,min=1"`
+	TitleBm        string `json:"titleBm" validate:"required,min=1,max=255"`
+	TitleEn        string `json:"titleEn" validate:"required,min=1,max=255"`
+	TitleCn        string `json:"titleCn" validate:"required,min=1,max=255"`
+	TitleIcon      string `json:"titleIcon" validate:"required,max=255"`
+	RawHtmlBm      string `json:"rawHtmlBm" validate:"required,min=1"`
+	RawHtmlEn      string `json:"rawHtmlEn" validate:"required,min=1"`
+	RawHtmlCn      string `json:"rawHtmlCn" validate:"required,min=1"`
+	DisplayFlag    bool   `json:"displayFlag"`
 }

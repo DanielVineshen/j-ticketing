@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"gorm.io/gorm"
 	dto "j-ticketing/internal/core/dto/ticket_group"
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
@@ -912,9 +913,21 @@ func (s *TicketGroupService) UpdateTicketGroupImage(ticketGroupId uint, attachme
 }
 
 func (s *TicketGroupService) UpdateTicketGroupBasicInfo(basicInfo dto.UpdateTicketGroupBasicInfoRequest) error {
+	// Begin transaction
+	tx := s.ticketGroupRepo.Db.Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
 	ticketGroup, err := s.ticketGroupRepo.FindByID(basicInfo.TicketGroupId)
 	if err != nil {
-		log.Printf("Error finding ticket group %s: %v", basicInfo.TicketGroupId, err)
+		tx.Rollback()
+		return fmt.Errorf("ticket group not found: %w", err)
 	}
 
 	ticketGroup.OrderTicketLimit = basicInfo.OrderTicketLimit
@@ -953,10 +966,87 @@ func (s *TicketGroupService) UpdateTicketGroupBasicInfo(basicInfo dto.UpdateTick
 	ticketGroup.LocationAddress = basicInfo.LocationAddress
 	ticketGroup.LocationMapUrl = basicInfo.LocationMapUrl
 
-	err = s.ticketGroupRepo.Update(ticketGroup)
-	if err != nil {
-		log.Printf("Error updating basic info: %v", err)
-		return err
+	if err := tx.Save(ticketGroup).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to update ticket group basic info: %w", err)
+	}
+
+	if len(basicInfo.TicketTags) > 0 {
+		if err := s.updateTicketTags(tx, basicInfo.TicketGroupId, basicInfo.TicketTags); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to update ticket tags: %w", err)
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+// Helper method to handle ticket tags updates
+func (s *TicketGroupService) updateTicketTags(tx *gorm.DB, ticketGroupId uint, newTags []dto.TicketTagsRequest) error {
+	// 1. Get existing ticket tags for this ticket group
+	var existingTicketTags []models.TicketTag
+	if err := tx.Where("ticket_group_id = ?", ticketGroupId).Find(&existingTicketTags).Error; err != nil {
+		return fmt.Errorf("failed to fetch existing ticket tags: %w", err)
+	}
+
+	// 2. Create maps for comparison
+	existingTagsMap := make(map[uint]bool)
+	for _, existingTag := range existingTicketTags {
+		existingTagsMap[existingTag.TagId] = true
+	}
+
+	newTagsMap := make(map[uint]bool)
+	var newTagIds []uint
+	for _, newTag := range newTags {
+		// Validate that the tag exists
+		var tag models.Tag
+		if err := tx.First(&tag, newTag.TagId).Error; err != nil {
+			return fmt.Errorf("tag with ID %d not found: %w", newTag.TagId, err)
+		}
+
+		newTagsMap[newTag.TagId] = true
+		newTagIds = append(newTagIds, newTag.TagId)
+	}
+
+	// 3. Find tags to add (new tags that don't exist in current tags)
+	var tagsToAdd []uint
+	for _, tagId := range newTagIds {
+		if !existingTagsMap[tagId] {
+			tagsToAdd = append(tagsToAdd, tagId)
+		}
+	}
+
+	// 4. Find tags to remove (existing tags that are not in new tags)
+	var tagsToRemove []uint
+	for _, existingTag := range existingTicketTags {
+		if !newTagsMap[existingTag.TagId] {
+			tagsToRemove = append(tagsToRemove, existingTag.TagId)
+		}
+	}
+
+	// 5. Add new tags
+	for _, tagId := range tagsToAdd {
+		ticketTag := models.TicketTag{
+			TicketGroupId: ticketGroupId,
+			TagId:         tagId,
+			CreatedAt:     time.Now(),
+			UpdatedAt:     time.Now(),
+		}
+		if err := tx.Create(&ticketTag).Error; err != nil {
+			return fmt.Errorf("failed to create ticket tag for tag ID %d: %w", tagId, err)
+		}
+	}
+
+	// 6. Remove tags that are no longer needed
+	if len(tagsToRemove) > 0 {
+		if err := tx.Where("ticket_group_id = ? AND tag_id IN ?", ticketGroupId, tagsToRemove).
+			Delete(&models.TicketTag{}).Error; err != nil {
+			return fmt.Errorf("failed to remove ticket tags: %w", err)
+		}
 	}
 
 	return nil
@@ -1015,6 +1105,93 @@ func (s *TicketGroupService) DeleteTicketGroupGallery(groupGalleryId uint) error
 	if err != nil {
 		log.Printf("Error deleting group gallery: %v", err)
 		return err
+	}
+
+	return nil
+}
+
+func (s *TicketGroupService) UpdateTicketGroupDetails(details dto.UpdateTicketGroupDetailsRequest) error {
+	// Begin transaction
+	tx := s.ticketGroupRepo.Db.Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 1. Verify that the ticket group exists
+	ticketGroup, err := s.ticketGroupRepo.FindByID(details.TicketGroupId)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("ticket group not found: %w", err)
+	}
+
+	// 2. Get existing ticket details for this ticket group to build a validation map
+	existingDetails, err := s.ticketDetailRepo.FindByTicketGroupID(details.TicketGroupId)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to fetch existing ticket details: %w", err)
+	}
+
+	// 3. Create a map of valid ticket detail IDs for this ticket group
+	validDetailIDs := make(map[uint]bool)
+	for _, detail := range existingDetails {
+		validDetailIDs[detail.TicketDetailId] = true
+	}
+
+	// 4. Process each ticket detail update
+	for _, updateDetail := range details.TicketDetails {
+		// Verify that the ticket detail ID belongs to the specified ticket group
+		if !validDetailIDs[updateDetail.TicketDetailId] {
+			tx.Rollback()
+			return fmt.Errorf("ticket detail ID %d does not belong to ticket group ID %d",
+				updateDetail.TicketDetailId, details.TicketGroupId)
+		}
+
+		// Update the ticket detail
+		updateData := map[string]interface{}{
+			"title_bm":     updateDetail.TitleBm,
+			"title_en":     updateDetail.TitleEn,
+			"title_cn":     updateDetail.TitleCn,
+			"title_icon":   updateDetail.TitleIcon,
+			"raw_html_bm":  updateDetail.RawHtmlBm,
+			"raw_html_en":  updateDetail.RawHtmlEn,
+			"raw_html_cn":  updateDetail.RawHtmlCn,
+			"display_flag": updateDetail.DisplayFlag,
+			"updated_at":   time.Now(),
+		}
+
+		result := tx.Model(&models.TicketDetail{}).
+			Where("ticket_detail_id = ? AND ticket_group_id = ?",
+				updateDetail.TicketDetailId, details.TicketGroupId).
+			Updates(updateData)
+
+		if result.Error != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to update ticket detail ID %d: %w",
+				updateDetail.TicketDetailId, result.Error)
+		}
+
+		if result.RowsAffected == 0 {
+			tx.Rollback()
+			return fmt.Errorf("ticket detail ID %d not found or does not belong to ticket group ID %d",
+				updateDetail.TicketDetailId, details.TicketGroupId)
+		}
+	}
+
+	// 5. Update the ticket group's updated timestamp
+	ticketGroup.UpdatedAt = time.Now()
+	if err := tx.Save(ticketGroup).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to update ticket group timestamp: %w", err)
+	}
+
+	// 6. Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil

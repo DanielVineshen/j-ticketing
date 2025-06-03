@@ -5,6 +5,7 @@ import (
 	dto "j-ticketing/internal/core/dto/admin"
 	service "j-ticketing/internal/core/services"
 	"j-ticketing/pkg/models"
+	"j-ticketing/pkg/utils"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -83,6 +84,10 @@ func (h *AdminHandler) UpdateAdminProfile(c *fiber.Ctx) error {
 		))
 	}
 
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
 	// Create notification for admin profile update
 	message := admin.Username + " (" + admin.FullName + ") has updated their profile"
 	err = h.notificationService.CreateNotification(
@@ -91,7 +96,7 @@ func (h *AdminHandler) UpdateAdminProfile(c *fiber.Ctx) error {
 		"Admin",
 		"Admin update profile",
 		message,
-		"", // You might want to format current time here
+		malaysiaTime,
 	)
 	if err != nil {
 		// Log error but don't fail the request
@@ -129,6 +134,10 @@ func (h *AdminHandler) ChangePassword(c *fiber.Ctx) error {
 		))
 	}
 
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
 	// Create notification for password change
 	message := admin.Username + " (" + admin.FullName + ") has changed their password"
 	err = h.notificationService.CreateNotification(
@@ -137,7 +146,7 @@ func (h *AdminHandler) ChangePassword(c *fiber.Ctx) error {
 		"Admin",
 		"Admin changed password",
 		message,
-		"", // You might want to format current time here
+		malaysiaTime,
 	)
 	if err != nil {
 		// Log error but don't fail the request
@@ -190,6 +199,10 @@ func (h *AdminHandler) CreateAdmin(c *fiber.Ctx) error {
 		))
 	}
 
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
 	// Create notification for admin creation
 	currentUser := c.Locals("username").(string) // Assuming you have username in JWT
 	message := "New admin account created: " + admin.Username + " (" + admin.FullName + ") by " + currentUser
@@ -199,7 +212,7 @@ func (h *AdminHandler) CreateAdmin(c *fiber.Ctx) error {
 		"Admin",
 		"Admin account created",
 		message,
-		"", // You might want to format current time here
+		malaysiaTime,
 	)
 	if err != nil {
 		// Log error but don't fail the request
@@ -238,6 +251,10 @@ func (h *AdminHandler) UpdateAdminManagement(c *fiber.Ctx) error {
 		))
 	}
 
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
 	// Create notification for admin update
 	currentUser := c.Locals("username").(string) // Assuming you have username in JWT
 	message := "Admin account updated: " + admin.Username + " (" + admin.FullName + ") by " + currentUser
@@ -247,7 +264,7 @@ func (h *AdminHandler) UpdateAdminManagement(c *fiber.Ctx) error {
 		"Admin",
 		"Admin account updated",
 		message,
-		"", // You might want to format current time here
+		malaysiaTime,
 	)
 	if err != nil {
 		// Log error but don't fail the request
@@ -286,6 +303,10 @@ func (h *AdminHandler) DeleteAdmin(c *fiber.Ctx) error {
 		))
 	}
 
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
 	// Create notification for admin deletion
 	currentUser := c.Locals("username").(string) // Assuming you have username in JWT
 	message := "Admin account deleted (ID: " + strconv.Itoa(int(req.AdminID)) + ") by " + currentUser
@@ -295,7 +316,7 @@ func (h *AdminHandler) DeleteAdmin(c *fiber.Ctx) error {
 		"Admin",
 		"Admin account deleted",
 		message,
-		"", // You might want to format current time here
+		malaysiaTime,
 	)
 	if err != nil {
 		// Log error but don't fail the request

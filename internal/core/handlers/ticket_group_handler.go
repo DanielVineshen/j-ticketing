@@ -7,6 +7,7 @@ import (
 	dto "j-ticketing/internal/core/dto/ticket_group"
 	services "j-ticketing/internal/core/services"
 	"j-ticketing/pkg/models"
+	"j-ticketing/pkg/utils"
 	"j-ticketing/pkg/validation"
 	"mime/multipart"
 	"net/http"
@@ -20,13 +21,15 @@ import (
 
 // TicketGroupHandler handles HTTP requests for ticket groups
 type TicketGroupHandler struct {
-	ticketGroupService *services.TicketGroupService
+	ticketGroupService  *services.TicketGroupService
+	notificationService *services.NotificationService
 }
 
 // NewTicketGroupHandler creates a new instance of TicketGroupHandler
-func NewTicketGroupHandler(ticketGroupService *services.TicketGroupService) *TicketGroupHandler {
+func NewTicketGroupHandler(ticketGroupService *services.TicketGroupService, notificationService *services.NotificationService) *TicketGroupHandler {
 	return &TicketGroupHandler{
-		ticketGroupService: ticketGroupService,
+		ticketGroupService:  ticketGroupService,
+		notificationService: notificationService,
 	}
 }
 
@@ -176,6 +179,15 @@ func (h *TicketGroupHandler) GetTicketGroupImage(c *fiber.Ctx) error {
 }
 
 func (h *TicketGroupHandler) CreateTicketGroup(c *fiber.Ctx) error {
+	adminFullName, ok := c.Locals("fullName").(string)
+	adminRole, ok := c.Locals("role").(string)
+
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
+			"User not authenticated", nil,
+		))
+	}
+
 	// Parse and validate form data
 	req, err := h.parseCreateTicketGroupRequest(c)
 	if err != nil {
@@ -198,12 +210,26 @@ func (h *TicketGroupHandler) CreateTicketGroup(c *fiber.Ctx) error {
 		))
 	}
 
-	_, err = h.ticketGroupService.CreateTicketGroup(req, req.Attachment, req.GroupGalleries)
+	ticketGroup, err := h.ticketGroupService.CreateTicketGroup(req, req.Attachment, req.GroupGalleries)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
 			"Failed to create ticket group: "+err.Error(), nil,
 		))
 	}
+
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s has created a new ticket group id: %s", adminFullName, strconv.Itoa(int(ticketGroup.TicketGroupId)))
+	err = h.notificationService.CreateNotification(
+		adminFullName,
+		adminRole,
+		"Ticket Group",
+		"Create new ticket group",
+		message,
+		malaysiaTime,
+	)
 
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
@@ -616,6 +642,33 @@ func (h *TicketGroupHandler) DeleteTicketGroupGallery(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
 			"Failed to delete image: "+err.Error(), nil,
+		))
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
+}
+
+func (h *TicketGroupHandler) UpdateTicketGroupDetails(c *fiber.Ctx) error {
+	// Parse request body
+	var req dto.UpdateTicketGroupDetailsRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			"Invalid request format", nil,
+		))
+	}
+
+	// Validate the request struct
+	if err := validation.ValidateStruct(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			"Validation failed: "+err.Error(), nil,
+		))
+	}
+
+	// Call service to update image
+	err := h.ticketGroupService.UpdateTicketGroupDetails(req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
+			"Failed to update basic info: "+err.Error(), nil,
 		))
 	}
 

@@ -178,7 +178,7 @@ func main() {
 
 	// Initialize handlers
 	adminHandler := handlers.NewAdminHandler(adminService, *notificationService)
-	ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService)
+	ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService, notificationService)
 	authHandler := handlers.NewAuthHandler(authService, emailService, *customerService, *notificationService)
 	customerHandler := handlers.NewCustomerHandler(*customerService, *notificationService)
 	bannerHandler := handlers.NewBannerHandler(bannerService, *notificationService)

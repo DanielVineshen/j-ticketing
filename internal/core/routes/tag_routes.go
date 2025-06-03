@@ -16,7 +16,7 @@ func SetupTagRoutes(app *fiber.App, tagHandler *handlers.TagHandler, jwtService 
 
 	// All routes require authentication and ADMIN role
 	tags.Get("/", tagHandler.GetAllTags)
-	tags.Post("/", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), tagHandler.CreateTag)
-	tags.Put("/", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), tagHandler.UpdateTag)
-	tags.Delete("/", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), tagHandler.DeleteTag)
+	tags.Post("/", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "SYSADMIN", "MEMBER"), tagHandler.CreateTag)
+	tags.Put("/", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "SYSADMIN", "MEMBER"), tagHandler.UpdateTag)
+	tags.Delete("/", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "SYSADMIN", "MEMBER"), tagHandler.DeleteTag)
 }

@@ -21,5 +21,5 @@ func SetupCustomerRoutes(api fiber.Router, customerHandler *handlers.CustomerHan
 	customerGroup.Put("/password", middleware.Protected(jwtService), middleware.HasRole("CUSTOMER"), customerHandler.ChangePassword)
 
 	// Admin
-	customerGroup.Get("/management", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), customerHandler.GetCustomerManagement)
+	customerGroup.Get("/management", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "SYSADMIN", "MEMBER"), customerHandler.GetCustomerManagement)
 }

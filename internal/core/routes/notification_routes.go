@@ -1,10 +1,11 @@
 package routes
 
 import (
-	"github.com/gofiber/fiber/v2"
 	"j-ticketing/internal/core/handlers"
 	"j-ticketing/internal/core/middleware"
 	"j-ticketing/pkg/jwt"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 // SetupNotificationRoutes configures all notification related routes
@@ -13,7 +14,7 @@ func SetupNotificationRoutes(app *fiber.App, notificationHandler *handlers.Notif
 	notification := app.Group("/api")
 
 	// Public routes (no authentication required)
-	notification.Get("/notifications", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), notificationHandler.GetAllNotifications)
+	notification.Get("/notifications", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "SYSADMIN", "MEMBER"), notificationHandler.GetAllNotifications)
 
-	notification.Put("/notification", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), notificationHandler.UpdateNotifications)
+	notification.Put("/notification", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "SYSADMIN", "MEMBER"), notificationHandler.UpdateNotifications)
 }

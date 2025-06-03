@@ -25,5 +25,5 @@ func SetupOrderRoutes(app *fiber.App, orderHandler *handlers.OrderHandler, jwtSe
 	orderGroup.Post("/orderTicketGroup/free", orderHandler.CreateFreeOrderTicketGroup)
 
 	// Admin module
-	orderGroup.Get("/orderTicketGroups/management", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), orderHandler.GetOrderManagement)
+	orderGroup.Get("/orderTicketGroups/management", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "SYSADMIN", "MEMBER"), orderHandler.GetOrderManagement)
 }

@@ -340,6 +340,22 @@ func (h *TicketGroupHandler) parseCreateTicketGroupRequest(c *fiber.Ctx) (*dto.C
 		return nil, fmt.Errorf("invalid JSON format for ticketVariants: %v", err)
 	}
 
+	// Parse ticketTags (optional)
+	ticketTagsStr := c.FormValue("ticketTags")
+	if ticketTagsStr != "" {
+		ticketTagsBytes, err := parseJSONField(ticketTagsStr, "ticketTags")
+		if err != nil {
+			// ticketTags is optional, so we don't return error if empty
+			req.TicketTags = []dto.TicketTagsRequest{}
+		} else {
+			if err := json.Unmarshal(ticketTagsBytes, &req.TicketTags); err != nil {
+				return nil, fmt.Errorf("invalid JSON format for ticketTags: %v", err)
+			}
+		}
+	} else {
+		req.TicketTags = []dto.TicketTagsRequest{}
+	}
+
 	// Handle file uploads
 	attachment, err := c.FormFile("attachment")
 	if err != nil {

@@ -114,6 +114,7 @@ func (s *TicketGroupService) GetTicketGroupById(id uint) (*dto.TicketGroupDTO, e
 	// Create the ticket group DTO
 	ticketGroupDTO := &dto.TicketGroupDTO{
 		TicketGroupId:          ticketGroup.TicketGroupId,
+		Placement:              ticketGroup.Placement,
 		OrderTicketLimit:       ticketGroup.OrderTicketLimit,
 		ScanSetting:            ticketGroup.ScanSetting,
 		GroupType:              ticketGroup.GroupType,
@@ -185,6 +186,7 @@ func (s *TicketGroupService) buildTicketGroupResponse(ticketGroups []models.Tick
 		// Create the ticket group DTO
 		ticketGroupDTO := dto.TicketGroupDTO{
 			TicketGroupId:          ticketGroup.TicketGroupId,
+			Placement:              ticketGroup.Placement,
 			OrderTicketLimit:       ticketGroup.OrderTicketLimit,
 			ScanSetting:            ticketGroup.ScanSetting,
 			GroupType:              ticketGroup.GroupType,
@@ -309,6 +311,7 @@ func (s *TicketGroupService) GetTicketProfile(ticketGroupId uint) (*dto.TicketPr
 	// Build the ticket profile DTO
 	profile := &dto.TicketProfileDTO{
 		TicketGroupId:              ticketGroup.TicketGroupId,
+		Placement:                  ticketGroup.Placement,
 		OrderTicketLimit:           ticketGroup.OrderTicketLimit,
 		ScanSetting:                ticketGroup.ScanSetting,
 		GroupType:                  ticketGroup.GroupType,
@@ -579,6 +582,12 @@ func (s *TicketGroupService) CreateTicketGroup(
 	attachment *multipart.FileHeader,
 	galleries []*multipart.FileHeader,
 ) (*models.TicketGroup, error) {
+	maxPlacement, err := s.ticketGroupRepo.GetMaxPlacement()
+	if err != nil {
+		// If no ticket groups exist, start with placement 1
+		maxPlacement = 0
+	}
+
 	// Begin transaction
 	tx := s.ticketGroupRepo.Db.Begin()
 	if tx.Error != nil {
@@ -606,9 +615,10 @@ func (s *TicketGroupService) CreateTicketGroup(
 
 	// 2. Create ticket group
 	ticketGroup := &models.TicketGroup{
+		Placement:              maxPlacement + 1,
 		OrderTicketLimit:       req.OrderTicketLimit,
 		ScanSetting:            req.ScanSetting,
-		GroupType:              "event", // You might want to add this to the request
+		GroupType:              "event",
 		GroupNameBm:            req.GroupNameBm,
 		GroupNameEn:            req.GroupNameEn,
 		GroupNameCn:            req.GroupNameCn,
@@ -752,8 +762,35 @@ func (s *TicketGroupService) CreateTicketGroup(
 		}
 	}
 
-	// 6. Create tags (if needed - not in the request but might be needed)
-	// You can add tag creation logic here if required
+	// 6. Create ticket tags associations
+	for _, tagReq := range req.TicketTags {
+		// First verify the tag exists
+		tag, err := s.tagRepo.FindByID(tagReq.TagId)
+		if err != nil {
+			tx.Rollback()
+			fileUtil.DeleteAttachmentFile(uniqueFileName, storagePath)
+			for _, uploaded := range uploadedGalleries {
+				fileUtil.DeleteAttachmentFile(uploaded, galleryPath)
+			}
+			return nil, fmt.Errorf("tag with ID %d not found: %w", tagReq.TagId, err)
+		}
+
+		// Create the ticket tag association
+		ticketTag := &models.TicketTag{
+			TicketGroupId: ticketGroup.TicketGroupId,
+			TagId:         tag.TagId,
+			CreatedAt:     time.Now(),
+			UpdatedAt:     time.Now(),
+		}
+		if err := tx.Create(ticketTag).Error; err != nil {
+			tx.Rollback()
+			fileUtil.DeleteAttachmentFile(uniqueFileName, storagePath)
+			for _, uploaded := range uploadedGalleries {
+				fileUtil.DeleteAttachmentFile(uploaded, galleryPath)
+			}
+			return nil, fmt.Errorf("failed to create ticket tag association: %w", err)
+		}
+	}
 
 	// Commit transaction
 	if err := tx.Commit().Error; err != nil {

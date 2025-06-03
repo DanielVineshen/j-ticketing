@@ -9,6 +9,7 @@ import (
 // TicketGroup represents the ticket_group table
 type TicketGroup struct {
 	TicketGroupId    uint   `gorm:"primaryKey;column:ticket_group_id;type:bigint unsigned AUTO_INCREMENT"`
+	Placement        int    `gorm:"column:placement;type:int;not null;default:1"`
 	OrderTicketLimit int    `gorm:"column:order_ticket_limit;type:int;not null;default:1"`
 	ScanSetting      string `gorm:"column:scan_setting;type:varchar(255);not null;default:'none'"`
 	GroupType        string `gorm:"column:group_type;type:varchar(255);not null"`

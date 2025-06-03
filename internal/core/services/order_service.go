@@ -312,6 +312,7 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 	// Build the ticket profile DTO
 	ticketProfile := ticketGroupDto.TicketProfileDTO{
 		TicketGroupId:              ticketGroup.TicketGroupId,
+		Placement:                  ticketGroup.Placement,
 		OrderTicketLimit:           ticketGroup.OrderTicketLimit,
 		ScanSetting:                ticketGroup.ScanSetting,
 		GroupType:                  ticketGroup.GroupType,

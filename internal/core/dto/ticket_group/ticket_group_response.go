@@ -9,6 +9,7 @@ type TicketGroupResponse struct {
 // TicketGroupDTO represents the data transfer object for a ticket group
 type TicketGroupDTO struct {
 	TicketGroupId          uint     `json:"ticketGroupId"`
+	Placement              int      `json:"placement"`
 	OrderTicketLimit       int      `json:"orderTicketLimit"`
 	ScanSetting            string   `json:"scanSetting"`
 	GroupType              string   `json:"groupType"`
@@ -72,6 +73,7 @@ type TicketProfileResult struct {
 type TicketProfileDTO struct {
 	// Outer Layer For Ticket Profile
 	TicketGroupId          uint    `json:"ticketGroupId"`
+	Placement              int     `json:"placement"`
 	OrderTicketLimit       int     `json:"orderTicketLimit"`
 	ScanSetting            string  `json:"scanSetting"`
 	GroupType              string  `json:"groupType"`

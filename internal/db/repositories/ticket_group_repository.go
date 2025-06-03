@@ -66,3 +66,12 @@ func (r *TicketGroupRepository) GetContentTypeByUniqueExtension(uniqueExtension 
 
 	return contentType, result.Error
 }
+
+// GetMaxPlacement returns the highest placement number
+func (r *TicketGroupRepository) GetMaxPlacement() (int, error) {
+	var maxPlacement int
+	result := r.Db.Model(&models.TicketGroup{}).
+		Select("COALESCE(MAX(placement), 0)").
+		Scan(&maxPlacement)
+	return maxPlacement, result.Error
+}

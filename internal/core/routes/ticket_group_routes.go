@@ -3,6 +3,7 @@ package routes
 
 import (
 	"j-ticketing/internal/core/handlers"
+	"j-ticketing/internal/core/middleware"
 	"j-ticketing/pkg/jwt"
 
 	"github.com/gofiber/fiber/v2"
@@ -18,4 +19,6 @@ func SetupTicketGroupRoutes(app *fiber.App, ticketGroupHandler *handlers.TicketG
 	ticketGroup.Get("/ticketProfile", ticketGroupHandler.GetTicketProfile)
 	ticketGroup.Get("/ticketVariants", ticketGroupHandler.GetTicketVariants)
 	ticketGroup.Get("/attachment/:uniqueExtension", ticketGroupHandler.GetTicketGroupImage)
+
+	ticketGroup.Post("/", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), ticketGroupHandler.CreateTicketGroup)
 }

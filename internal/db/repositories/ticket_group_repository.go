@@ -9,25 +9,25 @@ import (
 
 // TicketGroupRepository handles database operations for ticket groups
 type TicketGroupRepository struct {
-	db *gorm.DB
+	Db *gorm.DB
 }
 
 // NewTicketGroupRepository creates a new ticket group repository
 func NewTicketGroupRepository(db *gorm.DB) *TicketGroupRepository {
-	return &TicketGroupRepository{db: db}
+	return &TicketGroupRepository{Db: db}
 }
 
 // FindAll returns all ticket groups
 func (r *TicketGroupRepository) FindAll() ([]models.TicketGroup, error) {
 	var ticketGroups []models.TicketGroup
-	result := r.db.Find(&ticketGroups)
+	result := r.Db.Find(&ticketGroups)
 	return ticketGroups, result.Error
 }
 
 // FindByID finds a ticket group by ID
 func (r *TicketGroupRepository) FindByID(id uint) (*models.TicketGroup, error) {
 	var ticketGroup models.TicketGroup
-	result := r.db.First(&ticketGroup, id)
+	result := r.Db.First(&ticketGroup, id)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -36,30 +36,30 @@ func (r *TicketGroupRepository) FindByID(id uint) (*models.TicketGroup, error) {
 
 // Create creates a new ticket group
 func (r *TicketGroupRepository) Create(ticketGroup *models.TicketGroup) error {
-	return r.db.Create(ticketGroup).Error
+	return r.Db.Create(ticketGroup).Error
 }
 
 // Update updates a ticket group
 func (r *TicketGroupRepository) Update(ticketGroup *models.TicketGroup) error {
-	return r.db.Save(ticketGroup).Error
+	return r.Db.Save(ticketGroup).Error
 }
 
 // Delete deletes a ticket group
 func (r *TicketGroupRepository) Delete(id uint) error {
-	return r.db.Delete(&models.TicketGroup{}, id).Error
+	return r.Db.Delete(&models.TicketGroup{}, id).Error
 }
 
 // FindActiveTicketGroups finds all active ticket groups
 func (r *TicketGroupRepository) FindActiveTicketGroups() ([]models.TicketGroup, error) {
 	var ticketGroups []models.TicketGroup
-	result := r.db.Where("is_active = ?", true).Find(&ticketGroups)
+	result := r.Db.Where("is_active = ?", true).Find(&ticketGroups)
 	return ticketGroups, result.Error
 }
 
 // GetContentTypeByUniqueExtension finds the content type for a group gallery by unique extension
 func (r *TicketGroupRepository) GetContentTypeByUniqueExtension(uniqueExtension string) (string, error) {
 	var contentType string
-	result := r.db.Model(&models.TicketGroup{}).
+	result := r.Db.Model(&models.TicketGroup{}).
 		Select("content_type").
 		Where("unique_extension = ?", uniqueExtension).
 		First(&contentType)

@@ -9,7 +9,6 @@ import (
 type TicketVariant struct {
 	TicketVariantId uint      `gorm:"primaryKey;column:ticket_variant_id;type:bigint unsigned AUTO_INCREMENT"`
 	TicketGroupId   uint      `gorm:"column:ticket_group_id;type:bigint unsigned;not null;index"`
-	TicketId        string    `gorm:"column:ticket_id;type:varchar(255);not null"`
 	NameBm          string    `gorm:"column:name_bm;type:varchar(255);not null"`
 	NameEn          string    `gorm:"column:name_en;type:varchar(255);not null"`
 	NameCn          string    `gorm:"column:name_cn;type:varchar(255);not null"`

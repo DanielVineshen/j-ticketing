@@ -2,12 +2,17 @@
 package handlers
 
 import (
+	"encoding/json"
+	"fmt"
 	dto "j-ticketing/internal/core/dto/ticket_group"
 	services "j-ticketing/internal/core/services"
 	"j-ticketing/pkg/models"
+	"j-ticketing/pkg/validation"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -168,4 +173,265 @@ func (h *TicketGroupHandler) GetTicketGroupImage(c *fiber.Ctx) error {
 
 	// Send the file
 	return c.SendFile(filePath)
+}
+
+func (h *TicketGroupHandler) CreateTicketGroup(c *fiber.Ctx) error {
+	// Parse and validate form data
+	req, err := h.parseCreateTicketGroupRequest(c)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			err.Error(), nil,
+		))
+	}
+
+	// Validate the request struct
+	if err := validation.ValidateStruct(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			"Validation failed: "+err.Error(), nil,
+		))
+	}
+
+	// Additional custom validations
+	if err := h.validateCustomFields(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			err.Error(), nil,
+		))
+	}
+
+	_, err = h.ticketGroupService.CreateTicketGroup(req, req.Attachment, req.GroupGalleries)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
+			"Failed to create ticket group: "+err.Error(), nil,
+		))
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
+}
+
+// parseCreateTicketGroupRequest parses the multipart form data into a structured request
+func (h *TicketGroupHandler) parseCreateTicketGroupRequest(c *fiber.Ctx) (*dto.CreateTicketGroupRequest, error) {
+	req := &dto.CreateTicketGroupRequest{}
+
+	// Parse basic fields
+	var err error
+
+	// Order ticket limit
+	orderTicketLimitStr := c.FormValue("orderTicketLimit")
+	if orderTicketLimitStr == "" {
+		return nil, fmt.Errorf("orderTicketLimit is required")
+	}
+	req.OrderTicketLimit, err = strconv.Atoi(orderTicketLimitStr)
+	if err != nil {
+		return nil, fmt.Errorf("orderTicketLimit must be a valid integer")
+	}
+
+	// Scan setting
+	req.ScanSetting = c.FormValue("scanSetting")
+
+	// Group names
+	req.GroupNameBm = c.FormValue("groupNameBm")
+	req.GroupNameEn = c.FormValue("groupNameEn")
+	req.GroupNameCn = c.FormValue("groupNameCn")
+
+	// Group descriptions
+	req.GroupDescBm = c.FormValue("groupDescBm")
+	req.GroupDescEn = c.FormValue("groupDescEn")
+	req.GroupDescCn = c.FormValue("groupDescCn")
+
+	// Optional redirection fields
+	req.GroupRedirectionSpanBm = c.FormValue("groupRedirectionSpanBm")
+	req.GroupRedirectionSpanEn = c.FormValue("groupRedirectionSpanEn")
+	req.GroupRedirectionSpanCn = c.FormValue("groupRedirectionSpanCn")
+	req.GroupRedirectionUrl = c.FormValue("groupRedirectionUrl")
+
+	// Group slots
+	req.GroupSlot1Bm = c.FormValue("groupSlot1Bm")
+	req.GroupSlot1En = c.FormValue("groupSlot1En")
+	req.GroupSlot1Cn = c.FormValue("groupSlot1Cn")
+	req.GroupSlot2Bm = c.FormValue("groupSlot2Bm")
+	req.GroupSlot2En = c.FormValue("groupSlot2En")
+	req.GroupSlot2Cn = c.FormValue("groupSlot2Cn")
+	req.GroupSlot3Bm = c.FormValue("groupSlot3Bm")
+	req.GroupSlot3En = c.FormValue("groupSlot3En")
+	req.GroupSlot3Cn = c.FormValue("groupSlot3Cn")
+	req.GroupSlot4Bm = c.FormValue("groupSlot4Bm")
+	req.GroupSlot4En = c.FormValue("groupSlot4En")
+	req.GroupSlot4Cn = c.FormValue("groupSlot4Cn")
+
+	// Price prefixes and suffixes
+	req.PricePrefixBm = c.FormValue("pricePrefixBm")
+	req.PricePrefixEn = c.FormValue("pricePrefixEn")
+	req.PricePrefixCn = c.FormValue("pricePrefixCn")
+	req.PriceSuffixBm = c.FormValue("priceSuffixBm")
+	req.PriceSuffixEn = c.FormValue("priceSuffixEn")
+	req.PriceSuffixCn = c.FormValue("priceSuffixCn")
+
+	// Date fields
+	req.ActiveStartDate = c.FormValue("activeStartDate")
+	req.ActiveEndDate = c.FormValue("activeEndDate")
+
+	// Boolean field
+	isActiveStr := c.FormValue("isActive")
+	if isActiveStr != "" {
+		req.IsActive, err = strconv.ParseBool(isActiveStr)
+		if err != nil {
+			return nil, fmt.Errorf("isActive must be a valid boolean")
+		}
+	}
+
+	// Location information
+	req.LocationAddress = c.FormValue("locationAddress")
+	req.LocationMapUrl = c.FormValue("locationMapUrl")
+
+	// Organiser information
+	req.OrganiserNameBm = c.FormValue("organiserNameBm")
+	req.OrganiserNameEn = c.FormValue("organiserNameEn")
+	req.OrganiserNameCn = c.FormValue("organiserNameCn")
+	req.OrganiserAddress = c.FormValue("organiserAddress")
+	req.OrganiserDescHtmlBm = c.FormValue("organiserDescHtmlBm")
+	req.OrganiserDescHtmlEn = c.FormValue("organiserDescHtmlEn")
+	req.OrganiserDescHtmlCn = c.FormValue("organiserDescHtmlCn")
+	req.OrganiserContact = c.FormValue("organiserContact")
+	req.OrganiserEmail = c.FormValue("organiserEmail")
+	req.OrganiserWebsite = c.FormValue("organiserWebsite")
+	req.OrganiserFacilitiesBm = c.FormValue("organiserFacilitiesBm")
+	req.OrganiserFacilitiesEn = c.FormValue("organiserFacilitiesEn")
+	req.OrganiserFacilitiesCn = c.FormValue("organiserFacilitiesCn")
+
+	// Parse JSON arrays - helper function to handle both quoted and unquoted JSON
+	parseJSONField := func(fieldValue, fieldName string) ([]byte, error) {
+		if fieldValue == "" {
+			return nil, fmt.Errorf("%s is required", fieldName)
+		}
+
+		// Remove any surrounding quotes if present
+		trimmed := strings.TrimSpace(fieldValue)
+		if strings.HasPrefix(trimmed, "\"") && strings.HasSuffix(trimmed, "\"") {
+			// It's a quoted JSON string, unquote it
+			var unquoted string
+			if err := json.Unmarshal([]byte(trimmed), &unquoted); err != nil {
+				return nil, fmt.Errorf("invalid quoted JSON format for %s: %v", fieldName, err)
+			}
+			return []byte(unquoted), nil
+		}
+		// It's direct JSON
+		return []byte(trimmed), nil
+	}
+
+	// Parse ticketDetails
+	ticketDetailsStr := c.FormValue("ticketDetails")
+	ticketDetailsBytes, err := parseJSONField(ticketDetailsStr, "ticketDetails")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(ticketDetailsBytes, &req.TicketDetails); err != nil {
+		return nil, fmt.Errorf("invalid JSON format for ticketDetails: %v", err)
+	}
+
+	// Parse ticketVariants
+	ticketVariantsStr := c.FormValue("ticketVariants")
+	ticketVariantsBytes, err := parseJSONField(ticketVariantsStr, "ticketVariants")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(ticketVariantsBytes, &req.TicketVariants); err != nil {
+		return nil, fmt.Errorf("invalid JSON format for ticketVariants: %v", err)
+	}
+
+	// Handle file uploads
+	attachment, err := c.FormFile("attachment")
+	if err != nil {
+		return nil, fmt.Errorf("attachment file is required")
+	}
+	req.Attachment = attachment
+
+	// Handle multiple gallery files (optional)
+	form, err := c.MultipartForm()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse multipart form: %v", err)
+	}
+
+	if files := form.File["groupGalleries"]; files != nil {
+		req.GroupGalleries = files
+	}
+
+	return req, nil
+}
+
+// validateCustomFields performs additional custom validations
+func (h *TicketGroupHandler) validateCustomFields(req *dto.CreateTicketGroupRequest) error {
+	// Validate date formats
+	if err := h.validateDateFormat(req.ActiveStartDate, "activeStartDate"); err != nil {
+		return err
+	}
+
+	if req.ActiveEndDate != "" {
+		if err := h.validateDateFormat(req.ActiveEndDate, "activeEndDate"); err != nil {
+			return err
+		}
+
+		// Validate that end date is after start date
+		startDate, _ := time.Parse("2006-01-02", req.ActiveStartDate)
+		endDate, _ := time.Parse("2006-01-02", req.ActiveEndDate)
+		if endDate.Before(startDate) {
+			return fmt.Errorf("activeEndDate must be after activeStartDate")
+		}
+	}
+
+	// Validate file types for attachment
+	if err := h.validateFileType(req.Attachment, []string{".jpg", ".jpeg", ".png", ".pdf"}); err != nil {
+		return fmt.Errorf("attachment: %v", err)
+	}
+
+	// Validate gallery files if present
+	for i, gallery := range req.GroupGalleries {
+		if err := h.validateFileType(gallery, []string{".jpg", ".jpeg", ".png", ".gif"}); err != nil {
+			return fmt.Errorf("groupGalleries[%d]: %v", i, err)
+		}
+	}
+
+	// Validate file sizes (5MB limit)
+	if req.Attachment.Size > 5*1024*1024 {
+		return fmt.Errorf("attachment file size must not exceed 5MB")
+	}
+
+	for i, gallery := range req.GroupGalleries {
+		if gallery.Size > 5*1024*1024 {
+			return fmt.Errorf("groupGalleries[%d] file size must not exceed 5MB", i)
+		}
+	}
+
+	return nil
+}
+
+// validateDateFormat validates YYYY-MM-DD date format
+func (h *TicketGroupHandler) validateDateFormat(dateStr, fieldName string) error {
+	if dateStr == "" {
+		return fmt.Errorf("%s is required", fieldName)
+	}
+
+	_, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		return fmt.Errorf("%s must be in YYYY-MM-DD format", fieldName)
+	}
+
+	return nil
+}
+
+// validateFileType validates file extensions
+func (h *TicketGroupHandler) validateFileType(file *multipart.FileHeader, allowedTypes []string) error {
+	if file == nil {
+		return fmt.Errorf("file is required")
+	}
+
+	filename := strings.ToLower(file.Filename)
+	for _, allowedType := range allowedTypes {
+		if strings.HasSuffix(filename, allowedType) {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("file type not allowed. Allowed types: %v", allowedTypes)
 }

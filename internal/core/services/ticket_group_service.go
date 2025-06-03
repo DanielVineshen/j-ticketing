@@ -2,12 +2,17 @@
 package service
 
 import (
+	"database/sql"
+	"errors"
+	"fmt"
 	dto "j-ticketing/internal/core/dto/ticket_group"
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
 	"j-ticketing/pkg/config"
 	"j-ticketing/pkg/external"
+	"j-ticketing/pkg/utils"
 	"log"
+	"mime/multipart"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -439,10 +444,11 @@ func (s *TicketGroupService) getLocalTicketVariants(ticketGroupId uint) ([]dto.T
 
 	variantDTOs := make([]dto.TicketVariantDTO, 0, len(variants))
 	for _, variant := range variants {
+		ticketIdStr := strconv.FormatUint(uint64(variant.TicketVariantId), 10)
 		variantDTOs = append(variantDTOs, dto.TicketVariantDTO{
 			TicketVariantId: &variant.TicketVariantId,
 			TicketGroupId:   &variant.TicketGroupId,
-			TicketId:        &variant.TicketId,
+			TicketId:        &ticketIdStr,
 			NameBm:          variant.NameBm,
 			NameEn:          variant.NameEn,
 			NameCn:          variant.NameCn,
@@ -565,4 +571,207 @@ func (s *TicketGroupService) GetImageInfo(uniqueExtension string) (string, strin
 	}
 
 	return contentType, filePath, nil
+}
+
+// CreateTicketGroup creates a new ticket group with all related data
+func (s *TicketGroupService) CreateTicketGroup(
+	req *dto.CreateTicketGroupRequest,
+	attachment *multipart.FileHeader,
+	galleries []*multipart.FileHeader,
+) (*models.TicketGroup, error) {
+	// Begin transaction
+	tx := s.ticketGroupRepo.Db.Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 1. Handle main attachment upload
+	storagePath := os.Getenv("TICKET_GROUP_STORAGE_PATH")
+	if storagePath == "" {
+		tx.Rollback()
+		return nil, errors.New("TICKET_GROUP_STORAGE_PATH environment variable not set")
+	}
+
+	fileUtil := utils.NewFileUtil()
+	uniqueFileName, err := fileUtil.UploadAttachmentFile(attachment, storagePath)
+	if err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to upload attachment: %w", err)
+	}
+
+	// 2. Create ticket group
+	ticketGroup := &models.TicketGroup{
+		OrderTicketLimit:       req.OrderTicketLimit,
+		ScanSetting:            req.ScanSetting,
+		GroupType:              "event", // You might want to add this to the request
+		GroupNameBm:            req.GroupNameBm,
+		GroupNameEn:            req.GroupNameEn,
+		GroupNameCn:            req.GroupNameCn,
+		GroupDescBm:            req.GroupDescBm,
+		GroupDescEn:            req.GroupDescEn,
+		GroupDescCn:            req.GroupDescCn,
+		GroupRedirectionSpanBm: nullStringFromString(req.GroupRedirectionSpanBm),
+		GroupRedirectionSpanEn: nullStringFromString(req.GroupRedirectionSpanEn),
+		GroupRedirectionSpanCn: nullStringFromString(req.GroupRedirectionSpanCn),
+		GroupRedirectionUrl:    nullStringFromString(req.GroupRedirectionUrl),
+		GroupSlot1Bm:           nullStringFromString(req.GroupSlot1Bm),
+		GroupSlot1En:           nullStringFromString(req.GroupSlot1En),
+		GroupSlot1Cn:           nullStringFromString(req.GroupSlot1Cn),
+		GroupSlot2Bm:           nullStringFromString(req.GroupSlot2Bm),
+		GroupSlot2En:           nullStringFromString(req.GroupSlot2En),
+		GroupSlot2Cn:           nullStringFromString(req.GroupSlot2Cn),
+		GroupSlot3Bm:           nullStringFromString(req.GroupSlot3Bm),
+		GroupSlot3En:           nullStringFromString(req.GroupSlot3En),
+		GroupSlot3Cn:           nullStringFromString(req.GroupSlot3Cn),
+		GroupSlot4Bm:           nullStringFromString(req.GroupSlot4Bm),
+		GroupSlot4En:           nullStringFromString(req.GroupSlot4En),
+		GroupSlot4Cn:           nullStringFromString(req.GroupSlot4Cn),
+		PricePrefixBm:          req.PricePrefixBm,
+		PricePrefixEn:          req.PricePrefixEn,
+		PricePrefixCn:          req.PricePrefixCn,
+		PriceSuffixBm:          req.PriceSuffixBm,
+		PriceSuffixEn:          req.PriceSuffixEn,
+		PriceSuffixCn:          req.PriceSuffixCn,
+		AttachmentName:         attachment.Filename,
+		AttachmentPath:         storagePath,
+		AttachmentSize:         attachment.Size,
+		ContentType:            attachment.Header.Get("Content-Type"),
+		UniqueExtension:        uniqueFileName,
+		ActiveStartDate:        nullStringFromString(req.ActiveStartDate),
+		ActiveEndDate:          nullStringFromString(req.ActiveEndDate),
+		IsActive:               req.IsActive,
+		IsTicketInternal:       true, // Set based on your business logic
+		LocationAddress:        req.LocationAddress,
+		LocationMapUrl:         req.LocationMapUrl,
+		OrganiserNameBm:        req.OrganiserNameBm,
+		OrganiserNameEn:        req.OrganiserNameEn,
+		OrganiserNameCn:        req.OrganiserNameCn,
+		OrganiserAddress:       req.OrganiserAddress,
+		OrganiserDescHtmlBm:    req.OrganiserDescHtmlBm,
+		OrganiserDescHtmlEn:    req.OrganiserDescHtmlEn,
+		OrganiserDescHtmlCn:    req.OrganiserDescHtmlCn,
+		OrganiserContact:       nullStringFromString(req.OrganiserContact),
+		OrganiserEmail:         nullStringFromString(req.OrganiserEmail),
+		OrganiserWebsite:       nullStringFromString(req.OrganiserWebsite),
+		OrganiserFacilitiesBm:  nullStringFromString(req.OrganiserFacilitiesBm),
+		OrganiserFacilitiesEn:  nullStringFromString(req.OrganiserFacilitiesEn),
+		OrganiserFacilitiesCn:  nullStringFromString(req.OrganiserFacilitiesCn),
+		CreatedAt:              time.Now(),
+		UpdatedAt:              time.Now(),
+	}
+
+	// Save ticket group
+	if err := tx.Create(ticketGroup).Error; err != nil {
+		tx.Rollback()
+		fileUtil.DeleteAttachmentFile(uniqueFileName, storagePath)
+		return nil, fmt.Errorf("failed to create ticket group: %w", err)
+	}
+
+	// 3. Create ticket details
+	for _, detail := range req.TicketDetails {
+		ticketDetail := &models.TicketDetail{
+			TicketGroupId: ticketGroup.TicketGroupId,
+			Title:         detail.Title,
+			TitleIcon:     detail.TitleIcon,
+			RawHtml:       detail.RawHtml,
+			DisplayFlag:   detail.DisplayFlag,
+			CreatedAt:     time.Now(),
+			UpdatedAt:     time.Now(),
+		}
+		if err := tx.Create(ticketDetail).Error; err != nil {
+			tx.Rollback()
+			fileUtil.DeleteAttachmentFile(uniqueFileName, storagePath)
+			return nil, fmt.Errorf("failed to create ticket detail: %w", err)
+		}
+	}
+
+	// 4. Create ticket variants
+	for _, variant := range req.TicketVariants {
+		ticketVariant := &models.TicketVariant{
+			TicketGroupId: ticketGroup.TicketGroupId,
+			NameBm:        variant.NameBm,
+			NameEn:        variant.NameEn,
+			NameCn:        variant.NameCn,
+			DescBm:        variant.DescBm,
+			DescEn:        variant.DescEn,
+			DescCn:        variant.DescCn,
+			UnitPrice:     variant.UnitPrice,
+			CreatedAt:     time.Now(),
+			UpdatedAt:     time.Now(),
+		}
+		if err := tx.Create(ticketVariant).Error; err != nil {
+			tx.Rollback()
+			fileUtil.DeleteAttachmentFile(uniqueFileName, storagePath)
+			return nil, fmt.Errorf("failed to create ticket variant: %w", err)
+		}
+	}
+
+	// 5. Handle gallery uploads
+	galleryPath := os.Getenv("GROUP_GALLERY_STORAGE_PATH")
+	if galleryPath == "" {
+		galleryPath = storagePath // Use same path as main attachment if not specified
+	}
+
+	var uploadedGalleries []string
+	for _, gallery := range galleries {
+		galleryFileName, err := fileUtil.UploadAttachmentFile(gallery, galleryPath)
+		if err != nil {
+			// Rollback and clean up
+			tx.Rollback()
+			fileUtil.DeleteAttachmentFile(uniqueFileName, storagePath)
+			for _, uploaded := range uploadedGalleries {
+				fileUtil.DeleteAttachmentFile(uploaded, galleryPath)
+			}
+			return nil, fmt.Errorf("failed to upload gallery image: %w", err)
+		}
+		uploadedGalleries = append(uploadedGalleries, galleryFileName)
+
+		// Create gallery record
+		groupGallery := &models.GroupGallery{
+			TicketGroupId:   ticketGroup.TicketGroupId,
+			AttachmentName:  gallery.Filename,
+			AttachmentPath:  galleryPath,
+			AttachmentSize:  gallery.Size,
+			ContentType:     gallery.Header.Get("Content-Type"),
+			UniqueExtension: galleryFileName,
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+		}
+		if err := tx.Create(groupGallery).Error; err != nil {
+			tx.Rollback()
+			fileUtil.DeleteAttachmentFile(uniqueFileName, storagePath)
+			for _, uploaded := range uploadedGalleries {
+				fileUtil.DeleteAttachmentFile(uploaded, galleryPath)
+			}
+			return nil, fmt.Errorf("failed to create gallery record: %w", err)
+		}
+	}
+
+	// 6. Create tags (if needed - not in the request but might be needed)
+	// You can add tag creation logic here if required
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		// Clean up uploaded files
+		fileUtil.DeleteAttachmentFile(uniqueFileName, storagePath)
+		for _, uploaded := range uploadedGalleries {
+			fileUtil.DeleteAttachmentFile(uploaded, galleryPath)
+		}
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return ticketGroup, nil
+}
+
+// Helper function to convert string to sql.NullString
+func nullStringFromString(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{Valid: false}
+	}
+	return sql.NullString{String: s, Valid: true}
 }

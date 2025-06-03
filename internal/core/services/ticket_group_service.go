@@ -1197,7 +1197,7 @@ func (s *TicketGroupService) UpdateTicketGroupDetails(details dto.UpdateTicketGr
 	return nil
 }
 
-func (s *TicketGroupService) UpdateTicketGroupVariants(req dto.UpdateTicketGroupVariantsRequest) error {
+func (s *TicketGroupService) UpdateTicketGroupVariants(variant dto.UpdateTicketGroupVariantsRequest) error {
 	// Begin transaction
 	tx := s.ticketGroupRepo.Db.Begin()
 	if tx.Error != nil {
@@ -1210,14 +1210,14 @@ func (s *TicketGroupService) UpdateTicketGroupVariants(req dto.UpdateTicketGroup
 	}()
 
 	// 1. Verify that the ticket group exists
-	ticketGroup, err := s.ticketGroupRepo.FindByID(req.TicketGroupId)
+	ticketGroup, err := s.ticketGroupRepo.FindByID(variant.TicketGroupId)
 	if err != nil {
 		tx.Rollback()
 		return fmt.Errorf("ticket group not found: %w", err)
 	}
 
 	// 2. Get existing ticket variants for this ticket group
-	existingVariants, err := s.ticketVariantRepo.FindByTicketGroupID(req.TicketGroupId)
+	existingVariants, err := s.ticketVariantRepo.FindByTicketGroupID(variant.TicketGroupId)
 	if err != nil {
 		tx.Rollback()
 		return fmt.Errorf("failed to fetch existing ticket variants: %w", err)
@@ -1233,17 +1233,17 @@ func (s *TicketGroupService) UpdateTicketGroupVariants(req dto.UpdateTicketGroup
 	var variantsToKeep []uint
 
 	// 5. Process incoming ticket variants
-	for _, newVariant := range req.TicketVariants {
+	for _, newVariant := range variant.TicketVariants {
 		if newVariant.TicketVariantId != nil && *newVariant.TicketVariantId > 0 {
 			// This is an update to an existing variant
 			existingVariantId := *newVariant.TicketVariantId
 
 			if existingVariant, exists := existingVariantsMap[existingVariantId]; exists {
 				// Verify the variant belongs to the correct ticket group
-				if existingVariant.TicketGroupId != req.TicketGroupId {
+				if existingVariant.TicketGroupId != variant.TicketGroupId {
 					tx.Rollback()
 					return fmt.Errorf("ticket variant ID %d does not belong to ticket group ID %d",
-						existingVariantId, req.TicketGroupId)
+						existingVariantId, variant.TicketGroupId)
 				}
 
 				// Update existing variant
@@ -1269,7 +1269,7 @@ func (s *TicketGroupService) UpdateTicketGroupVariants(req dto.UpdateTicketGroup
 		} else {
 			// This is a new variant to be created
 			newTicketVariant := &models.TicketVariant{
-				TicketGroupId: req.TicketGroupId,
+				TicketGroupId: variant.TicketGroupId,
 				NameBm:        newVariant.NameBm,
 				NameEn:        newVariant.NameEn,
 				NameCn:        newVariant.NameCn,
@@ -1314,6 +1314,35 @@ func (s *TicketGroupService) UpdateTicketGroupVariants(req dto.UpdateTicketGroup
 	// 8. Commit transaction
 	if err := tx.Commit().Error; err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (s *TicketGroupService) UpdateTicketGroupOrganiserInfo(organiserInfo dto.UpdateTicketGroupOrganiserInfoRequest) error {
+	ticketGroup, err := s.ticketGroupRepo.FindByID(organiserInfo.TicketGroupId)
+	if err != nil {
+		log.Printf("Error finding ticket group %s: %v", organiserInfo.TicketGroupId, err)
+	}
+
+	ticketGroup.OrganiserNameBm = organiserInfo.OrganiserNameBm
+	ticketGroup.OrganiserNameEn = organiserInfo.OrganiserNameEn
+	ticketGroup.OrganiserNameCn = organiserInfo.OrganiserNameCn
+	ticketGroup.OrganiserAddress = organiserInfo.OrganiserAddress
+	ticketGroup.OrganiserDescHtmlBm = organiserInfo.OrganiserDescHtmlBm
+	ticketGroup.OrganiserDescHtmlEn = organiserInfo.OrganiserDescHtmlEn
+	ticketGroup.OrganiserDescHtmlCn = organiserInfo.OrganiserDescHtmlCn
+	ticketGroup.OrganiserContact = nullStringFromString(organiserInfo.OrganiserContact)
+	ticketGroup.OrganiserEmail = nullStringFromString(organiserInfo.OrganiserEmail)
+	ticketGroup.OrganiserWebsite = nullStringFromString(organiserInfo.OrganiserWebsite)
+	ticketGroup.OrganiserFacilitiesBm = nullStringFromString(organiserInfo.OrganiserFacilitiesBm)
+	ticketGroup.OrganiserFacilitiesEn = nullStringFromString(organiserInfo.OrganiserFacilitiesEn)
+	ticketGroup.OrganiserFacilitiesCn = nullStringFromString(organiserInfo.OrganiserFacilitiesCn)
+
+	err = s.ticketGroupRepo.Update(ticketGroup)
+	if err != nil {
+		log.Printf("Error updating organiser info: %v", err)
+		return err
 	}
 
 	return nil

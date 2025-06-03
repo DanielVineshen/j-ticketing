@@ -668,7 +668,7 @@ func (h *TicketGroupHandler) UpdateTicketGroupDetails(c *fiber.Ctx) error {
 	err := h.ticketGroupService.UpdateTicketGroupDetails(req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
-			"Failed to update basic info: "+err.Error(), nil,
+			"Failed to update details "+err.Error(), nil,
 		))
 	}
 
@@ -693,6 +693,33 @@ func (h *TicketGroupHandler) UpdateTicketGroupVariants(c *fiber.Ctx) error {
 
 	// Call service to update image
 	err := h.ticketGroupService.UpdateTicketGroupVariants(req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
+			"Failed to update variants: "+err.Error(), nil,
+		))
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
+}
+
+func (h *TicketGroupHandler) UpdateTicketGroupOrganiserInfo(c *fiber.Ctx) error {
+	// Parse request body
+	var req dto.UpdateTicketGroupOrganiserInfoRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			"Invalid request format", nil,
+		))
+	}
+
+	// Validate the request struct
+	if err := validation.ValidateStruct(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			"Validation failed: "+err.Error(), nil,
+		))
+	}
+
+	// Call service to update image
+	err := h.ticketGroupService.UpdateTicketGroupOrganiserInfo(req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
 			"Failed to update basic info: "+err.Error(), nil,

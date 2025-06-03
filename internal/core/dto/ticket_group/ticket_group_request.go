@@ -205,3 +205,20 @@ type UpdateTicketVariants struct {
 	DescCn          string  `json:"descCn" validate:"required,min=1,max=255"`
 	UnitPrice       float64 `json:"unitPrice" validate:"gte=0"`
 }
+
+type UpdateTicketGroupOrganiserInfoRequest struct {
+	TicketGroupId         uint   `json:"ticketGroupId" validate:"required,min=1"`
+	OrganiserNameBm       string `json:"organiserNameBm" validate:"required,min=1,max=255"`
+	OrganiserNameEn       string `json:"organiserNameEn" validate:"required,min=1,max=255"`
+	OrganiserNameCn       string `json:"organiserNameCn" validate:"required,min=1,max=255"`
+	OrganiserAddress      string `json:"organiserAddress" validate:"required,min=1"`
+	OrganiserDescHtmlBm   string `json:"organiserDescHtmlBm" validate:"required,min=1"`
+	OrganiserDescHtmlEn   string `json:"organiserDescHtmlEn" validate:"required,min=1"`
+	OrganiserDescHtmlCn   string `json:"organiserDescHtmlCn" validate:"required,min=1"`
+	OrganiserContact      string `json:"organiserContact" validate:"omitempty,max=50"`
+	OrganiserEmail        string `json:"organiserEmail" validate:"omitempty,email,max=255"`
+	OrganiserWebsite      string `json:"organiserWebsite" validate:"omitempty,url,max=500"`
+	OrganiserFacilitiesBm string `json:"organiserFacilitiesBm" validate:"omitempty"`
+	OrganiserFacilitiesEn string `json:"organiserFacilitiesEn" validate:"omitempty"`
+	OrganiserFacilitiesCn string `json:"organiserFacilitiesCn" validate:"omitempty"`
+}

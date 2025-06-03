@@ -28,4 +28,5 @@ func SetupTicketGroupRoutes(app *fiber.App, ticketGroupHandler *handlers.TicketG
 	ticketGroup.Delete("/gallery", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), ticketGroupHandler.DeleteTicketGroupGallery)
 	ticketGroup.Put("/details", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), ticketGroupHandler.UpdateTicketGroupDetails)
 	ticketGroup.Put("/variants", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), ticketGroupHandler.UpdateTicketGroupVariants)
+	ticketGroup.Put("/organiserInfo", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), ticketGroupHandler.UpdateTicketGroupOrganiserInfo)
 }

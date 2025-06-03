@@ -21,5 +21,4 @@ func SetupTicketGroupRoutes(app *fiber.App, ticketGroupHandler *handlers.TicketG
 	ticketGroup.Get("/attachment/:uniqueExtension", ticketGroupHandler.GetTicketGroupImage)
 
 	ticketGroup.Post("/", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), ticketGroupHandler.CreateTicketGroup)
-	ticketGroup.Put("/placement", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), ticketGroupHandler.UpdateTicketGroupPlacement)
 }

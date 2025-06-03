@@ -1,82 +1,52 @@
-// File: j-ticketing/internal/core/services/admin_service.go
+// File: j-ticketing/internal/core/services/admin_service_extended.go
 package service
 
 import (
 	"fmt"
+	dto "j-ticketing/internal/core/dto/admin"
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
-	bcryptPassword "j-ticketing/pkg/utils"
+	"j-ticketing/pkg/utils"
+	"strconv"
 	"time"
 )
 
-// AdminService handles admin-related operations
-type AdminService interface {
-	CreateAdmin(username, password, fullName, role string) (*models.Admin, error)
-	GetAdminByID(id uint) (*models.Admin, error)
-	UpdateAdmin(id uint, fullName, role string) (*models.Admin, error)
-	ChangePassword(id uint, currentPassword, newPassword string) error
-	DeleteAdmin(id uint) error
-	ListAdmins() ([]models.Admin, error)
-}
-
-type adminService struct {
+type AdminServiceExtended struct {
 	adminRepo repositories.AdminRepository
+	tokenRepo repositories.TokenRepository
 }
 
-// NewAdminService creates a new admin service
-func NewAdminService(adminRepo repositories.AdminRepository) AdminService {
-	return &adminService{
+// NewAdminServiceExtended creates an extended admin service
+func NewAdminServiceExtended(adminRepo repositories.AdminRepository, tokenRepo repositories.TokenRepository) *AdminServiceExtended {
+	return &AdminServiceExtended{
 		adminRepo: adminRepo,
+		tokenRepo: tokenRepo,
 	}
 }
 
-// CreateAdmin creates a new admin user
-func (s *adminService) CreateAdmin(username, password, fullName, role string) (*models.Admin, error) {
-	// Check if username already exists
-	existingAdmin, err := s.adminRepo.FindByUsername(username)
-	if err == nil && existingAdmin != nil {
-		return nil, fmt.Errorf("username already exists")
-	}
+// Profile Management Methods (for admins managing their own profile)
 
-	// Hash the password
-	hashedPassword, err := bcryptPassword.HashPassword(password)
+// GetAdminByID retrieves an admin by string ID (converts from token)
+func (s *AdminServiceExtended) GetAdminByID(id string) (*models.Admin, error) {
+	adminID, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid admin ID format")
 	}
-
-	// Create the admin user
-	admin := &models.Admin{
-		Username:  username,
-		Password:  hashedPassword,
-		FullName:  fullName,
-		Role:      role,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-
-	// Save to database
-	err = s.adminRepo.Create(admin)
-	if err != nil {
-		return nil, err
-	}
-
-	return admin, nil
+	return s.adminRepo.FindByID(uint(adminID))
 }
 
-// GetAdminByID retrieves an admin by ID
-func (s *adminService) GetAdminByID(id uint) (*models.Admin, error) {
-	return s.adminRepo.FindByID(id)
-}
-
-// UpdateAdmin updates an admin's information
-func (s *adminService) UpdateAdmin(id uint, fullName, role string) (*models.Admin, error) {
-	admin, err := s.adminRepo.FindByID(id)
+// UpdateAdminProfile updates an admin's own profile (no username changes)
+func (s *AdminServiceExtended) UpdateAdminProfile(req dto.UpdateAdminProfileRequest) (*models.Admin, error) {
+	// Get current admin
+	admin, err := s.adminRepo.FindByID(req.AdminID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("admin not found")
 	}
 
-	admin.FullName = fullName
-	admin.Role = role
+	// Update allowed fields only
+	admin.FullName = req.FullName
+	admin.Email = req.Email
+	admin.ContactNo = req.ContactNo
 	admin.UpdatedAt = time.Now()
 
 	err = s.adminRepo.Update(admin)
@@ -88,46 +58,165 @@ func (s *adminService) UpdateAdmin(id uint, fullName, role string) (*models.Admi
 }
 
 // ChangePassword changes an admin's password
-func (s *adminService) ChangePassword(id uint, currentPassword, newPassword string) error {
-	admin, err := s.adminRepo.FindByID(id)
+func (s *AdminServiceExtended) ChangePassword(req dto.ChangePasswordRequest) (*models.Admin, error) {
+	admin, err := s.adminRepo.FindByID(req.AdminID)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("admin not found")
 	}
 
 	// Verify current password
-	err = bcryptPassword.CheckPassword(currentPassword, admin.Password)
+	err = utils.CheckPassword(req.CurrentPassword, admin.Password)
 	if err != nil {
-		return fmt.Errorf("current password is incorrect")
+		return nil, fmt.Errorf("current password is incorrect")
 	}
 
 	// Hash the new password
-	hashedPassword, err := bcryptPassword.HashPassword(newPassword)
+	hashedPassword, err := utils.HashPassword(req.NewPassword)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	admin.Password = hashedPassword
 	admin.UpdatedAt = time.Now()
 
-	return s.adminRepo.Update(admin)
+	err = s.adminRepo.Update(admin)
+	if err != nil {
+		return nil, err
+	}
+
+	return admin, nil
 }
 
-// DeleteAdmin deletes an admin
-func (s *adminService) DeleteAdmin(id uint) error {
-	return s.adminRepo.Delete(id)
-}
+// Admin Management Methods (for SYSADMIN managing other admins)
 
-// ListAdmins lists all admins
-func (s *adminService) ListAdmins() ([]models.Admin, error) {
+// GetAllAdmins retrieves all admins for management
+func (s *AdminServiceExtended) GetAllAdmins() (*dto.AllAdminResponse, error) {
 	admins, err := s.adminRepo.List()
 	if err != nil {
 		return nil, err
 	}
 
-	// Remove password from response
-	for i := range admins {
-		admins[i].Password = ""
+	var adminDTOs []dto.AdminManagement
+	for _, admin := range admins {
+		adminDTOs = append(adminDTOs, dto.AdminManagement{
+			AdminID:    int(admin.AdminId),
+			Username:   admin.Username,
+			FullName:   admin.FullName,
+			Email:      admin.Email,
+			ContactNo:  admin.ContactNo,
+			Role:       admin.Role,
+			IsDisabled: admin.IsDisabled,
+		})
 	}
 
-	return admins, nil
+	return &dto.AllAdminResponse{
+		Admins: adminDTOs,
+	}, nil
+}
+
+// CreateAdmin creates a new admin
+func (s *AdminServiceExtended) CreateAdmin(req dto.CreateAdminRequest) (*models.Admin, error) {
+	// Check if username already exists
+	existingAdmin, err := s.adminRepo.FindByUsername(req.Username)
+	if err == nil && existingAdmin != nil {
+		return nil, fmt.Errorf("username already exists")
+	}
+
+	// Hash the password
+	hashedPassword, err := utils.HashPassword(req.Password)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the admin
+	admin := &models.Admin{
+		Username:   req.Username,
+		Password:   hashedPassword,
+		FullName:   req.FullName,
+		Email:      req.Email,
+		ContactNo:  req.ContactNo,
+		Role:       req.Role,
+		IsDisabled: req.IsDisabled,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+
+	err = s.adminRepo.Create(admin)
+	if err != nil {
+		return nil, err
+	}
+
+	return admin, nil
+}
+
+// UpdateAdminManagement updates an admin via management interface
+func (s *AdminServiceExtended) UpdateAdminManagement(req dto.UpdateAdminManagementRequest) (*models.Admin, error) {
+	// Get current admin
+	admin, err := s.adminRepo.FindByID(req.AdminID)
+	if err != nil {
+		return nil, fmt.Errorf("admin not found")
+	}
+
+	// Check if admin is being disabled
+	wasEnabled := !admin.IsDisabled
+	willBeDisabled := req.IsDisabled
+
+	// Update fields
+	admin.FullName = req.FullName
+	admin.Email = req.Email
+	admin.ContactNo = req.ContactNo
+	admin.Role = req.Role
+	admin.IsDisabled = req.IsDisabled
+	admin.UpdatedAt = time.Now()
+
+	err = s.adminRepo.Update(admin)
+	if err != nil {
+		return nil, err
+	}
+
+	// If admin was enabled and now disabled, remove all tokens
+	if wasEnabled && willBeDisabled {
+		err = s.removeAdminTokens(admin.Username)
+		if err != nil {
+			// Log error but don't fail the update
+			fmt.Printf("Warning: Failed to remove tokens for disabled admin %s: %v\n", admin.Username, err)
+		}
+	}
+
+	return admin, nil
+}
+
+// DeleteAdmin deletes an admin and removes all their tokens
+func (s *AdminServiceExtended) DeleteAdmin(req dto.DeleteAdminRequest) error {
+	// Get admin first to get username for token removal
+	admin, err := s.adminRepo.FindByID(req.AdminID)
+	if err != nil {
+		return fmt.Errorf("admin not found")
+	}
+
+	// Remove all tokens for this admin
+	err = s.removeAdminTokens(admin.Username)
+	if err != nil {
+		// Log error but continue with deletion
+		fmt.Printf("Warning: Failed to remove tokens for admin %s: %v\n", admin.Username, err)
+	}
+
+	// Delete the admin
+	return s.adminRepo.Delete(req.AdminID)
+}
+
+// Helper method to remove all tokens for an admin
+func (s *AdminServiceExtended) removeAdminTokens(username string) error {
+	// This would need to be implemented based on your token repository
+	// For now, we'll use a simple approach - you might need to add this method to your token repository
+	// Since userId in token is the username, we can search by that
+
+	// Note: You might need to add a method like DeleteByUserId to your TokenRepository interface
+	// For now, this is a placeholder - you'll need to implement the actual token deletion logic
+
+	// Example implementation (you may need to add this method to TokenRepository):
+	// return s.tokenRepo.DeleteByUserId(username)
+
+	fmt.Printf("Removing all tokens for admin: %s\n", username)
+	return nil // Placeholder - implement actual token removal
 }

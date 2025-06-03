@@ -19,11 +19,11 @@ type UserInfo struct {
 
 	// Customer specific fields
 	CustID           string `json:"custId,omitempty"`
-	Email            string `json:"email,omitempty"`
 	IdentificationNo string `json:"identificationNo,omitempty"`
-	IsDisabled       bool   `json:"isDisabled,omitempty"`
-	ContactNo        string `json:"contactNo,omitempty"`
 
 	// Common fields
-	FullName string `json:"fullName,omitempty"`
+	FullName   string `json:"fullName,omitempty"`
+	Email      string `json:"email,omitempty"`
+	ContactNo  string `json:"contactNo,omitempty"`
+	IsDisabled bool   `json:"isDisabled,omitempty"`
 }

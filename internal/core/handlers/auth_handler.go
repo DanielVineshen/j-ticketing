@@ -3,7 +3,6 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/gofiber/fiber/v2"
 	dto "j-ticketing/internal/core/dto/auth"
 	service "j-ticketing/internal/core/services"
 	"j-ticketing/pkg/email"
@@ -11,6 +10,8 @@ import (
 	"j-ticketing/pkg/utils"
 	"log"
 	"strings"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 // AuthHandler handles authentication related HTTP requests
@@ -265,7 +266,7 @@ func (h *AuthHandler) ResetCustomerPassword(c *fiber.Ctx) error {
 	}
 
 	// Reset password
-	customer, _, err := h.authService.ResetPassword(req.Email)
+	customer, _, err := h.authService.ResetCustomerPassword(req.Email)
 	if err != nil {
 		log.Printf("Failed to reset password: %v", err)
 		// Don't expose specific error details to the client (security measure)
@@ -286,9 +287,57 @@ func (h *AuthHandler) ResetCustomerPassword(c *fiber.Ctx) error {
 	message := fmt.Sprintf("%s (%s) has reset their password", customer.Email, customer.FullName)
 	err = h.notificationService.CreateNotification(
 		customer.FullName,
-		"customer",
-		"Customer",
-		"Customer reset password",
+		"CUSTOMER",
+		"Password reset",
+		"Customer reset password email was sent",
+		message,
+		malaysiaTime,
+	)
+	if err != nil {
+		return err
+	}
+
+	// Always return success (security measure)
+	return c.JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
+}
+
+// ResetAdminPassword handles resetting a admin's password
+func (h *AuthHandler) ResetAdminPassword(c *fiber.Ctx) error {
+	// Parse reset password request
+	var req dto.ResetPasswordRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			"Invalid request format", nil,
+		))
+	}
+
+	// Validate the request
+	if err := req.Validate(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			"Validation failed: "+err.Error(), nil,
+		))
+	}
+
+	// Reset password
+	admin, _, err := h.authService.ResetAdminPassword(req.Email)
+	if err != nil {
+		log.Printf("Failed to reset password: %v", err)
+		// Don't expose specific error details to the client (security measure)
+		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
+			"An error occurred while processing your request", nil,
+		))
+	}
+
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s (%s) has reset their password", admin.Email, admin.FullName)
+	err = h.notificationService.CreateNotification(
+		admin.FullName,
+		admin.Role,
+		"Password reset",
+		"Admin reset password email was sent",
 		message,
 		malaysiaTime,
 	)

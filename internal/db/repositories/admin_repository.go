@@ -12,6 +12,7 @@ type AdminRepository interface {
 	Create(admin *models.Admin) error
 	FindByID(id uint) (*models.Admin, error)
 	FindByUsername(username string) (*models.Admin, error)
+	FindByEmail(email string) (*models.Admin, error)
 	Update(admin *models.Admin) error
 	Delete(id uint) error
 	List() ([]models.Admin, error)
@@ -47,6 +48,16 @@ func (r *adminRepository) FindByID(id uint) (*models.Admin, error) {
 func (r *adminRepository) FindByUsername(username string) (*models.Admin, error) {
 	var admin models.Admin
 	err := r.db.Where("username = ?", username).First(&admin).Error
+	if err != nil {
+		return nil, err
+	}
+	return &admin, nil
+}
+
+// FindByEmail finds an admin by email
+func (r *adminRepository) FindByEmail(email string) (*models.Admin, error) {
+	var admin models.Admin
+	err := r.db.Where("email = ?", email).First(&admin).Error
 	if err != nil {
 		return nil, err
 	}

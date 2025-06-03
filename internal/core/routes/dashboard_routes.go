@@ -13,5 +13,5 @@ func SetupDashboardRoutes(app *fiber.App, dashboardHandler *handlers.DashboardHa
 	api := app.Group("/api")
 
 	// Dashboard endpoint
-	api.Get("/dashboard", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN"), dashboardHandler.GetDashboardAnalysis)
+	api.Get("/dashboard", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER", "SYSADMIN"), dashboardHandler.GetDashboardAnalysis)
 }

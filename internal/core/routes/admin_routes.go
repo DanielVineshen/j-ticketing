@@ -15,9 +15,9 @@ func SetupAdminRoutes(api fiber.Router, adminHandler *handlers.AdminHandler, jwt
 
 	// Admin Profile Management Routes (accessible by ADMIN and SYSADMIN)
 	// These are for admins managing their own profiles
-	adminGroup.Get("/profile", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "SYSADMIN"), adminHandler.GetAdminProfile)
-	adminGroup.Put("/profile", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "SYSADMIN"), adminHandler.UpdateAdminProfile)
-	adminGroup.Put("/password", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "SYSADMIN"), adminHandler.ChangePassword)
+	adminGroup.Get("/profile", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER", "SYSADMIN"), adminHandler.GetAdminProfile)
+	adminGroup.Put("/profile", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER", "SYSADMIN"), adminHandler.UpdateAdminProfile)
+	adminGroup.Put("/password", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER", "SYSADMIN"), adminHandler.ChangePassword)
 
 	// Admin Management Routes (accessible only by SYSADMIN)
 	// These are for SYSADMIN managing other admin accounts

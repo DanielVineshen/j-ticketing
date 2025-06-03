@@ -32,7 +32,8 @@ type AuthService interface {
 
 	// Customer management
 	CreateCustomer(req *dto.CreateCustomerRequest) (*coremodels.Customer, error)
-	ResetPassword(email string) (*coremodels.Customer, *dto.PasswordChangeResult, error)
+	ResetCustomerPassword(email string) (*coremodels.Customer, *dto.PasswordChangeResult, error)
+	ResetAdminPassword(email string) (*coremodels.Admin, *dto.PasswordChangeResult, error)
 }
 
 type authService struct {
@@ -78,10 +79,16 @@ func (s *authService) LoginAdmin(username, password string) (*dto.TokenResponse,
 		return nil, errors.New("invalid credentials")
 	}
 
+	// Check if customer is disabled
+	if admin.IsDisabled {
+		return nil, errors.New("account is disabled")
+	}
+
 	// Create user claims
 	userClaims := &dto.UserClaims{
 		UserID:   strconv.FormatUint(uint64(admin.AdminId), 10),
 		Username: admin.Username,
+		FullName: admin.FullName,
 		UserType: "admin",
 		Role:     admin.Role,
 		Roles:    []string{admin.Role},
@@ -140,6 +147,7 @@ func (s *authService) LoginCustomer(email, password string) (*dto.TokenResponse,
 	userClaims := &dto.UserClaims{
 		UserID:   customer.CustId,
 		Username: customer.Email, // Using email as username for customers
+		FullName: customer.FullName,
 		UserType: "customer",
 		Role:     "CUSTOMER",
 		Roles:    []string{"CUSTOMER"},
@@ -394,7 +402,7 @@ func (s *authService) CreateCustomer(req *dto.CreateCustomerRequest) (*coremodel
 }
 
 // ResetPassword resets a customer's password
-func (s *authService) ResetPassword(email string) (*coremodels.Customer, *dto.PasswordChangeResult, error) {
+func (s *authService) ResetCustomerPassword(email string) (*coremodels.Customer, *dto.PasswordChangeResult, error) {
 	// Find customer by email
 	customer, err := s.customerRepo.FindByEmail(email)
 
@@ -435,6 +443,54 @@ func (s *authService) ResetPassword(email string) (*coremodels.Customer, *dto.Pa
 	}
 
 	return customer,
+		&dto.PasswordChangeResult{
+			Success: true,
+			Message: "If your email exists in our system, you will receive a password reset email shortly.",
+		}, nil
+}
+
+// ResetPassword resets a admin's password
+func (s *authService) ResetAdminPassword(email string) (*coremodels.Admin, *dto.PasswordChangeResult, error) {
+	// Find customer by email
+	admin, err := s.adminRepo.FindByEmail(email)
+
+	// If customer doesn't exist, return success anyway (security measure)
+	if err != nil {
+		return admin,
+			&dto.PasswordChangeResult{
+				Success: true,
+				Message: "If your email exists in our system, you will receive a password reset email shortly.",
+			}, nil
+	}
+
+	// Generate a new random password (12 characters)
+	newPassword, err := util.GenerateRandomPassword(12)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate password: %w", err)
+	}
+
+	// Hash the new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	// Update customer's password
+	admin.Password = string(hashedPassword)
+	admin.UpdatedAt = time.Now()
+
+	if err := s.adminRepo.Update(admin); err != nil {
+		return nil, nil, fmt.Errorf("failed to update admin password: %w", err)
+	}
+
+	// Send email with the new password
+	err = s.emailService.SendPasswordResetEmail(email, newPassword)
+	if err != nil {
+		log.Printf("Failed to send password reset email to %s: %v", email, err)
+		// Continue anyway since the password has been reset
+	}
+
+	return admin,
 		&dto.PasswordChangeResult{
 			Success: true,
 			Message: "If your email exists in our system, you will receive a password reset email shortly.",

@@ -19,9 +19,9 @@ func SetupBannerRoutes(app *fiber.App, bannerHandler *handlers.BannerHandler, jw
 	banner.Get("/attachment/:uniqueExtension", bannerHandler.GetBannerImage)
 
 	// CRUD routes (add authentication middleware as needed)
-	banner.Get("/all", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN"), bannerHandler.GetAllBanners)
-	banner.Post("/", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN"), bannerHandler.CreateBanner)
-	banner.Put("/", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN"), bannerHandler.UpdateBanner)
-	banner.Delete("/", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN"), bannerHandler.DeleteBanner)
-	banner.Put("/placements", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN"), bannerHandler.UpdateBannerPlacements)
+	banner.Get("/all", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER", "SYSADMIN"), bannerHandler.GetAllBanners)
+	banner.Post("/", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER", "SYSADMIN"), bannerHandler.CreateBanner)
+	banner.Put("/", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER", "SYSADMIN"), bannerHandler.UpdateBanner)
+	banner.Delete("/", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER", "SYSADMIN"), bannerHandler.DeleteBanner)
+	banner.Put("/placements", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER", "SYSADMIN"), bannerHandler.UpdateBannerPlacements)
 }

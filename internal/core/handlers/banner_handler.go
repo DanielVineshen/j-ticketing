@@ -65,15 +65,9 @@ func (h *BannerHandler) GetFilteredBanners(c *fiber.Ctx) error {
 // CreateBanner creates a new banner with file upload
 func (h *BannerHandler) CreateBanner(c *fiber.Ctx) error {
 	// Get the customer ID from the context (set by auth middleware)
-	adminUserName, ok := c.Locals("username").(string)
-	adminFullName, ok := c.Locals("fullName").(string)
-	adminRole, ok := c.Locals("role").(string)
-
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
-			"User not authenticated", nil,
-		))
-	}
+	adminUserName := c.Locals("username").(string)
+	adminFullName := c.Locals("fullName").(string)
+	adminRole := c.Locals("role").(string)
 
 	// Parse the multipart form
 	form, err := c.MultipartForm()
@@ -145,15 +139,9 @@ func (h *BannerHandler) CreateBanner(c *fiber.Ctx) error {
 // UpdateBanner updates an existing banner
 func (h *BannerHandler) UpdateBanner(c *fiber.Ctx) error {
 	// Get the customer ID from the context (set by auth middleware)
-	adminUserName, ok := c.Locals("username").(string)
-	adminFullName, ok := c.Locals("fullName").(string)
-	adminRole, ok := c.Locals("role").(string)
-
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
-			"User not authenticated", nil,
-		))
-	}
+	adminUserName := c.Locals("username").(string)
+	adminFullName := c.Locals("fullName").(string)
+	adminRole := c.Locals("role").(string)
 
 	// Parse the multipart form
 	form, err := c.MultipartForm()
@@ -227,14 +215,8 @@ func (h *BannerHandler) UpdateBanner(c *fiber.Ctx) error {
 
 // DeleteBanner deletes a banner by ID
 func (h *BannerHandler) DeleteBanner(c *fiber.Ctx) error {
-	adminFullName, ok := c.Locals("fullName").(string)
-	adminRole, ok := c.Locals("role").(string)
-
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
-			"User not authenticated", nil,
-		))
-	}
+	adminFullName := c.Locals("fullName").(string)
+	adminRole := c.Locals("role").(string)
 
 	var request dto.DeleteBannerRequest
 	if err := c.BodyParser(&request); err != nil {
@@ -296,6 +278,25 @@ func (h *BannerHandler) UpdateBannerPlacements(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
 			err.Error(), nil,
 		))
+	}
+
+	adminFullName := c.Locals("fullName").(string)
+	adminRole := c.Locals("role").(string)
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s has updated the banner placements.", adminFullName)
+	err = h.notificationService.CreateNotification(
+		adminFullName,
+		adminRole,
+		"Banner",
+		"Update banner placements",
+		message,
+		malaysiaTime,
+	)
+	if err != nil {
+		return err
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))

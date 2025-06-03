@@ -72,7 +72,7 @@ func (h *AdminHandler) UpdateAdminProfile(c *fiber.Ctx) error {
 	}
 
 	// Update admin profile using adminId from request body
-	admin, err := h.adminService.UpdateAdminProfile(req)
+	_, err := h.adminService.UpdateAdminProfile(req)
 	if err != nil {
 		if err.Error() == "admin not found" {
 			return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(
@@ -89,11 +89,14 @@ func (h *AdminHandler) UpdateAdminProfile(c *fiber.Ctx) error {
 		return err
 	}
 	// Create notification for admin profile update
-	message := admin.Username + " (" + admin.FullName + ") has updated their profile"
+	adminUserName := c.Locals("username").(string)
+	adminFullName := c.Locals("fullName").(string)
+	adminRole := c.Locals("role").(string)
+	message := adminUserName + " (" + adminFullName + ") has updated their profile"
 	err = h.notificationService.CreateNotification(
-		admin.FullName,
-		"admin",
-		"Admin",
+		adminFullName,
+		adminRole,
+		"Admin Account Profile",
 		"Admin update profile",
 		message,
 		malaysiaTime,
@@ -122,7 +125,7 @@ func (h *AdminHandler) ChangePassword(c *fiber.Ctx) error {
 	}
 
 	// Change password using adminId from request body
-	admin, err := h.adminService.ChangePassword(req)
+	_, err := h.adminService.ChangePassword(req)
 	if err != nil {
 		if err.Error() == "admin not found" {
 			return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(
@@ -139,11 +142,14 @@ func (h *AdminHandler) ChangePassword(c *fiber.Ctx) error {
 		return err
 	}
 	// Create notification for password change
-	message := admin.Username + " (" + admin.FullName + ") has changed their password"
+	adminUserName := c.Locals("username").(string)
+	adminFullName := c.Locals("fullName").(string)
+	adminRole := c.Locals("role").(string)
+	message := adminUserName + " (" + adminFullName + ") has changed their password"
 	err = h.notificationService.CreateNotification(
-		admin.FullName,
-		"admin",
-		"Admin",
+		adminFullName,
+		adminRole,
+		"Admin Account Profile",
 		"Admin changed password",
 		message,
 		malaysiaTime,
@@ -203,13 +209,15 @@ func (h *AdminHandler) CreateAdmin(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+
 	// Create notification for admin creation
-	currentUser := c.Locals("username").(string) // Assuming you have username in JWT
-	message := "New admin account created: " + admin.Username + " (" + admin.FullName + ") by " + currentUser
+	adminFullName := c.Locals("fullName").(string)
+	adminRole := c.Locals("role").(string)
+	message := "New admin account created: " + admin.Username + " (" + admin.FullName + ") by " + adminFullName
 	err = h.notificationService.CreateNotification(
-		currentUser,
-		"admin",
-		"Admin",
+		adminFullName,
+		adminRole,
+		"Admin Management",
 		"Admin account created",
 		message,
 		malaysiaTime,
@@ -255,13 +263,15 @@ func (h *AdminHandler) UpdateAdminManagement(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+
 	// Create notification for admin update
-	currentUser := c.Locals("username").(string) // Assuming you have username in JWT
-	message := "Admin account updated: " + admin.Username + " (" + admin.FullName + ") by " + currentUser
+	adminFullName := c.Locals("fullName").(string)
+	adminRole := c.Locals("role").(string)
+	message := "Admin account updated: " + admin.Username + " (" + admin.FullName + ") by " + adminFullName
 	err = h.notificationService.CreateNotification(
-		currentUser,
-		"admin",
-		"Admin",
+		adminFullName,
+		adminRole,
+		"Admin Management",
 		"Admin account updated",
 		message,
 		malaysiaTime,
@@ -307,13 +317,16 @@ func (h *AdminHandler) DeleteAdmin(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+
 	// Create notification for admin deletion
-	currentUser := c.Locals("username").(string) // Assuming you have username in JWT
-	message := "Admin account deleted (ID: " + strconv.Itoa(int(req.AdminID)) + ") by " + currentUser
+	adminFullName := c.Locals("fullName").(string)
+	adminRole := c.Locals("role").(string)
+
+	message := "Admin account deleted (ID: " + strconv.Itoa(int(req.AdminID)) + ") by " + adminFullName
 	err = h.notificationService.CreateNotification(
-		currentUser,
-		"admin",
-		"Admin",
+		adminFullName,
+		adminRole,
+		"Admin Management",
 		"Admin account deleted",
 		message,
 		malaysiaTime,

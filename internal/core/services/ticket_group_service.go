@@ -1197,6 +1197,128 @@ func (s *TicketGroupService) UpdateTicketGroupDetails(details dto.UpdateTicketGr
 	return nil
 }
 
+func (s *TicketGroupService) UpdateTicketGroupVariants(req dto.UpdateTicketGroupVariantsRequest) error {
+	// Begin transaction
+	tx := s.ticketGroupRepo.Db.Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 1. Verify that the ticket group exists
+	ticketGroup, err := s.ticketGroupRepo.FindByID(req.TicketGroupId)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("ticket group not found: %w", err)
+	}
+
+	// 2. Get existing ticket variants for this ticket group
+	existingVariants, err := s.ticketVariantRepo.FindByTicketGroupID(req.TicketGroupId)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to fetch existing ticket variants: %w", err)
+	}
+
+	// 3. Create maps for easier comparison
+	existingVariantsMap := make(map[uint]*models.TicketVariant)
+	for i := range existingVariants {
+		existingVariantsMap[existingVariants[i].TicketVariantId] = &existingVariants[i]
+	}
+
+	// 4. Track which existing variants should be kept
+	var variantsToKeep []uint
+
+	// 5. Process incoming ticket variants
+	for _, newVariant := range req.TicketVariants {
+		if newVariant.TicketVariantId != nil && *newVariant.TicketVariantId > 0 {
+			// This is an update to an existing variant
+			existingVariantId := *newVariant.TicketVariantId
+
+			if existingVariant, exists := existingVariantsMap[existingVariantId]; exists {
+				// Verify the variant belongs to the correct ticket group
+				if existingVariant.TicketGroupId != req.TicketGroupId {
+					tx.Rollback()
+					return fmt.Errorf("ticket variant ID %d does not belong to ticket group ID %d",
+						existingVariantId, req.TicketGroupId)
+				}
+
+				// Update existing variant
+				existingVariant.NameBm = newVariant.NameBm
+				existingVariant.NameEn = newVariant.NameEn
+				existingVariant.NameCn = newVariant.NameCn
+				existingVariant.DescBm = newVariant.DescBm
+				existingVariant.DescEn = newVariant.DescEn
+				existingVariant.DescCn = newVariant.DescCn
+				existingVariant.UnitPrice = newVariant.UnitPrice
+				existingVariant.UpdatedAt = time.Now()
+
+				if err := tx.Save(existingVariant).Error; err != nil {
+					tx.Rollback()
+					return fmt.Errorf("failed to update ticket variant ID %d: %w", existingVariantId, err)
+				}
+
+				variantsToKeep = append(variantsToKeep, existingVariantId)
+			} else {
+				tx.Rollback()
+				return fmt.Errorf("ticket variant with ID %d not found", existingVariantId)
+			}
+		} else {
+			// This is a new variant to be created
+			newTicketVariant := &models.TicketVariant{
+				TicketGroupId: req.TicketGroupId,
+				NameBm:        newVariant.NameBm,
+				NameEn:        newVariant.NameEn,
+				NameCn:        newVariant.NameCn,
+				DescBm:        newVariant.DescBm,
+				DescEn:        newVariant.DescEn,
+				DescCn:        newVariant.DescCn,
+				UnitPrice:     newVariant.UnitPrice,
+				CreatedAt:     time.Now(),
+				UpdatedAt:     time.Now(),
+			}
+
+			if err := tx.Create(newTicketVariant).Error; err != nil {
+				tx.Rollback()
+				return fmt.Errorf("failed to create new ticket variant: %w", err)
+			}
+		}
+	}
+
+	// 6. Delete ticket variants that are no longer needed
+	variantsToKeepMap := make(map[uint]bool)
+	for _, id := range variantsToKeep {
+		variantsToKeepMap[id] = true
+	}
+
+	for _, existingVariant := range existingVariants {
+		if !variantsToKeepMap[existingVariant.TicketVariantId] {
+			// This variant should be deleted
+			if err := tx.Delete(&existingVariant).Error; err != nil {
+				tx.Rollback()
+				return fmt.Errorf("failed to delete ticket variant ID %d: %w", existingVariant.TicketVariantId, err)
+			}
+		}
+	}
+
+	// 7. Update the ticket group's updated timestamp
+	ticketGroup.UpdatedAt = time.Now()
+	if err := tx.Save(ticketGroup).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to update ticket group timestamp: %w", err)
+	}
+
+	// 8. Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
 // Helper function to convert string to sql.NullString
 func nullStringFromString(s string) sql.NullString {
 	if s == "" {

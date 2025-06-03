@@ -189,3 +189,19 @@ type UpdateTicketDetails struct {
 	RawHtmlCn      string `json:"rawHtmlCn" validate:"required,min=1"`
 	DisplayFlag    bool   `json:"displayFlag"`
 }
+
+type UpdateTicketGroupVariantsRequest struct {
+	TicketGroupId  uint                   `json:"ticketGroupId" validate:"required,min=1"`
+	TicketVariants []UpdateTicketVariants `json:"ticketVariants" validate:"required,min=1,dive"`
+}
+
+type UpdateTicketVariants struct {
+	TicketVariantId *uint   `json:"ticketVariantId" validate:"omitempty"`
+	NameBm          string  `json:"nameBm" validate:"required,min=1,max=255"`
+	NameEn          string  `json:"nameEn" validate:"required,min=1,max=255"`
+	NameCn          string  `json:"nameCn" validate:"required,min=1,max=255"`
+	DescBm          string  `json:"descBm" validate:"required,min=1,max=255"`
+	DescEn          string  `json:"descEn" validate:"required,min=1,max=255"`
+	DescCn          string  `json:"descCn" validate:"required,min=1,max=255"`
+	UnitPrice       float64 `json:"unitPrice" validate:"gte=0"`
+}

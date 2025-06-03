@@ -674,3 +674,30 @@ func (h *TicketGroupHandler) UpdateTicketGroupDetails(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
+
+func (h *TicketGroupHandler) UpdateTicketGroupVariants(c *fiber.Ctx) error {
+	// Parse request body
+	var req dto.UpdateTicketGroupVariantsRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			"Invalid request format", nil,
+		))
+	}
+
+	// Validate the request struct
+	if err := validation.ValidateStruct(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			"Validation failed: "+err.Error(), nil,
+		))
+	}
+
+	// Call service to update image
+	err := h.ticketGroupService.UpdateTicketGroupVariants(req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
+			"Failed to update basic info: "+err.Error(), nil,
+		))
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
+}

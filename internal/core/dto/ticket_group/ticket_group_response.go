@@ -46,6 +46,8 @@ type TicketGroupDTO struct {
 	AttachmentSize         int64    `json:"attachmentSize"`
 	ContentType            string   `json:"contentType"`
 	UniqueExtension        string   `json:"uniqueExtension"`
+	ActiveStartDate        *string  `json:"activeStartDate"`
+	ActiveEndDate          *string  `json:"activeEndDate"`
 	IsActive               bool     `json:"isActive"`
 	Tags                   []TagDTO `json:"tags"`
 }
@@ -120,8 +122,8 @@ type TicketProfileDTO struct {
 	// Inner Layer For Ticket Profile
 	GroupGallery []GroupGalleryDTO `json:"groupGallery"`
 
-	ActiveStartDate string `json:"activeStartDate,omitempty"`
-	ActiveEndDate   string `json:"activeEndDate,omitempty"`
+	ActiveStartDate *string `json:"activeStartDate"`
+	ActiveEndDate   *string `json:"activeEndDate"`
 
 	// Detail Tab
 	TicketDetails []TicketDetailDTO `json:"ticketDetails"`

@@ -353,6 +353,8 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 		AttachmentSize:             ticketGroup.AttachmentSize,
 		ContentType:                ticketGroup.ContentType,
 		UniqueExtension:            ticketGroup.UniqueExtension,
+		ActiveStartDate:            nullStringToPointer(ticketGroup.ActiveStartDate),
+		ActiveEndDate:              nullStringToPointer(ticketGroup.ActiveEndDate),
 		IsActive:                   ticketGroup.IsActive,
 		IsTicketInternal:           ticketGroup.IsTicketInternal,
 		TicketIds:                  ticketGroup.TicketIds.String,
@@ -381,10 +383,10 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 
 	// Handle optional date fields
 	if ticketGroup.ActiveStartDate.Valid {
-		ticketProfile.ActiveStartDate = ticketGroup.ActiveStartDate.String
+		ticketProfile.ActiveStartDate = nullStringToPointer(ticketGroup.ActiveStartDate)
 	}
 	if ticketGroup.ActiveEndDate.Valid {
-		ticketProfile.ActiveEndDate = ticketGroup.ActiveEndDate.String
+		ticketProfile.ActiveEndDate = nullStringToPointer(ticketGroup.ActiveEndDate)
 	}
 
 	// Create the complete order ticket group DTO

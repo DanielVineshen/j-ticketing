@@ -152,6 +152,8 @@ func (s *TicketGroupService) GetTicketGroupById(id uint) (*dto.TicketGroupDTO, e
 		AttachmentSize:         ticketGroup.AttachmentSize,
 		ContentType:            ticketGroup.ContentType,
 		UniqueExtension:        ticketGroup.UniqueExtension,
+		ActiveStartDate:        nullStringToPointer(ticketGroup.ActiveStartDate),
+		ActiveEndDate:          nullStringToPointer(ticketGroup.ActiveEndDate),
 		IsActive:               ticketGroup.IsActive,
 		Tags:                   tagDTOs,
 	}
@@ -224,6 +226,8 @@ func (s *TicketGroupService) buildTicketGroupResponse(ticketGroups []models.Tick
 			AttachmentSize:         ticketGroup.AttachmentSize,
 			ContentType:            ticketGroup.ContentType,
 			UniqueExtension:        ticketGroup.UniqueExtension,
+			ActiveStartDate:        nullStringToPointer(ticketGroup.ActiveStartDate),
+			ActiveEndDate:          nullStringToPointer(ticketGroup.ActiveEndDate),
 			IsActive:               ticketGroup.IsActive,
 			Tags:                   tagDTOs,
 		}
@@ -349,6 +353,8 @@ func (s *TicketGroupService) GetTicketProfile(ticketGroupId uint) (*dto.TicketPr
 		AttachmentSize:             ticketGroup.AttachmentSize,
 		ContentType:                ticketGroup.ContentType,
 		UniqueExtension:            ticketGroup.UniqueExtension,
+		ActiveStartDate:            nullStringToPointer(ticketGroup.ActiveStartDate),
+		ActiveEndDate:              nullStringToPointer(ticketGroup.ActiveEndDate),
 		IsActive:                   ticketGroup.IsActive,
 		IsTicketInternal:           ticketGroup.IsTicketInternal,
 		TicketIds:                  ticketGroup.TicketIds.String,
@@ -377,10 +383,10 @@ func (s *TicketGroupService) GetTicketProfile(ticketGroupId uint) (*dto.TicketPr
 
 	// 8. Handle optional date fields
 	if ticketGroup.ActiveStartDate.Valid {
-		profile.ActiveStartDate = ticketGroup.ActiveStartDate.String
+		profile.ActiveStartDate = nullStringToPointer(ticketGroup.ActiveStartDate)
 	}
 	if ticketGroup.ActiveEndDate.Valid {
-		profile.ActiveEndDate = ticketGroup.ActiveEndDate.String
+		profile.ActiveEndDate = nullStringToPointer(ticketGroup.ActiveEndDate)
 	}
 
 	// 9. Prepare the complete response
@@ -623,7 +629,7 @@ func (s *TicketGroupService) CreateTicketGroup(
 		Placement:              maxPlacement + 1,
 		OrderTicketLimit:       req.OrderTicketLimit,
 		ScanSetting:            req.ScanSetting,
-		GroupType:              "event",
+		GroupType:              "ongoing",
 		GroupNameBm:            req.GroupNameBm,
 		GroupNameEn:            req.GroupNameEn,
 		GroupNameCn:            req.GroupNameCn,

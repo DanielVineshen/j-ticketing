@@ -102,3 +102,8 @@ type TicketVariantsRequest struct {
 type TicketTagsRequest struct {
 	TagId uint `json:"tagId" validate:"required,min=1"`
 }
+
+type UpdateTicketGroupImageRequest struct {
+	TicketGroupId uint                  `json:"ticketGroupId" validate:"required,min=1"`
+	Attachment    *multipart.FileHeader `json:"-"`
+}

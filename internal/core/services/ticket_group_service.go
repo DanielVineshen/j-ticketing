@@ -805,6 +805,104 @@ func (s *TicketGroupService) CreateTicketGroup(
 	return ticketGroup, nil
 }
 
+// UpdatePlacements updates the placement values for multiple ticket groups
+func (s *TicketGroupService) UpdatePlacements(placements []dto.PlacementItem) error {
+	// Begin transaction
+	tx := s.ticketGroupRepo.Db.Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// First, verify all ticket groups exist
+	ticketGroupIds := make([]uint, len(placements))
+	for i, item := range placements {
+		ticketGroupIds[i] = item.TicketGroupId
+	}
+
+	var existingGroups []models.TicketGroup
+	if err := tx.Where("ticket_group_id IN ?", ticketGroupIds).Find(&existingGroups).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to find ticket groups: %w", err)
+	}
+
+	// Check if all requested ticket groups exist
+	if len(existingGroups) != len(placements) {
+		tx.Rollback()
+
+		// Find which IDs don't exist
+		existingMap := make(map[uint]bool)
+		for _, group := range existingGroups {
+			existingMap[group.TicketGroupId] = true
+		}
+
+		var missingIds []uint
+		for _, item := range placements {
+			if !existingMap[item.TicketGroupId] {
+				missingIds = append(missingIds, item.TicketGroupId)
+			}
+		}
+
+		return fmt.Errorf("ticket groups not found: %v", missingIds)
+	}
+
+	// Update each ticket group's placement
+	for _, item := range placements {
+		if err := tx.Model(&models.TicketGroup{}).
+			Where("ticket_group_id = ?", item.TicketGroupId).
+			Updates(map[string]interface{}{
+				"placement":  item.Placement,
+				"updated_at": time.Now(),
+			}).Error; err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to update placement for ticket group %d: %w", item.TicketGroupId, err)
+		}
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (s *TicketGroupService) UpdateTicketGroupImage(ticketGroupId uint, attachment *multipart.FileHeader) error {
+	ticketGroup, err := s.ticketGroupRepo.FindByID(ticketGroupId)
+	if err != nil {
+		log.Printf("Error finding ticket group %s: %v", ticketGroupId, err)
+	}
+
+	storagePath := os.Getenv("TICKET_GROUP_STORAGE_PATH")
+	if storagePath == "" {
+		return errors.New("TICKET_GROUP_STORAGE_PATH environment variable not set")
+	}
+
+	fileUtil := utils.NewFileUtil()
+	uniqueFileName, err := fileUtil.UploadAttachmentFile(attachment, storagePath)
+	if err != nil {
+		return fmt.Errorf("failed to upload attachment: %w", err)
+	}
+
+	ticketGroup.AttachmentName = attachment.Filename
+	ticketGroup.AttachmentPath = storagePath
+	ticketGroup.AttachmentSize = attachment.Size
+	ticketGroup.ContentType = attachment.Header.Get("Content-Type")
+	ticketGroup.UniqueExtension = uniqueFileName
+
+	err = s.ticketGroupRepo.Update(ticketGroup)
+	if err != nil {
+		log.Printf("Error updating order: %v", err)
+		return err
+	}
+
+	return nil
+}
+
 // Helper function to convert string to sql.NullString
 func nullStringFromString(s string) sql.NullString {
 	if s == "" {

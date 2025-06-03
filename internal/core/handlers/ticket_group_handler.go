@@ -392,13 +392,13 @@ func (h *TicketGroupHandler) validateCustomFields(req *dto.CreateTicketGroupRequ
 		}
 	}
 
-	// Validate file sizes (5MB limit)
-	if req.Attachment.Size > 5*1024*1024 {
+	// Validate file sizes (50MB limit)
+	if req.Attachment.Size > 50*1024*1024 {
 		return fmt.Errorf("attachment file size must not exceed 5MB")
 	}
 
 	for i, gallery := range req.GroupGalleries {
-		if gallery.Size > 5*1024*1024 {
+		if gallery.Size > 50*1024*1024 {
 			return fmt.Errorf("groupGalleries[%d] file size must not exceed 5MB", i)
 		}
 	}

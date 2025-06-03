@@ -85,8 +85,9 @@ type CustomerTrendData struct {
 
 // NotificationAnalysis represents the notification analysis data structure
 type NotificationAnalysis struct {
-	TotalNotifications int                   `json:"totalNotifications"`
-	NotificationLogs   []NotificationLogData `json:"notificationLogs"`
+	TotalNotifications       int                   `json:"totalNotifications"`
+	TotalUnreadNotifications int                   `json:"totalUnreadNotifications"`
+	NotificationLogs         []NotificationLogData `json:"notificationLogs"`
 }
 
 type NotificationLogData struct {
@@ -306,6 +307,12 @@ func (s *DashboardService) getCustomerAnalysis(startDate, endDate string) (*Cust
 
 // getNotificationAnalysis retrieves notification analysis data
 func (s *DashboardService) getNotificationAnalysis(startDate, endDate string) (*NotificationAnalysis, error) {
+	// Get total count of all notifications (read + unread)
+	totalCount, err := s.notificationRepo.CountAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to count all notifications: %w", err)
+	}
+
 	// Get all unread notifications
 	unreadNotifications, err := s.notificationRepo.FindUnread()
 	if err != nil {
@@ -313,7 +320,7 @@ func (s *DashboardService) getNotificationAnalysis(startDate, endDate string) (*
 	}
 
 	// Count total unread notifications
-	totalCount := len(unreadNotifications)
+	totalUnreadCount := len(unreadNotifications)
 
 	// Limit to latest 10 notifications for logs (they're already ordered by created_at DESC)
 	var notificationsForLogs []models.Notification
@@ -350,8 +357,9 @@ func (s *DashboardService) getNotificationAnalysis(startDate, endDate string) (*
 	}
 
 	return &NotificationAnalysis{
-		TotalNotifications: totalCount,
-		NotificationLogs:   notificationLogs,
+		TotalNotifications:       int(totalCount),
+		TotalUnreadNotifications: totalUnreadCount,
+		NotificationLogs:         notificationLogs,
 	}, nil
 }
 

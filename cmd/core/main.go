@@ -169,12 +169,15 @@ func main() {
 		customerRepo,
 		notificationRepo,
 	)
+	adminService := service.NewAdminServiceExtended(adminRepo, tokenRepo)
+	tagService := service.NewTagService(tagRepo)
 	bannerService := service.NewBannerService(bannerRepo)
 	groupGalleryService := service.NewGroupGalleryService(groupGalleryRepo)
 	pdfService := service.NewPDFService()
 	notificationService := service.NewNotificationService(notificationRepo)
 
 	// Initialize handlers
+	adminHandler := handlers.NewAdminHandler(adminService, *notificationService)
 	ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService)
 	authHandler := handlers.NewAuthHandler(authService, emailService, *customerService, *notificationService)
 	customerHandler := handlers.NewCustomerHandler(*customerService, *notificationService)
@@ -186,6 +189,7 @@ func main() {
 	dashboardHandler := handlers.NewDashboardHandler(dashboardService)
 	pdfHandler := handlers.NewPDFHandler()
 	notificationHandler := handlers.NewNotificationHandler(*notificationService)
+	tagHandler := handlers.NewTagHandler(tagService)
 
 	// Create Fiber app with adapted error handler for slog
 	app := fiber.New(fiber.Config{
@@ -203,6 +207,7 @@ func main() {
 	app.Static("/public", "./pkg/public")
 
 	// Setup routes
+	routes.SetupAdminRoutes(app, adminHandler, jwtService)
 	routes.SetupTicketGroupRoutes(app, ticketGroupHandler, jwtService)
 	routes.SetupAuthRoutes(app, authHandler, jwtService)
 	routes.SetupOrderRoutes(app, orderHandler, jwtService)
@@ -215,6 +220,7 @@ func main() {
 	routes.SetupTicketPDFRoutes(app, pdfHandler)
 	routes.SetupDashboardRoutes(app, dashboardHandler, jwtService)
 	routes.SetupNotificationRoutes(app, notificationHandler, jwtService)
+	routes.SetupTagRoutes(app, tagHandler, jwtService)
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.Server.CorePort)

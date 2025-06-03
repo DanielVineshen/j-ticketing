@@ -13,6 +13,7 @@ type TokenRepository interface {
 	FindByUserIdAndRefreshToken(userID, access string) (*models.Token, error)
 	FindByUserIdAndAccessToken(userID, access string) (*models.Token, error)
 	DeleteByUserIdAndAccessToken(userID, accessToken string) error
+	DeleteByUserId(userID string) error
 	CountByUserId(userID string) (int64, error)
 	FindOldestByUserId(userID string) (*models.Token, error)
 	DeleteToken(token *models.Token) error
@@ -58,6 +59,10 @@ func (r *tokenRepository) FindByUserIdAndAccessToken(userID, accessToken string)
 // DeleteByUserIdAndAccessToken deletes a token by user ID and access token
 func (r *tokenRepository) DeleteByUserIdAndAccessToken(userID, accessToken string) error {
 	return r.db.Where("user_id = ? AND access_token = ?", userID, accessToken).Delete(&models.Token{}).Error
+}
+
+func (r *tokenRepository) DeleteByUserId(userID string) error {
+	return r.db.Where("user_id = ?", userID).Delete(&models.Token{}).Error
 }
 
 // CountByUserId counts the number of tokens for a user

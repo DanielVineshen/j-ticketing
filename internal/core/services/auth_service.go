@@ -70,12 +70,12 @@ func (s *authService) LoginAdmin(username, password string) (*dto.TokenResponse,
 	// Find admin by username
 	admin, err := s.adminRepo.FindByUsername(username)
 	if err != nil {
-		return nil, errors.New("invalid credentials -> name")
+		return nil, errors.New("invalid credentials")
 	}
 
 	// Validate password
 	if err := bcrypt.CompareHashAndPassword([]byte(admin.Password), []byte(password)); err != nil {
-		return nil, errors.New("invalid credentials -> password")
+		return nil, errors.New("invalid credentials")
 	}
 
 	// Create user claims
@@ -100,10 +100,13 @@ func (s *authService) LoginAdmin(username, password string) (*dto.TokenResponse,
 
 	// Create user info for response
 	userInfo := dto.UserInfo{
-		AdminID:  admin.AdminId,
-		Username: admin.Username,
-		Role:     admin.Role,
-		FullName: admin.FullName,
+		AdminID:    admin.AdminId,
+		Username:   admin.Username,
+		Role:       admin.Role,
+		FullName:   admin.FullName,
+		Email:      admin.Email,
+		ContactNo:  admin.ContactNo,
+		IsDisabled: admin.IsDisabled,
 	}
 
 	return &dto.TokenResponse{

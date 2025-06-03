@@ -1087,15 +1087,20 @@ func (s *TicketGroupService) UploadTicketGroupGallery(ticketGroupId uint, attach
 	return nil
 }
 
-func (s *TicketGroupService) DeleteTicketGroupGallery(groupGalleryId uint) error {
+func (s *TicketGroupService) DeleteTicketGroupGallery(groupGalleryId uint) (*models.TicketGroup, error) {
 	groupGallery, err := s.groupGalleryRepo.FindByID(groupGalleryId)
 	if err != nil {
 		log.Printf("Error finding group gallery %s: %v", groupGalleryId, err)
 	}
 
+	ticketGroup, err := s.ticketGroupRepo.FindByID(groupGallery.TicketGroupId)
+	if err != nil {
+		log.Printf("Error finding ticket group %s: %v", groupGallery.TicketGroupId, err)
+	}
+
 	storagePath := os.Getenv("GROUP_GALLERY_STORAGE_PATH")
 	if storagePath == "" {
-		return errors.New("GROUP_GALLERY_STORAGE_PATH environment variable not set")
+		return nil, errors.New("GROUP_GALLERY_STORAGE_PATH environment variable not set")
 	}
 
 	fileUtil := utils.NewFileUtil()
@@ -1104,10 +1109,10 @@ func (s *TicketGroupService) DeleteTicketGroupGallery(groupGalleryId uint) error
 	err = s.groupGalleryRepo.Delete(groupGalleryId)
 	if err != nil {
 		log.Printf("Error deleting group gallery: %v", err)
-		return err
+		return nil, err
 	}
 
-	return nil
+	return ticketGroup, nil
 }
 
 func (s *TicketGroupService) UpdateTicketGroupDetails(details dto.UpdateTicketGroupDetailsRequest) error {

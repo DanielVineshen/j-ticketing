@@ -4,6 +4,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gofiber/fiber/v2/log"
 	dto "j-ticketing/internal/core/dto/ticket_group"
 	services "j-ticketing/internal/core/services"
 	"j-ticketing/pkg/models"
@@ -480,6 +481,15 @@ func (h *TicketGroupHandler) validateFileType(file *multipart.FileHeader, allowe
 
 // UpdateTicketGroupPlacement handles PUT requests to update ticket group placements
 func (h *TicketGroupHandler) UpdateTicketGroupPlacement(c *fiber.Ctx) error {
+	adminFullName, ok := c.Locals("fullName").(string)
+	adminRole, ok := c.Locals("role").(string)
+
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
+			"User not authenticated", nil,
+		))
+	}
+
 	// Parse request body
 	var req dto.UpdatePlacementRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -503,10 +513,38 @@ func (h *TicketGroupHandler) UpdateTicketGroupPlacement(c *fiber.Ctx) error {
 		))
 	}
 
+	idsString := req.GetTicketGroupIdsString()
+
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s has updated placement for an existing ticket group ids: %s", adminFullName, idsString)
+	err = h.notificationService.CreateNotification(
+		adminFullName,
+		adminRole,
+		"Ticket Group",
+		"Update ticket group placement",
+		message,
+		malaysiaTime,
+	)
+	if err != nil {
+		log.Error("Failed to create notification for ticket group placement: ", err.Error())
+	}
+
 	return c.JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
 
 func (h *TicketGroupHandler) UpdateTicketGroupImage(c *fiber.Ctx) error {
+	adminFullName, ok := c.Locals("fullName").(string)
+	adminRole, ok := c.Locals("role").(string)
+
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
+			"User not authenticated", nil,
+		))
+	}
+
 	// Parse request body
 	var req dto.UpdateTicketGroupImageRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -547,10 +585,36 @@ func (h *TicketGroupHandler) UpdateTicketGroupImage(c *fiber.Ctx) error {
 		))
 	}
 
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s has updated image for an existing ticket group id: %s", adminFullName, strconv.Itoa(int(req.TicketGroupId)))
+	err = h.notificationService.CreateNotification(
+		adminFullName,
+		adminRole,
+		"Ticket Group",
+		"Update ticket group image",
+		message,
+		malaysiaTime,
+	)
+	if err != nil {
+		log.Error("Failed to create notification for ticket group image: ", err.Error())
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
 
 func (h *TicketGroupHandler) UpdateTicketGroupBasicInfo(c *fiber.Ctx) error {
+	adminFullName, ok := c.Locals("fullName").(string)
+	adminRole, ok := c.Locals("role").(string)
+
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
+			"User not authenticated", nil,
+		))
+	}
+
 	// Parse request body
 	var req dto.UpdateTicketGroupBasicInfoRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -574,10 +638,36 @@ func (h *TicketGroupHandler) UpdateTicketGroupBasicInfo(c *fiber.Ctx) error {
 		))
 	}
 
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s has updated basic info for an existing ticket group id: %s", adminFullName, strconv.Itoa(int(req.TicketGroupId)))
+	err = h.notificationService.CreateNotification(
+		adminFullName,
+		adminRole,
+		"Ticket Group",
+		"Update ticket group basic info",
+		message,
+		malaysiaTime,
+	)
+	if err != nil {
+		log.Error("Failed to create notification for ticket group basic info: ", err.Error())
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
 
 func (h *TicketGroupHandler) UploadTicketGroupGallery(c *fiber.Ctx) error {
+	adminFullName, ok := c.Locals("fullName").(string)
+	adminRole, ok := c.Locals("role").(string)
+
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
+			"User not authenticated", nil,
+		))
+	}
+
 	// Parse request body
 	var req dto.UpdateTicketGroupImageRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -618,10 +708,36 @@ func (h *TicketGroupHandler) UploadTicketGroupGallery(c *fiber.Ctx) error {
 		))
 	}
 
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s has uploaded gallery for an existing ticket group id: %s", adminFullName, strconv.Itoa(int(req.TicketGroupId)))
+	err = h.notificationService.CreateNotification(
+		adminFullName,
+		adminRole,
+		"Ticket Group",
+		"Uploaded ticket group gallery",
+		message,
+		malaysiaTime,
+	)
+	if err != nil {
+		log.Error("Failed to create notification for upload ticket group gallery: ", err.Error())
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
 
 func (h *TicketGroupHandler) DeleteTicketGroupGallery(c *fiber.Ctx) error {
+	adminFullName, ok := c.Locals("fullName").(string)
+	adminRole, ok := c.Locals("role").(string)
+
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
+			"User not authenticated", nil,
+		))
+	}
+
 	// Parse request body
 	var req dto.DeleteTicketGroupGalleryRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -638,17 +754,43 @@ func (h *TicketGroupHandler) DeleteTicketGroupGallery(c *fiber.Ctx) error {
 	}
 
 	// Call service to update image
-	err := h.ticketGroupService.DeleteTicketGroupGallery(req.GroupGalleryId)
+	ticketGroup, err := h.ticketGroupService.DeleteTicketGroupGallery(req.GroupGalleryId)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
 			"Failed to delete image: "+err.Error(), nil,
 		))
 	}
 
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s has deleted gallery for an existing ticket group id: %s", adminFullName, strconv.Itoa(int(ticketGroup.TicketGroupId)))
+	err = h.notificationService.CreateNotification(
+		adminFullName,
+		adminRole,
+		"Ticket Group",
+		"Deleted ticket group gallery",
+		message,
+		malaysiaTime,
+	)
+	if err != nil {
+		log.Error("Failed to create notification for delete ticket group gallery: ", err.Error())
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
 
 func (h *TicketGroupHandler) UpdateTicketGroupDetails(c *fiber.Ctx) error {
+	adminFullName, ok := c.Locals("fullName").(string)
+	adminRole, ok := c.Locals("role").(string)
+
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
+			"User not authenticated", nil,
+		))
+	}
+
 	// Parse request body
 	var req dto.UpdateTicketGroupDetailsRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -672,10 +814,36 @@ func (h *TicketGroupHandler) UpdateTicketGroupDetails(c *fiber.Ctx) error {
 		))
 	}
 
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s has updated details for an existing ticket group id: %s", adminFullName, strconv.Itoa(int(req.TicketGroupId)))
+	err = h.notificationService.CreateNotification(
+		adminFullName,
+		adminRole,
+		"Ticket Group",
+		"Update ticket group details",
+		message,
+		malaysiaTime,
+	)
+	if err != nil {
+		log.Error("Failed to create notification for ticket group details: ", err.Error())
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
 
 func (h *TicketGroupHandler) UpdateTicketGroupVariants(c *fiber.Ctx) error {
+	adminFullName, ok := c.Locals("fullName").(string)
+	adminRole, ok := c.Locals("role").(string)
+
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
+			"User not authenticated", nil,
+		))
+	}
+
 	// Parse request body
 	var req dto.UpdateTicketGroupVariantsRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -699,10 +867,36 @@ func (h *TicketGroupHandler) UpdateTicketGroupVariants(c *fiber.Ctx) error {
 		))
 	}
 
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s has updated ticket fees for an existing ticket group id: %s", adminFullName, strconv.Itoa(int(req.TicketGroupId)))
+	err = h.notificationService.CreateNotification(
+		adminFullName,
+		adminRole,
+		"Ticket Group",
+		"Update ticket group ticket fees",
+		message,
+		malaysiaTime,
+	)
+	if err != nil {
+		log.Error("Failed to create notification for ticket group ticket fees: ", err.Error())
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
 
 func (h *TicketGroupHandler) UpdateTicketGroupOrganiserInfo(c *fiber.Ctx) error {
+	adminFullName, ok := c.Locals("fullName").(string)
+	adminRole, ok := c.Locals("role").(string)
+
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(models.NewBaseErrorResponse(
+			"User not authenticated", nil,
+		))
+	}
+
 	// Parse request body
 	var req dto.UpdateTicketGroupOrganiserInfoRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -724,6 +918,23 @@ func (h *TicketGroupHandler) UpdateTicketGroupOrganiserInfo(c *fiber.Ctx) error 
 		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
 			"Failed to update basic info: "+err.Error(), nil,
 		))
+	}
+
+	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("%s has updated organiser info for an existing ticket group id: %s", adminFullName, strconv.Itoa(int(req.TicketGroupId)))
+	err = h.notificationService.CreateNotification(
+		adminFullName,
+		adminRole,
+		"Ticket Group",
+		"Update ticket group organiser info",
+		message,
+		malaysiaTime,
+	)
+	if err != nil {
+		log.Error("Failed to create notification for ticket group organiser info: ", err.Error())
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))

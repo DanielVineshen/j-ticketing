@@ -3,6 +3,8 @@ package dto
 import (
 	"fmt"
 	"j-ticketing/pkg/validation"
+	"strconv"
+	"strings"
 )
 
 // UpdatePlacementRequest represents the request to update ticket group placements
@@ -14,6 +16,18 @@ type UpdatePlacementRequest struct {
 type PlacementItem struct {
 	TicketGroupId uint `json:"ticketGroupId" validate:"required,min=1"`
 	Placement     int  `json:"placement" validate:"required,min=1"`
+}
+
+func (r *UpdatePlacementRequest) GetTicketGroupIdsString() string {
+	if len(r.TicketGroups) == 0 {
+		return ""
+	}
+
+	ids := make([]string, len(r.TicketGroups))
+	for i, item := range r.TicketGroups {
+		ids[i] = strconv.FormatUint(uint64(item.TicketGroupId), 10)
+	}
+	return strings.Join(ids, ",")
 }
 
 // Validate validates the update placement request

@@ -72,6 +72,7 @@ type CreateTicketGroupRequest struct {
 	// Complex data (arrays)
 	TicketDetails  []TicketDetailsRequest  `json:"ticketDetails" validate:"required,min=1,dive"`
 	TicketVariants []TicketVariantsRequest `json:"ticketVariants" validate:"required,min=1,dive"`
+	TicketTags     []TicketTagsRequest     `json:"ticketTags" validate:"omitempty,dive"`
 
 	// Files (handled separately)
 	Attachment     *multipart.FileHeader   `json:"-"`
@@ -95,4 +96,9 @@ type TicketVariantsRequest struct {
 	DescEn    string  `json:"descEn" validate:"required,min=1,max=255"`
 	DescCn    string  `json:"descCn" validate:"required,min=1,max=255"`
 	UnitPrice float64 `json:"unitPrice" validate:"gte=0"`
+}
+
+// TicketTagsRequest represents a ticket tag association
+type TicketTagsRequest struct {
+	TagId uint `json:"tagId" validate:"required,min=1"`
 }

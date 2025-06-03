@@ -23,4 +23,7 @@ func SetupTicketGroupRoutes(app *fiber.App, ticketGroupHandler *handlers.TicketG
 	ticketGroup.Post("/", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), ticketGroupHandler.CreateTicketGroup)
 	ticketGroup.Put("/placements", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), ticketGroupHandler.UpdateTicketGroupPlacement)
 	ticketGroup.Put("/image", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), ticketGroupHandler.UpdateTicketGroupImage)
+	ticketGroup.Put("/basicInfo", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), ticketGroupHandler.UpdateTicketGroupBasicInfo)
+	ticketGroup.Post("/gallery", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), ticketGroupHandler.UploadTicketGroupGallery)
+	ticketGroup.Delete("/gallery", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "MEMBER"), ticketGroupHandler.DeleteTicketGroupGallery)
 }

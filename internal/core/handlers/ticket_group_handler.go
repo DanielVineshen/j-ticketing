@@ -523,3 +523,101 @@ func (h *TicketGroupHandler) UpdateTicketGroupImage(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
+
+func (h *TicketGroupHandler) UpdateTicketGroupBasicInfo(c *fiber.Ctx) error {
+	// Parse request body
+	var req dto.UpdateTicketGroupBasicInfoRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			"Invalid request format", nil,
+		))
+	}
+
+	// Validate the request struct
+	if err := validation.ValidateStruct(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			"Validation failed: "+err.Error(), nil,
+		))
+	}
+
+	// Call service to update image
+	err := h.ticketGroupService.UpdateTicketGroupBasicInfo(req)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
+			"Failed to update basic info: "+err.Error(), nil,
+		))
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
+}
+
+func (h *TicketGroupHandler) UploadTicketGroupGallery(c *fiber.Ctx) error {
+	// Parse request body
+	var req dto.UpdateTicketGroupImageRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			"Invalid request format", nil,
+		))
+	}
+
+	// Validate the request struct
+	if err := validation.ValidateStruct(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			"Validation failed: "+err.Error(), nil,
+		))
+	}
+
+	// Handle file uploads
+	attachment, err := c.FormFile("attachment")
+	if err != nil {
+		return fmt.Errorf("attachment file is required")
+	}
+	req.Attachment = attachment
+
+	// Validate file types for attachment
+	if err := h.validateFileType(req.Attachment, []string{".jpg", ".jpeg", ".png", ".pdf"}); err != nil {
+		return fmt.Errorf("attachment: %v", err)
+	}
+
+	// Validate file sizes (50MB limit)
+	if req.Attachment.Size > 50*1024*1024 {
+		return fmt.Errorf("attachment file size must not exceed 5MB")
+	}
+
+	// Call service to update image
+	err = h.ticketGroupService.UploadTicketGroupGallery(req.TicketGroupId, req.Attachment)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
+			"Failed to update image: "+err.Error(), nil,
+		))
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
+}
+
+func (h *TicketGroupHandler) DeleteTicketGroupGallery(c *fiber.Ctx) error {
+	// Parse request body
+	var req dto.DeleteTicketGroupGalleryRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			"Invalid request format", nil,
+		))
+	}
+
+	// Validate the request struct
+	if err := validation.ValidateStruct(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			"Validation failed: "+err.Error(), nil,
+		))
+	}
+
+	// Call service to update image
+	err := h.ticketGroupService.DeleteTicketGroupGallery(req.GroupGalleryId)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(models.NewBaseErrorResponse(
+			"Failed to delete image: "+err.Error(), nil,
+		))
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
+}

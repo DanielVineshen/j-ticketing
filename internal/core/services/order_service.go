@@ -253,9 +253,13 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 	for _, detail := range ticketGroup.TicketDetails {
 		detailDTOs = append(detailDTOs, ticketGroupDto.TicketDetailDTO{
 			TicketDetailId: detail.TicketDetailId,
-			Title:          detail.Title,
+			TitleEn:        detail.TitleEn,
+			TitleBm:        detail.TitleBm,
+			TitleCn:        detail.TitleCn,
 			TitleIcon:      detail.TitleIcon,
-			RawHtml:        detail.RawHtml,
+			RawHtmlBm:      detail.RawHtmlBm,
+			RawHtmlEn:      detail.RawHtmlEn,
+			RawHtmlCn:      detail.RawHtmlCn,
 			DisplayFlag:    detail.DisplayFlag,
 		})
 	}

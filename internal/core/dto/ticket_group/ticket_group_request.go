@@ -81,9 +81,13 @@ type CreateTicketGroupRequest struct {
 
 // TicketDetailRequest represents a ticket detail item
 type TicketDetailsRequest struct {
-	Title       string `json:"title" validate:"required,min=1,max=255"`
+	TitleBm     string `json:"titleBm" validate:"required,min=1,max=255"`
+	TitleEn     string `json:"titleEn" validate:"required,min=1,max=255"`
+	TitleCn     string `json:"titleCn" validate:"required,min=1,max=255"`
 	TitleIcon   string `json:"titleIcon" validate:"required,max=255"`
-	RawHtml     string `json:"rawHtml" validate:"required,min=1"`
+	RawHtmlBm   string `json:"rawHtmlBm" validate:"required,min=1"`
+	RawHtmlEn   string `json:"rawHtmlEn" validate:"required,min=1"`
+	RawHtmlCn   string `json:"rawHtmlCn" validate:"required,min=1"`
 	DisplayFlag bool   `json:"displayFlag"`
 }
 
@@ -106,4 +110,63 @@ type TicketTagsRequest struct {
 type UpdateTicketGroupImageRequest struct {
 	TicketGroupId uint                  `json:"ticketGroupId" validate:"required,min=1"`
 	Attachment    *multipart.FileHeader `json:"-"`
+}
+
+type UpdateTicketGroupBasicInfoRequest struct {
+	TicketGroupId uint `json:"ticketGroupId" validate:"required,min=1"`
+
+	// Basic settings
+	OrderTicketLimit int    `json:"orderTicketLimit" validate:"required,min=1"`
+	ScanSetting      string `json:"scanSetting" validate:"required,oneof=none qr_code barcode"`
+
+	// Group names (multilingual)
+	GroupNameBm string `json:"groupNameBm" validate:"required,min=1,max=255"`
+	GroupNameEn string `json:"groupNameEn" validate:"required,min=1,max=255"`
+	GroupNameCn string `json:"groupNameCn" validate:"required,min=1,max=255"`
+
+	// Group descriptions (multilingual)
+	GroupDescBm string `json:"groupDescBm" validate:"required,min=1"`
+	GroupDescEn string `json:"groupDescEn" validate:"required,min=1"`
+	GroupDescCn string `json:"groupDescCn" validate:"required,min=1"`
+
+	// Redirection settings (optional)
+	GroupRedirectionSpanBm string `json:"groupRedirectionSpanBm" validate:"omitempty,max=255"`
+	GroupRedirectionSpanEn string `json:"groupRedirectionSpanEn" validate:"omitempty,max=255"`
+	GroupRedirectionSpanCn string `json:"groupRedirectionSpanCn" validate:"omitempty,max=255"`
+	GroupRedirectionUrl    string `json:"groupRedirectionUrl" validate:"omitempty,url,max=500"`
+
+	// Group slots (optional, multilingual)
+	GroupSlot1Bm string `json:"groupSlot1Bm" validate:"omitempty,max=255"`
+	GroupSlot1En string `json:"groupSlot1En" validate:"omitempty,max=255"`
+	GroupSlot1Cn string `json:"groupSlot1Cn" validate:"omitempty,max=255"`
+	GroupSlot2Bm string `json:"groupSlot2Bm" validate:"omitempty,max=255"`
+	GroupSlot2En string `json:"groupSlot2En" validate:"omitempty,max=255"`
+	GroupSlot2Cn string `json:"groupSlot2Cn" validate:"omitempty,max=255"`
+	GroupSlot3Bm string `json:"groupSlot3Bm" validate:"omitempty,max=255"`
+	GroupSlot3En string `json:"groupSlot3En" validate:"omitempty,max=255"`
+	GroupSlot3Cn string `json:"groupSlot3Cn" validate:"omitempty,max=255"`
+	GroupSlot4Bm string `json:"groupSlot4Bm" validate:"omitempty,max=255"`
+	GroupSlot4En string `json:"groupSlot4En" validate:"omitempty,max=255"`
+	GroupSlot4Cn string `json:"groupSlot4Cn" validate:"omitempty,max=255"`
+
+	// Price prefixes and suffixes (multilingual)
+	PricePrefixBm string `json:"pricePrefixBm" validate:"required,min=1,max=50"`
+	PricePrefixEn string `json:"pricePrefixEn" validate:"required,min=1,max=50"`
+	PricePrefixCn string `json:"pricePrefixCn" validate:"required,min=1,max=50"`
+	PriceSuffixBm string `json:"priceSuffixBm" validate:"required,min=1,max=50"`
+	PriceSuffixEn string `json:"priceSuffixEn" validate:"required,min=1,max=50"`
+	PriceSuffixCn string `json:"priceSuffixCn" validate:"required,min=1,max=50"`
+
+	// Date settings
+	ActiveStartDate string `json:"activeStartDate" validate:"required"`
+	ActiveEndDate   string `json:"activeEndDate" validate:"omitempty"`
+	IsActive        bool   `json:"isActive"`
+
+	// Location information
+	LocationAddress string `json:"locationAddress" validate:"required,min=1"`
+	LocationMapUrl  string `json:"locationMapUrl" validate:"required,url"`
+}
+
+type DeleteTicketGroupGalleryRequest struct {
+	GroupGalleryId uint `json:"groupGalleryId" validate:"required,min=1"`
 }

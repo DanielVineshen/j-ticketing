@@ -427,9 +427,13 @@ func (s *TicketGroupService) getTicketDetails(ticketGroupId uint) ([]dto.TicketD
 	for _, detail := range details {
 		detailDTOs = append(detailDTOs, dto.TicketDetailDTO{
 			TicketDetailId: detail.TicketDetailId,
-			Title:          detail.Title,
+			TitleEn:        detail.TitleEn,
+			TitleBm:        detail.TitleBm,
+			TitleCn:        detail.TitleCn,
 			TitleIcon:      detail.TitleIcon,
-			RawHtml:        detail.RawHtml,
+			RawHtmlBm:      detail.RawHtmlBm,
+			RawHtmlEn:      detail.RawHtmlEn,
+			RawHtmlCn:      detail.RawHtmlCn,
 			DisplayFlag:    detail.DisplayFlag,
 		})
 	}
@@ -686,9 +690,13 @@ func (s *TicketGroupService) CreateTicketGroup(
 	for _, detail := range req.TicketDetails {
 		ticketDetail := &models.TicketDetail{
 			TicketGroupId: ticketGroup.TicketGroupId,
-			Title:         detail.Title,
+			TitleEn:       detail.TitleEn,
+			TitleBm:       detail.TitleBm,
+			TitleCn:       detail.TitleCn,
 			TitleIcon:     detail.TitleIcon,
-			RawHtml:       detail.RawHtml,
+			RawHtmlBm:     detail.RawHtmlBm,
+			RawHtmlEn:     detail.RawHtmlEn,
+			RawHtmlCn:     detail.RawHtmlCn,
 			DisplayFlag:   detail.DisplayFlag,
 			CreatedAt:     time.Now(),
 			UpdatedAt:     time.Now(),
@@ -896,7 +904,116 @@ func (s *TicketGroupService) UpdateTicketGroupImage(ticketGroupId uint, attachme
 
 	err = s.ticketGroupRepo.Update(ticketGroup)
 	if err != nil {
-		log.Printf("Error updating order: %v", err)
+		log.Printf("Error updating attachment: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func (s *TicketGroupService) UpdateTicketGroupBasicInfo(basicInfo dto.UpdateTicketGroupBasicInfoRequest) error {
+	ticketGroup, err := s.ticketGroupRepo.FindByID(basicInfo.TicketGroupId)
+	if err != nil {
+		log.Printf("Error finding ticket group %s: %v", basicInfo.TicketGroupId, err)
+	}
+
+	ticketGroup.OrderTicketLimit = basicInfo.OrderTicketLimit
+	ticketGroup.ScanSetting = basicInfo.ScanSetting
+	ticketGroup.GroupNameBm = basicInfo.GroupNameBm
+	ticketGroup.GroupNameEn = basicInfo.GroupNameEn
+	ticketGroup.GroupNameCn = basicInfo.GroupNameCn
+	ticketGroup.GroupDescBm = basicInfo.GroupDescBm
+	ticketGroup.GroupDescEn = basicInfo.GroupDescEn
+	ticketGroup.GroupDescCn = basicInfo.GroupDescCn
+	ticketGroup.GroupRedirectionSpanBm = nullStringFromString(basicInfo.GroupRedirectionSpanBm)
+	ticketGroup.GroupRedirectionSpanEn = nullStringFromString(basicInfo.GroupRedirectionSpanEn)
+	ticketGroup.GroupRedirectionSpanCn = nullStringFromString(basicInfo.GroupRedirectionSpanCn)
+	ticketGroup.GroupRedirectionUrl = nullStringFromString(basicInfo.GroupRedirectionUrl)
+	ticketGroup.GroupSlot1Bm = nullStringFromString(basicInfo.GroupSlot1Bm)
+	ticketGroup.GroupSlot1En = nullStringFromString(basicInfo.GroupSlot1En)
+	ticketGroup.GroupSlot1Cn = nullStringFromString(basicInfo.GroupSlot1Cn)
+	ticketGroup.GroupSlot2Bm = nullStringFromString(basicInfo.GroupSlot2Bm)
+	ticketGroup.GroupSlot2En = nullStringFromString(basicInfo.GroupSlot2En)
+	ticketGroup.GroupSlot2Cn = nullStringFromString(basicInfo.GroupSlot2Cn)
+	ticketGroup.GroupSlot3Bm = nullStringFromString(basicInfo.GroupSlot3Bm)
+	ticketGroup.GroupSlot3En = nullStringFromString(basicInfo.GroupSlot3En)
+	ticketGroup.GroupSlot3Cn = nullStringFromString(basicInfo.GroupSlot3Cn)
+	ticketGroup.GroupSlot4Bm = nullStringFromString(basicInfo.GroupSlot4Bm)
+	ticketGroup.GroupSlot4En = nullStringFromString(basicInfo.GroupSlot4En)
+	ticketGroup.GroupSlot4Cn = nullStringFromString(basicInfo.GroupSlot4Cn)
+	ticketGroup.PricePrefixBm = basicInfo.PricePrefixBm
+	ticketGroup.PricePrefixEn = basicInfo.PricePrefixEn
+	ticketGroup.PricePrefixCn = basicInfo.PricePrefixCn
+	ticketGroup.PriceSuffixBm = basicInfo.PriceSuffixBm
+	ticketGroup.PriceSuffixEn = basicInfo.PriceSuffixEn
+	ticketGroup.PriceSuffixCn = basicInfo.PriceSuffixCn
+	ticketGroup.ActiveStartDate = nullStringFromString(basicInfo.ActiveStartDate)
+	ticketGroup.ActiveEndDate = nullStringFromString(basicInfo.ActiveEndDate)
+	ticketGroup.IsActive = basicInfo.IsActive
+	ticketGroup.LocationAddress = basicInfo.LocationAddress
+	ticketGroup.LocationMapUrl = basicInfo.LocationMapUrl
+
+	err = s.ticketGroupRepo.Update(ticketGroup)
+	if err != nil {
+		log.Printf("Error updating basic info: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func (s *TicketGroupService) UploadTicketGroupGallery(ticketGroupId uint, attachment *multipart.FileHeader) error {
+	_, err := s.ticketGroupRepo.FindByID(ticketGroupId)
+	if err != nil {
+		log.Printf("Error finding ticket group %s: %v", ticketGroupId, err)
+	}
+
+	storagePath := os.Getenv("GROUP_GALLERY_STORAGE_PATH")
+	if storagePath == "" {
+		return errors.New("GROUP_GALLERY_STORAGE_PATH environment variable not set")
+	}
+
+	fileUtil := utils.NewFileUtil()
+	uniqueFileName, err := fileUtil.UploadAttachmentFile(attachment, storagePath)
+	if err != nil {
+		return fmt.Errorf("failed to upload attachment: %w", err)
+	}
+
+	groupGallery := &models.GroupGallery{
+		TicketGroupId:   ticketGroupId,
+		AttachmentName:  attachment.Filename,
+		AttachmentPath:  storagePath,
+		AttachmentSize:  attachment.Size,
+		ContentType:     attachment.Header.Get("Content-Type"),
+		UniqueExtension: uniqueFileName,
+	}
+
+	err = s.groupGalleryRepo.Create(groupGallery)
+	if err != nil {
+		log.Printf("Error creating group gallery: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func (s *TicketGroupService) DeleteTicketGroupGallery(groupGalleryId uint) error {
+	groupGallery, err := s.groupGalleryRepo.FindByID(groupGalleryId)
+	if err != nil {
+		log.Printf("Error finding group gallery %s: %v", groupGalleryId, err)
+	}
+
+	storagePath := os.Getenv("GROUP_GALLERY_STORAGE_PATH")
+	if storagePath == "" {
+		return errors.New("GROUP_GALLERY_STORAGE_PATH environment variable not set")
+	}
+
+	fileUtil := utils.NewFileUtil()
+	fileUtil.DeleteAttachmentFile(groupGallery.UniqueExtension, storagePath)
+
+	err = s.groupGalleryRepo.Delete(groupGalleryId)
+	if err != nil {
+		log.Printf("Error deleting group gallery: %v", err)
 		return err
 	}
 

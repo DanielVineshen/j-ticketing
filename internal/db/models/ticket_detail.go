@@ -9,9 +9,13 @@ import (
 type TicketDetail struct {
 	TicketDetailId uint      `gorm:"primaryKey;column:ticket_detail_id;type:bigint unsigned AUTO_INCREMENT"`
 	TicketGroupId  uint      `gorm:"column:ticket_group_id;type:bigint unsigned;not null"`
-	Title          string    `gorm:"column:title;type:varchar(255);not null"`
+	TitleBm        string    `gorm:"column:title_bm;type:varchar(255);not null"`
+	TitleEn        string    `gorm:"column:title_en;type:varchar(255);not null"`
+	TitleCn        string    `gorm:"column:title_cn;type:varchar(255);not null"`
 	TitleIcon      string    `gorm:"column:title_icon;type:varchar(255);not null"`
-	RawHtml        string    `gorm:"column:raw_html;type:text;not null"`
+	RawHtmlBm      string    `gorm:"column:raw_html_bm;type:text;not null"`
+	RawHtmlEn      string    `gorm:"column:raw_html_en;type:text;not null"`
+	RawHtmlCn      string    `gorm:"column:raw_html_cn;type:text;not null"`
 	DisplayFlag    bool      `gorm:"column:display_flag;type:boolean;not null"`
 	CreatedAt      time.Time `gorm:"column:created_at;type:datetime;not null"`
 	UpdatedAt      time.Time `gorm:"column:updated_at;type:datetime;not null"`

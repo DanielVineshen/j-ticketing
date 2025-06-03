@@ -164,9 +164,13 @@ type GroupGalleryDTO struct {
 // TicketDetailDTO represents a detail item for a ticket
 type TicketDetailDTO struct {
 	TicketDetailId uint   `json:"ticketDetailId"`
-	Title          string `json:"title"`
+	TitleBm        string `json:"titleBm"`
+	TitleEn        string `json:"titleEn"`
+	TitleCn        string `json:"titleCn"`
 	TitleIcon      string `json:"titleIcon"`
-	RawHtml        string `json:"rawHtml"`
+	RawHtmlBm      string `json:"rawHtmlBm"`
+	RawHtmlEn      string `json:"rawHtmlEn"`
+	RawHtmlCn      string `json:"rawHtmlCn"`
 	DisplayFlag    bool   `json:"displayFlag"`
 }
 

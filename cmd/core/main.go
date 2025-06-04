@@ -183,11 +183,10 @@ func main() {
 	customerHandler := handlers.NewCustomerHandler(*customerService, *notificationService)
 	bannerHandler := handlers.NewBannerHandler(bannerService, *notificationService)
 	groupGalleryHandler := handlers.NewGroupGalleryHandler(groupGalleryService)
-	simplePDFHandler := handlers.NewPDFHandler()
 	orderHandler := handlers.NewOrderHandler(orderService, *customerService, jwtService, paymentService, emailService, ticketGroupService, paymentConfig, pdfService, *notificationService)
 	paymentHandler := handlers.NewPaymentHandler(paymentService, paymentConfig, emailService, ticketGroupService, pdfService, orderService, customerService, notificationService)
 	dashboardHandler := handlers.NewDashboardHandler(dashboardService)
-	pdfHandler := handlers.NewPDFHandler()
+	pdfHandler := handlers.NewPDFHandler(pdfService)
 	notificationHandler := handlers.NewNotificationHandler(*notificationService)
 	tagHandler := handlers.NewTagHandler(tagService)
 
@@ -199,7 +198,7 @@ func main() {
 	// Middleware
 	app.Use(recover.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:8080,http://127.0.0.1:3000,http://localhost:3001,http://139.59.253.119:3000,https://etiket.johor.gov.my,http://stagingetiket.johor.gov.my:3000,https://stg-ticketcms.castis.io",
+		AllowOrigins:     "http://localhost:8080,http://127.0.0.1:3000,http://localhost:3001,http://139.59.253.119:3000,https://etiket.johor.gov.my,http://stagingetiket.johor.gov.my:3000,https://stg-ticketcms.castis.io,http://stagingetiket.johor.gov.my:3001",
 		AllowMethods:     "GET,POST,PUT,DELETE",
 		AllowHeaders:     "Origin,Content-Type,Accept,Authorization",
 		AllowCredentials: true,
@@ -213,7 +212,6 @@ func main() {
 	routes.SetupOrderRoutes(app, orderHandler, jwtService)
 	routes.SetupPaymentRoutes(app, paymentConfig, paymentHandler)
 	routes.SetupViewRoutes(app)
-	routes.SetupTicketPDFRoutes(app, simplePDFHandler)
 	routes.SetupCustomerRoutes(app, customerHandler, jwtService)
 	routes.SetupBannerRoutes(app, bannerHandler, jwtService)
 	routes.SetupGroupGalleryRoutes(app, groupGalleryHandler)

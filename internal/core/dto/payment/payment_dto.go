@@ -11,15 +11,15 @@ type TransactionResponse struct {
 	JpMsgToken      string `json:"jp_msg_token"`
 }
 
-type ZooTicketItem struct {
+type TicketItem struct {
 	ItemId string `json:"ItemId"`
 	Qty    int    `json:"Qty"`
 }
 
 type ZooTicketRequest struct {
-	TranDate    string          `json:"TranDate"`
-	ReferenceNo string          `json:"ReferenceNo"`
-	Items       []ZooTicketItem `json:"Items"`
+	TranDate    string       `json:"TranDate"`
+	ReferenceNo string       `json:"ReferenceNo"`
+	Items       []TicketItem `json:"Items"`
 }
 
 type ZooTicketInfo struct {

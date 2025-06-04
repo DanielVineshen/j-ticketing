@@ -524,7 +524,7 @@ func (s *TicketGroupService) GetTicketVariants(ticketGroupId uint, date string) 
 				DescEn:          "",
 				DescCn:          "",
 				UnitPrice:       item.UnitPrice,
-				PrintType:       &item.PrintType,
+				PrintType:       item.PrintType,
 			}
 
 			ticketVariants = append(ticketVariants, variant)
@@ -548,7 +548,7 @@ func (s *TicketGroupService) GetTicketVariants(ticketGroupId uint, date string) 
 				DescEn:          item.DescEn,
 				DescCn:          item.DescCn,
 				UnitPrice:       item.UnitPrice,
-				PrintType:       nil,
+				PrintType:       "",
 			}
 
 			ticketVariants = append(ticketVariants, variant)

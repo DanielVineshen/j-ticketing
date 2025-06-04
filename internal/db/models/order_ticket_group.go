@@ -9,6 +9,7 @@ import (
 // OrderTicketGroup represents the order_ticket_group table
 type OrderTicketGroup struct {
 	OrderTicketGroupId uint           `gorm:"primaryKey;column:order_ticket_group_id;type:bigint unsigned AUTO_INCREMENT"`
+	LangChosen         string         `gorm:"column:lang_chosen;type:varchar(255);default:'bm';not null"`
 	TicketGroupId      uint           `gorm:"column:ticket_group_id;type:bigint unsigned;not null"`
 	CustId             string         `gorm:"column:cust_id;type:varchar(255);not null"`
 	TransactionId      string         `gorm:"column:transaction_id;type:varchar(255);not null"`

@@ -2,11 +2,9 @@
 package handlers
 
 import (
-	"fmt"
 	dto "j-ticketing/internal/core/dto/general"
 	service "j-ticketing/internal/core/services"
 	"j-ticketing/pkg/models"
-	"j-ticketing/pkg/utils"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -43,9 +41,9 @@ func (h *GeneralHandler) GetGeneralSettings(c *fiber.Ctx) error {
 
 // UpdateGeneralSettings updates the general settings
 func (h *GeneralHandler) UpdateGeneralSettings(c *fiber.Ctx) error {
-	// Get the admin info from the context (set by auth middleware)
-	adminFullName := c.Locals("fullName").(string)
-	adminRole := c.Locals("role").(string)
+	// // Get the admin info from the context (set by auth middleware)
+	// adminFullName := c.Locals("fullName").(string)
+	// adminRole := c.Locals("role").(string)
 
 	// Parse the multipart form
 	form, err := c.MultipartForm()
@@ -81,23 +79,23 @@ func (h *GeneralHandler) UpdateGeneralSettings(c *fiber.Ctx) error {
 		))
 	}
 
-	// Create notification
-	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
-	if err != nil {
-		return err
-	}
-	message := fmt.Sprintf("%s has updated the general settings", adminFullName)
-	err = h.notificationService.CreateNotification(
-		adminFullName,
-		adminRole,
-		"General Settings",
-		"Update general settings",
-		message,
-		malaysiaTime,
-	)
-	if err != nil {
-		return err
-	}
+	// // Create notification
+	// malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	// if err != nil {
+	// 	return err
+	// }
+	// message := fmt.Sprintf("%s has updated the general settings", adminFullName)
+	// err = h.notificationService.CreateNotification(
+	// 	adminFullName,
+	// 	adminRole,
+	// 	"General Settings",
+	// 	"Update general settings",
+	// 	message,
+	// 	malaysiaTime,
+	// )
+	// if err != nil {
+	// 	return err
+	// }
 
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
@@ -149,9 +147,9 @@ func (h *GeneralHandler) GetGeneralAttachment(c *fiber.Ctx) error {
 
 // UpdatePrivacyPolicy updates the privacy policy content
 func (h *GeneralHandler) UpdatePrivacyPolicy(c *fiber.Ctx) error {
-	// Get the admin info from the context (set by auth middleware)
-	adminFullName := c.Locals("fullName").(string)
-	adminRole := c.Locals("role").(string)
+	// // Get the admin info from the context (set by auth middleware)
+	// adminFullName := c.Locals("fullName").(string)
+	// adminRole := c.Locals("role").(string)
 
 	var request dto.UpdatePrivacyPolicyRequest
 	if err := c.BodyParser(&request); err != nil {
@@ -173,32 +171,32 @@ func (h *GeneralHandler) UpdatePrivacyPolicy(c *fiber.Ctx) error {
 		))
 	}
 
-	// Create notification
-	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
-	if err != nil {
-		return err
-	}
-	message := fmt.Sprintf("%s has updated the privacy policy", adminFullName)
-	err = h.notificationService.CreateNotification(
-		adminFullName,
-		adminRole,
-		"Privacy Policy",
-		"Update privacy policy",
-		message,
-		malaysiaTime,
-	)
-	if err != nil {
-		return err
-	}
+	// // Create notification
+	// malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	// if err != nil {
+	// 	return err
+	// }
+	// message := fmt.Sprintf("%s has updated the privacy policy", adminFullName)
+	// err = h.notificationService.CreateNotification(
+	// 	adminFullName,
+	// 	adminRole,
+	// 	"Privacy Policy",
+	// 	"Update privacy policy",
+	// 	message,
+	// 	malaysiaTime,
+	// )
+	// if err != nil {
+	// 	return err
+	// }
 
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
 
 // UpdateTermsOfPurchase updates the terms of purchase content
 func (h *GeneralHandler) UpdateTermsOfPurchase(c *fiber.Ctx) error {
-	// Get the admin info from the context (set by auth middleware)
-	adminFullName := c.Locals("fullName").(string)
-	adminRole := c.Locals("role").(string)
+	// // Get the admin info from the context (set by auth middleware)
+	// adminFullName := c.Locals("fullName").(string)
+	// adminRole := c.Locals("role").(string)
 
 	var request dto.UpdateTermsOfPurchaseRequest
 	if err := c.BodyParser(&request); err != nil {
@@ -220,32 +218,32 @@ func (h *GeneralHandler) UpdateTermsOfPurchase(c *fiber.Ctx) error {
 		))
 	}
 
-	// Create notification
-	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
-	if err != nil {
-		return err
-	}
-	message := fmt.Sprintf("%s has updated the terms of purchase", adminFullName)
-	err = h.notificationService.CreateNotification(
-		adminFullName,
-		adminRole,
-		"Terms of Purchase",
-		"Update terms of purchase",
-		message,
-		malaysiaTime,
-	)
-	if err != nil {
-		return err
-	}
+	// // Create notification
+	// malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	// if err != nil {
+	// 	return err
+	// }
+	// message := fmt.Sprintf("%s has updated the terms of purchase", adminFullName)
+	// err = h.notificationService.CreateNotification(
+	// 	adminFullName,
+	// 	adminRole,
+	// 	"Terms of Purchase",
+	// 	"Update terms of purchase",
+	// 	message,
+	// 	malaysiaTime,
+	// )
+	// if err != nil {
+	// 	return err
+	// }
 
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
 
 // UpdateTermsOfService updates the terms of service content
 func (h *GeneralHandler) UpdateTermsOfService(c *fiber.Ctx) error {
-	// Get the admin info from the context (set by auth middleware)
-	adminFullName := c.Locals("fullName").(string)
-	adminRole := c.Locals("role").(string)
+	// // Get the admin info from the context (set by auth middleware)
+	// adminFullName := c.Locals("fullName").(string)
+	// adminRole := c.Locals("role").(string)
 
 	var request dto.UpdateTermsOfServiceRequest
 	if err := c.BodyParser(&request); err != nil {
@@ -267,32 +265,32 @@ func (h *GeneralHandler) UpdateTermsOfService(c *fiber.Ctx) error {
 		))
 	}
 
-	// Create notification
-	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
-	if err != nil {
-		return err
-	}
-	message := fmt.Sprintf("%s has updated the terms of service", adminFullName)
-	err = h.notificationService.CreateNotification(
-		adminFullName,
-		adminRole,
-		"Terms of Service",
-		"Update terms of service",
-		message,
-		malaysiaTime,
-	)
-	if err != nil {
-		return err
-	}
+	// // Create notification
+	// malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	// if err != nil {
+	// 	return err
+	// }
+	// message := fmt.Sprintf("%s has updated the terms of service", adminFullName)
+	// err = h.notificationService.CreateNotification(
+	// 	adminFullName,
+	// 	adminRole,
+	// 	"Terms of Service",
+	// 	"Update terms of service",
+	// 	message,
+	// 	malaysiaTime,
+	// )
+	// if err != nil {
+	// 	return err
+	// }
 
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
 
 // UpdateFaq updates the FAQ content
 func (h *GeneralHandler) UpdateFaq(c *fiber.Ctx) error {
-	// Get the admin info from the context (set by auth middleware)
-	adminFullName := c.Locals("fullName").(string)
-	adminRole := c.Locals("role").(string)
+	// // Get the admin info from the context (set by auth middleware)
+	// adminFullName := c.Locals("fullName").(string)
+	// adminRole := c.Locals("role").(string)
 
 	var request dto.UpdateFaqRequest
 	if err := c.BodyParser(&request); err != nil {
@@ -314,32 +312,32 @@ func (h *GeneralHandler) UpdateFaq(c *fiber.Ctx) error {
 		))
 	}
 
-	// Create notification
-	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
-	if err != nil {
-		return err
-	}
-	message := fmt.Sprintf("%s has updated the FAQ", adminFullName)
-	err = h.notificationService.CreateNotification(
-		adminFullName,
-		adminRole,
-		"FAQ",
-		"Update FAQ",
-		message,
-		malaysiaTime,
-	)
-	if err != nil {
-		return err
-	}
+	// // Create notification
+	// malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	// if err != nil {
+	// 	return err
+	// }
+	// message := fmt.Sprintf("%s has updated the FAQ", adminFullName)
+	// err = h.notificationService.CreateNotification(
+	// 	adminFullName,
+	// 	adminRole,
+	// 	"FAQ",
+	// 	"Update FAQ",
+	// 	message,
+	// 	malaysiaTime,
+	// )
+	// if err != nil {
+	// 	return err
+	// }
 
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
 
 // UpdateContactUs updates the contact us content
 func (h *GeneralHandler) UpdateContactUs(c *fiber.Ctx) error {
-	// Get the admin info from the context (set by auth middleware)
-	adminFullName := c.Locals("fullName").(string)
-	adminRole := c.Locals("role").(string)
+	// // Get the admin info from the context (set by auth middleware)
+	// adminFullName := c.Locals("fullName").(string)
+	// adminRole := c.Locals("role").(string)
 
 	var request dto.UpdateContactUsRequest
 	if err := c.BodyParser(&request); err != nil {
@@ -361,23 +359,23 @@ func (h *GeneralHandler) UpdateContactUs(c *fiber.Ctx) error {
 		))
 	}
 
-	// Create notification
-	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
-	if err != nil {
-		return err
-	}
-	message := fmt.Sprintf("%s has updated the contact us content", adminFullName)
-	err = h.notificationService.CreateNotification(
-		adminFullName,
-		adminRole,
-		"Contact Us",
-		"Update contact us content",
-		message,
-		malaysiaTime,
-	)
-	if err != nil {
-		return err
-	}
+	// // Create notification
+	// malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	// if err != nil {
+	// 	return err
+	// }
+	// message := fmt.Sprintf("%s has updated the contact us content", adminFullName)
+	// err = h.notificationService.CreateNotification(
+	// 	adminFullName,
+	// 	adminRole,
+	// 	"Contact Us",
+	// 	"Update contact us content",
+	// 	message,
+	// 	malaysiaTime,
+	// )
+	// if err != nil {
+	// 	return err
+	// }
 
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
@@ -385,8 +383,8 @@ func (h *GeneralHandler) UpdateContactUs(c *fiber.Ctx) error {
 // UpdateRefundPolicy updates the refund policy content
 func (h *GeneralHandler) UpdateRefundPolicy(c *fiber.Ctx) error {
 	// Get the admin info from the context (set by auth middleware)
-	adminFullName := c.Locals("fullName").(string)
-	adminRole := c.Locals("role").(string)
+	// adminFullName := c.Locals("fullName").(string)
+	// adminRole := c.Locals("role").(string)
 
 	var request dto.UpdateRefundPolicyRequest
 	if err := c.BodyParser(&request); err != nil {
@@ -409,22 +407,22 @@ func (h *GeneralHandler) UpdateRefundPolicy(c *fiber.Ctx) error {
 	}
 
 	// Create notification
-	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
-	if err != nil {
-		return err
-	}
-	message := fmt.Sprintf("%s has updated the refund policy", adminFullName)
-	err = h.notificationService.CreateNotification(
-		adminFullName,
-		adminRole,
-		"Refund Policy",
-		"Update refund policy",
-		message,
-		malaysiaTime,
-	)
-	if err != nil {
-		return err
-	}
+	// malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	// if err != nil {
+	// 	return err
+	// }
+	// message := fmt.Sprintf("%s has updated the refund policy", adminFullName)
+	// err = h.notificationService.CreateNotification(
+	// 	adminFullName,
+	// 	adminRole,
+	// 	"Refund Policy",
+	// 	"Update refund policy",
+	// 	message,
+	// 	malaysiaTime,
+	// )
+	// if err != nil {
+	// 	return err
+	// }
 
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }

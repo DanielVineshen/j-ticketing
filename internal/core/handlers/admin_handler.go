@@ -6,7 +6,8 @@ import (
 	service "j-ticketing/internal/core/services"
 	"j-ticketing/pkg/models"
 	"j-ticketing/pkg/utils"
-	"strconv"
+
+	// "strconv"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -193,7 +194,7 @@ func (h *AdminHandler) CreateAdmin(c *fiber.Ctx) error {
 	}
 
 	// Create admin
-	admin, err := h.adminService.CreateAdmin(req)
+	_, err := h.adminService.CreateAdmin(req)
 	if err != nil {
 		if err.Error() == "username already exists" {
 			return c.Status(fiber.StatusConflict).JSON(models.NewBaseErrorResponse(
@@ -205,26 +206,26 @@ func (h *AdminHandler) CreateAdmin(c *fiber.Ctx) error {
 		))
 	}
 
-	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
-	if err != nil {
-		return err
-	}
+	// malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	// if err != nil {
+	// 	return err
+	// }
 
-	// Create notification for admin creation
-	adminFullName := c.Locals("fullName").(string)
-	adminRole := c.Locals("role").(string)
-	message := "New admin account created: " + admin.Username + " (" + admin.FullName + ") by " + adminFullName
-	err = h.notificationService.CreateNotification(
-		adminFullName,
-		adminRole,
-		"Admin Management",
-		"Admin account created",
-		message,
-		malaysiaTime,
-	)
-	if err != nil {
-		// Log error but don't fail the request
-	}
+	// // Create notification for admin creation
+	// adminFullName := c.Locals("fullName").(string)
+	// adminRole := c.Locals("role").(string)
+	// message := "New admin account created: " + admin.Username + " (" + admin.FullName + ") by " + adminFullName
+	// err = h.notificationService.CreateNotification(
+	// 	adminFullName,
+	// 	adminRole,
+	// 	"Admin Management",
+	// 	"Admin account created",
+	// 	message,
+	// 	malaysiaTime,
+	// )
+	// if err != nil {
+	// 	// Log error but don't fail the request
+	// }
 
 	return c.JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
@@ -247,7 +248,7 @@ func (h *AdminHandler) UpdateAdminManagement(c *fiber.Ctx) error {
 	}
 
 	// Update admin
-	admin, err := h.adminService.UpdateAdminManagement(req)
+	_, err := h.adminService.UpdateAdminManagement(req)
 	if err != nil {
 		if err.Error() == "admin not found" {
 			return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(
@@ -259,26 +260,26 @@ func (h *AdminHandler) UpdateAdminManagement(c *fiber.Ctx) error {
 		))
 	}
 
-	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
-	if err != nil {
-		return err
-	}
+	// malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	// if err != nil {
+	// 	return err
+	// }
 
-	// Create notification for admin update
-	adminFullName := c.Locals("fullName").(string)
-	adminRole := c.Locals("role").(string)
-	message := "Admin account updated: " + admin.Username + " (" + admin.FullName + ") by " + adminFullName
-	err = h.notificationService.CreateNotification(
-		adminFullName,
-		adminRole,
-		"Admin Management",
-		"Admin account updated",
-		message,
-		malaysiaTime,
-	)
-	if err != nil {
-		// Log error but don't fail the request
-	}
+	// // Create notification for admin update
+	// adminFullName := c.Locals("fullName").(string)
+	// adminRole := c.Locals("role").(string)
+	// message := "Admin account updated: " + admin.Username + " (" + admin.FullName + ") by " + adminFullName
+	// err = h.notificationService.CreateNotification(
+	// 	adminFullName,
+	// 	adminRole,
+	// 	"Admin Management",
+	// 	"Admin account updated",
+	// 	message,
+	// 	malaysiaTime,
+	// )
+	// if err != nil {
+	// 	// Log error but don't fail the request
+	// }
 
 	return c.JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
@@ -313,27 +314,27 @@ func (h *AdminHandler) DeleteAdmin(c *fiber.Ctx) error {
 		))
 	}
 
-	malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
-	if err != nil {
-		return err
-	}
+	// malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+	// if err != nil {
+	// 	return err
+	// }
 
-	// Create notification for admin deletion
-	adminFullName := c.Locals("fullName").(string)
-	adminRole := c.Locals("role").(string)
+	// // Create notification for admin deletion
+	// adminFullName := c.Locals("fullName").(string)
+	// adminRole := c.Locals("role").(string)
 
-	message := "Admin account deleted (ID: " + strconv.Itoa(int(req.AdminID)) + ") by " + adminFullName
-	err = h.notificationService.CreateNotification(
-		adminFullName,
-		adminRole,
-		"Admin Management",
-		"Admin account deleted",
-		message,
-		malaysiaTime,
-	)
-	if err != nil {
-		// Log error but don't fail the request
-	}
+	// message := "Admin account deleted (ID: " + strconv.Itoa(int(req.AdminID)) + ") by " + adminFullName
+	// err = h.notificationService.CreateNotification(
+	// 	adminFullName,
+	// 	adminRole,
+	// 	"Admin Management",
+	// 	"Admin account deleted",
+	// 	message,
+	// 	malaysiaTime,
+	// )
+	// if err != nil {
+	// 	// Log error but don't fail the request
+	// }
 
 	return c.JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }

@@ -79,26 +79,42 @@ func (s *EmailProcessingService) processOrder(order *models.OrderTicketGroup) er
 
 	}
 
-	// Only call the Zoo API if payment was successful
-	orderTicketGroup, orderItems, ticketInfos, err := s.paymentService.PostToZooAPI(order.OrderNo)
-	if err != nil {
-		log.Printf("Error posting to Johor Zoo API: %v", err)
-	} else {
-		err = s.orderService.CreateOrderTicketLog("order", "QR Code Assigned", "Order was assigned with qr codes for each ticket", "QR Service", orderTicketGroup)
-		if err != nil {
-			return err
-		}
-	}
-
 	ticketGroup, err := s.ticketGroupService.GetTicketGroup(order.TicketGroupId)
 	if err != nil {
 		log.Printf("Error finding ticket group %s: %v", order.TicketGroupId, err)
 	}
 
+	var orderItems []email.OrderInfo
+	var ticketInfos []email.TicketInfo
+	if ticketGroup.IsTicketInternal {
+		_, orderItems, ticketInfos, err = s.paymentService.GenerateInternalQRCodes(order.OrderNo)
+	} else {
+		// Only call the Zoo API if payment was successful
+		order, orderItems, ticketInfos, err = s.paymentService.PostToZooAPI(order.OrderNo)
+		if err != nil {
+			log.Printf("Error posting to Johor Zoo API: %v", err)
+		} else {
+			err = s.orderService.CreateOrderTicketLog("order", "QR Code Assigned", "Order was assigned with qr codes for each ticket", "QR Service", order)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	total := utils.CalculateOrderTotal(orderItems)
 
+	var ticketGroupName string
+	if order.LangChosen == "bm" {
+		ticketGroupName = ticketGroup.GroupNameBm
+	} else if order.LangChosen == "en" {
+		ticketGroupName = ticketGroup.GroupNameEn
+	} else if order.LangChosen == "cn" {
+		ticketGroupName = ticketGroup.GroupNameCn
+	} else {
+		ticketGroupName = ""
+	}
 	orderOverview := email.OrderOverview{
-		TicketGroup:  ticketGroup.GroupNameBm,
+		TicketGroup:  ticketGroupName,
 		FullName:     order.BuyerName,
 		PurchaseDate: order.TransactionDate,
 		EntryDate:    orderItems[0].EntryDate,
@@ -107,7 +123,7 @@ func (s *EmailProcessingService) processOrder(order *models.OrderTicketGroup) er
 		Total:        total,
 	}
 
-	pdfBytes, pdfFilename, err := s.pdfService.GenerateTicketPDF(orderOverview, orderItems, ticketInfos)
+	pdfBytes, pdfFilename, err := s.pdfService.GenerateTicketPDF(orderOverview, orderItems, ticketInfos, order.LangChosen)
 	if err != nil {
 		log.Printf("Error generating PDF: %v", err)
 	}
@@ -122,12 +138,12 @@ func (s *EmailProcessingService) processOrder(order *models.OrderTicketGroup) er
 		}
 	}
 
-	err = s.emailService.SendTicketsEmail(order.BuyerEmail, orderOverview, orderItems, ticketInfos, []email.Attachment{pdfAttachment})
+	err = s.emailService.SendTicketsEmail(order.BuyerEmail, orderOverview, orderItems, ticketInfos, []email.Attachment{pdfAttachment}, order.LangChosen)
 	if err != nil {
 		log.Printf("Failed to send tickets email to %s: %v", order.BuyerEmail, err)
 		// Continue anyway since the password has been reset
 	} else {
-		err = s.orderService.CreateOrderTicketLog("order", "Email Sent", "Email for the order was successfully sent out with its receipt", "Email Service", orderTicketGroup)
+		err = s.orderService.CreateOrderTicketLog("order", "Email Sent", "Email for the order was successfully sent out with its receipt", "Email Service", order)
 		if err != nil {
 			return err
 		}

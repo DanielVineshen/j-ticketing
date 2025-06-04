@@ -104,9 +104,9 @@ func (s *PaymentService) PostToZooAPI(orderNo string) (*models.OrderTicketGroup,
 	}
 
 	// Build the request
-	items := make([]payment.ZooTicketItem, 0, len(orderTickets))
+	items := make([]payment.TicketItem, 0, len(orderTickets))
 	for _, ticket := range orderTickets {
-		items = append(items, payment.ZooTicketItem{
+		items = append(items, payment.TicketItem{
 			ItemId: ticket.ItemId,
 			Qty:    ticket.QuantityBought,
 		})
@@ -264,14 +264,14 @@ func (s *PaymentService) PostToZooAPI(orderNo string) (*models.OrderTicketGroup,
 				UnitPrice:   fmt.Sprintf("%.2f", ticket.UnitPrice),
 				ItemDesc:    ticket.ItemDesc1,
 				ItemDesc2:   ticket.ItemDesc2,
-				ItemDesc3:   "",
+				ItemDesc3:   ticket.ItemDesc3,
 			})
 		}
 	}
 
-	ticketInfos := ConvertZooTicketsToTicketInfo(zooTicketInfos)
+	ticketInfos := ConvertZooTicketsToTicketInfo(zooTicketInfos, orderTicketGroup.LangChosen)
 
-	orderItems := ConvertZooTicketsToOrderItems(zooTicketInfos)
+	orderItems := ConvertZooTicketsToOrderItems(zooTicketInfos, orderTicketGroup.LangChosen)
 
 	return orderTicketGroup, orderItems, ticketInfos, nil
 }
@@ -332,15 +332,19 @@ func generateZooAPIToken(cfg *config.Config) (string, error) {
 }
 
 // ConvertZooTicketsToTicketInfo converts tickets from Zoo API format to TicketInfo format for emails
-func ConvertZooTicketsToTicketInfo(zooTickets []payment.ZooTicketInfo) []email.TicketInfo {
+func ConvertZooTicketsToTicketInfo(zooTickets []payment.ZooTicketInfo, langChosen string) []email.TicketInfo {
 	ticketInfos := make([]email.TicketInfo, 0, len(zooTickets))
 
 	for _, ticket := range zooTickets {
-		// Use ItemDesc2 (Malay description) for the label
-		// If ItemDesc2 is empty, fall back to ItemDesc
-		label := ticket.ItemDesc
-		if label == "" {
+		var label string
+		if langChosen == "bm" {
+			label = ticket.ItemDesc
+		} else if langChosen == "en" {
 			label = ticket.ItemDesc2
+		} else if langChosen == "cn" {
+			label = ticket.ItemDesc3
+		} else {
+			label = "unknown"
 		}
 
 		// Create TicketInfo with EncryptedID as QR code content
@@ -357,7 +361,7 @@ func ConvertZooTicketsToTicketInfo(zooTickets []payment.ZooTicketInfo) []email.T
 
 // ConvertZooTicketsToOrderItems converts tickets from Zoo API format to OrderInfo format for emails
 // with grouping by ItemId to combine identical tickets
-func ConvertZooTicketsToOrderItems(zooTickets []payment.ZooTicketInfo) []email.OrderInfo {
+func ConvertZooTicketsToOrderItems(zooTickets []payment.ZooTicketInfo, langChosen string) []email.OrderInfo {
 	// Use a map to group tickets by ItemId
 	ticketGroups := make(map[string]*struct {
 		Count     int
@@ -372,6 +376,17 @@ func ConvertZooTicketsToOrderItems(zooTickets []payment.ZooTicketInfo) []email.O
 
 		// If this is the first ticket with this ItemId, initialize the group
 		if _, exists := ticketGroups[itemId]; !exists {
+			var itemDesc string
+			if langChosen == "bm" {
+				itemDesc = ticket.ItemDesc
+			} else if langChosen == "en" {
+				itemDesc = ticket.ItemDesc2
+			} else if langChosen == "cn" {
+				itemDesc = ticket.ItemDesc3
+			} else {
+				itemDesc = "unknown"
+			}
+
 			ticketGroups[itemId] = &struct {
 				Count     int
 				ItemDesc  string
@@ -379,7 +394,7 @@ func ConvertZooTicketsToOrderItems(zooTickets []payment.ZooTicketInfo) []email.O
 				EntryDate string
 			}{
 				Count:     0,
-				ItemDesc:  ticket.ItemDesc2,
+				ItemDesc:  itemDesc,
 				UnitPrice: ticket.UnitPrice,
 				EntryDate: ticket.AdmitDate,
 			}
@@ -408,6 +423,87 @@ func ConvertZooTicketsToOrderItems(zooTickets []payment.ZooTicketInfo) []email.O
 	}
 
 	return orderItems
+}
+
+func (s *PaymentService) GenerateInternalQRCodes(orderNo string) (*models.OrderTicketGroup, []email.OrderInfo, []email.TicketInfo, error) {
+	// Find the order first
+	orderTicketGroup, err := s.orderTicketGroupRepo.FindByOrderNo(orderNo)
+	if err != nil {
+		log.Printf("Error finding order %s: %v", orderNo, err)
+		return nil, nil, nil, err
+	}
+
+	if orderTicketGroup == nil {
+		log.Printf("Order not found: %s", orderNo)
+		return nil, nil, nil, fmt.Errorf("order not found: %s", orderNo)
+	}
+
+	ticketGroupName := orderTicketGroup.TicketGroup.GroupNameBm
+	fmt.Printf(ticketGroupName)
+
+	// Get the order ticket items
+	orderTickets, err := s.orderTicketInfoRepo.FindByOrderTicketGroupID(orderTicketGroup.OrderTicketGroupId)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to get order tickets: %w", err)
+	}
+
+	// Build the request
+	items := make([]payment.TicketItem, 0, len(orderTickets))
+	for _, ticket := range orderTickets {
+		items = append(items, payment.TicketItem{
+			ItemId: ticket.ItemId,
+			Qty:    ticket.QuantityBought,
+		})
+	}
+
+	var zooTicketInfos []payment.ZooTicketInfo
+	// Check if first order ticket is already assigned with qr code or not
+	if orderTickets[0].EncryptedId == "" {
+		logger.Info("Internal Tickets will now be assigned with QR Codes")
+
+		randomStr, _ := utils.GenerateRandomString(12)
+		for _, ticket := range orderTickets {
+			zooTicketInfos = append(zooTicketInfos, payment.ZooTicketInfo{
+				TWBID:       "",
+				ItemId:      ticket.ItemId,
+				EncryptedID: randomStr,
+				AdmitDate:   ticket.AdmitDate,
+				UnitPrice:   fmt.Sprintf("%.2f", ticket.UnitPrice),
+				ItemDesc:    ticket.ItemDesc1,
+				ItemDesc2:   ticket.ItemDesc2,
+				ItemDesc3:   ticket.ItemDesc3,
+			})
+
+			ticket.EncryptedId = randomStr
+
+			// Update the ticket in the database
+			err = s.orderTicketInfoRepo.Update(&ticket)
+			if err != nil {
+				log.Printf("Failed to update ticket %s: %v", ticket.OrderTicketInfoId, err)
+				// Continue updating other tickets
+			}
+		}
+	} else {
+		logger.Info("Internal Tickets have already been assigned with QR Codes")
+		for _, ticket := range orderTickets {
+			zooTicketInfos = append(zooTicketInfos, payment.ZooTicketInfo{
+				TWBID:       ticket.Twbid.String,
+				ItemId:      ticket.ItemId,
+				EncryptedID: ticket.EncryptedId,
+				AdmitDate:   ticket.AdmitDate,
+				UnitPrice:   fmt.Sprintf("%.2f", ticket.UnitPrice),
+				ItemDesc:    ticket.ItemDesc1,
+				ItemDesc2:   ticket.ItemDesc2,
+				ItemDesc3:   ticket.ItemDesc3,
+			})
+		}
+	}
+
+	ticketInfos := ConvertZooTicketsToTicketInfo(zooTicketInfos, orderTicketGroup.LangChosen)
+
+	orderItems := ConvertZooTicketsToOrderItems(zooTicketInfos, orderTicketGroup.LangChosen)
+
+	return orderTicketGroup, orderItems, ticketInfos, nil
 }
 
 func (s *PaymentService) UpdateOrderFromPaymentResponse(orderNo string, transactionData payment.TransactionResponse, order *models.OrderTicketGroup) error {

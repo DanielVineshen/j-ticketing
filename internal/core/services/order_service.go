@@ -457,6 +457,7 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 	orderTicketGroup := &models.OrderTicketGroup{
 		TicketGroupId:     req.TicketGroupId,
 		CustId:            custId,
+		LangChosen:        req.LangChosen,
 		TransactionId:     "",
 		OrderNo:           orderNo,
 		TransactionStatus: "initiate", // Initial status
@@ -526,8 +527,8 @@ func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderReque
 				ItemDesc1:          variant.NameBm,
 				ItemDesc2:          variant.NameEn,
 				ItemDesc3:          variant.NameCn,
-				PrintType:          *variant.PrintType, // Use print type from API
-				QuantityBought:     1,                  // Fixed quantity of 1
+				PrintType:          variant.PrintType, // Use print type from API
+				QuantityBought:     1,                 // Fixed quantity of 1
 				EncryptedId:        "",
 				AdmitDate:          orderDate.Format("2006-01-02"), // Format the date consistently
 				Variant:            "default",
@@ -632,6 +633,7 @@ func (s *OrderService) CreateFreeOrder(cust *models.Customer, req *orderDto.Crea
 	orderTicketGroup := &models.OrderTicketGroup{
 		TicketGroupId:     req.TicketGroupId,
 		CustId:            cust.CustId,
+		LangChosen:        req.LangChosen,
 		TransactionId:     "",
 		OrderNo:           orderNo,
 		TransactionStatus: "success",
@@ -675,7 +677,7 @@ func (s *OrderService) CreateFreeOrder(cust *models.Customer, req *orderDto.Crea
 				ItemDesc1:      variant.NameBm,
 				ItemDesc2:      variant.NameEn,
 				ItemDesc3:      variant.NameCn,
-				PrintType:      *variant.PrintType,
+				PrintType:      variant.PrintType,
 				QuantityBought: 1,
 				EncryptedId:    "",
 				AdmitDate:      orderDate.Format("2006-01-02"),

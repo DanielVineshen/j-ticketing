@@ -414,44 +414,60 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 		return err
 	}
 
-	// Only call the Zoo API if payment was successful
-	_, orderItems, ticketInfos, err := h.paymentService.PostToZooAPI(orderTicketGroup.OrderNo)
-	if err != nil {
-		log.Printf("Error posting to Johor Zoo API: %v", err)
-		// Continue with redirect even if this fails, we can retry later
-	} else {
-		err = h.orderService.CreateOrderTicketLog("order", "QR Code Assigned", "Order was assigned with qr codes for each ticket", "QR Service", orderTicketGroup)
-		if err != nil {
-			return err
-		}
-
-		malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
-		if err != nil {
-			return err
-		}
-		message := fmt.Sprintf("%s has been assigned with qr codes for their tickets", orderTicketGroup.OrderNo)
-		err = h.notificationService.CreateNotification(
-			"system",
-			"system",
-			"Order",
-			"Order assigned qr codes",
-			message,
-			malaysiaTime,
-		)
-		if err != nil {
-			return err
-		}
-	}
-
 	ticketGroup, err := h.ticketGroupService.GetTicketGroup(orderTicketGroup.TicketGroupId)
 	if err != nil {
 		log.Printf("Error finding ticket group %s: %v", orderTicketGroup.TicketGroupId, err)
 	}
 
+	var orderItems []email.OrderInfo
+	var ticketInfos []email.TicketInfo
+	if ticketGroup.IsTicketInternal {
+		_, orderItems, ticketInfos, err = h.paymentService.GenerateInternalQRCodes(orderTicketGroup.OrderNo)
+	} else {
+		// Only call the Zoo API if payment was successful
+		_, orderItems, ticketInfos, err = h.paymentService.PostToZooAPI(orderTicketGroup.OrderNo)
+		if err != nil {
+			log.Printf("Error posting to Johor Zoo API: %v", err)
+			// Continue with redirect even if this fails, we can retry later
+		} else {
+			err = h.orderService.CreateOrderTicketLog("order", "QR Code Assigned", "Order was assigned with qr codes for each ticket", "QR Service", orderTicketGroup)
+			if err != nil {
+				return err
+			}
+
+			malaysiaTime, err := utils.FormatCurrentMalaysiaTime(utils.FullDateTimeFormat)
+			if err != nil {
+				return err
+			}
+			message := fmt.Sprintf("%s has been assigned with qr codes for their tickets", orderTicketGroup.OrderNo)
+			err = h.notificationService.CreateNotification(
+				"system",
+				"system",
+				"Order",
+				"Order assigned qr codes",
+				message,
+				malaysiaTime,
+			)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	total := utils.CalculateOrderTotal(orderItems)
 
+	var ticketGroupName string
+	if orderTicketGroup.LangChosen == "bm" {
+		ticketGroupName = ticketGroup.GroupNameBm
+	} else if orderTicketGroup.LangChosen == "en" {
+		ticketGroupName = ticketGroup.GroupNameEn
+	} else if orderTicketGroup.LangChosen == "cn" {
+		ticketGroupName = ticketGroup.GroupNameCn
+	} else {
+		ticketGroupName = ""
+	}
 	orderOverview := email.OrderOverview{
-		TicketGroup:  ticketGroup.GroupNameBm,
+		TicketGroup:  ticketGroupName,
 		FullName:     orderTicketGroup.BuyerName,
 		PurchaseDate: orderTicketGroup.TransactionDate,
 		EntryDate:    orderItems[0].EntryDate,
@@ -460,7 +476,7 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 		Total:        total,
 	}
 
-	pdfBytes, pdfFilename, err := h.pdfService.GenerateTicketPDF(orderOverview, orderItems, ticketInfos)
+	pdfBytes, pdfFilename, err := h.pdfService.GenerateTicketPDF(orderOverview, orderItems, ticketInfos, orderTicketGroup.LangChosen)
 	if err != nil {
 		log.Printf("Error generating PDF: %v", err)
 	}
@@ -475,7 +491,7 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 		}
 	}
 
-	err = h.emailService.SendTicketsEmail(orderTicketGroup.BuyerEmail, orderOverview, orderItems, ticketInfos, []email.Attachment{pdfAttachment})
+	err = h.emailService.SendTicketsEmail(orderTicketGroup.BuyerEmail, orderOverview, orderItems, ticketInfos, []email.Attachment{pdfAttachment}, orderTicketGroup.LangChosen)
 	if err != nil {
 		log.Printf("Failed to send tickets email to %s: %v", orderTicketGroup.BuyerEmail, err)
 		// Continue anyway since the password has been reset

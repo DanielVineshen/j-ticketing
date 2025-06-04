@@ -187,5 +187,5 @@ type TicketVariantDTO struct {
 	DescEn          string  `json:"descEn"`
 	DescCn          string  `json:"descCn"`
 	UnitPrice       float64 `json:"unitPrice"`
-	PrintType       *string `json:"printType"`
+	PrintType       string  `json:"printType"`
 }

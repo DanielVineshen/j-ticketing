@@ -14,6 +14,7 @@ type CreateOrderRequest struct {
 	Email            string          `json:"email" validate:"omitempty,email"` // Made optional but must be valid if present
 	ContactNo        string          `json:"contactNo"`                        // Made optional
 	Date             string          `json:"date" validate:"required"`
+	LangChosen       string          `json:"langChosen" validate:"required,oneof=bm en cn"`
 	Tickets          []TicketRequest `json:"tickets" validate:"required,dive"`
 	PaymentType      string          `json:"paymentType" validate:"required,oneof=credit/debit fpx"`
 	Mode             string          `json:"mode" validate:"omitempty,oneof=individual corporate"`
@@ -28,6 +29,7 @@ type CreateFreeOrderRequest struct {
 	Email            string          `json:"email" validate:"omitempty,email"` // Made optional but must be valid if present
 	ContactNo        string          `json:"contactNo"`                        // Made optional
 	Date             string          `json:"date" validate:"required"`
+	LangChosen       string          `json:"langChosen" validate:"required,oneof=bm en cn"`
 	Tickets          []TicketRequest `json:"tickets" validate:"required,dive"`
 }
 

@@ -37,6 +37,7 @@ type GeneralResponse struct {
 	ZooApiBaseUrl                  string `json:"zooApiBaseUrl"`
 	ZooQrEndpoint                  string `json:"zooQrEndpoint"`
 	ZooTokenEndpoint               string `json:"zooTokenEndpoint"`
+	ZooTicketEndpoint              string `json:"zooTicketEndpoint"`
 	ZooApiUsername                 string `json:"zooApiUsername"`
 	ZooApiPassword                 string `json:"zooApiPassword"`
 	JpGatewayUrl                   string `json:"jpGatewayUrl"`

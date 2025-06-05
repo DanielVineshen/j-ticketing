@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/gofiber/fiber/v2"
 	orderDto "j-ticketing/internal/core/dto/order"
-	"j-ticketing/internal/core/dto/payment"
 	services "j-ticketing/internal/core/services"
 	dbModels "j-ticketing/internal/db/models"
 	"j-ticketing/pkg/email"
@@ -26,7 +25,6 @@ type OrderHandler struct {
 	paymentService      *services.PaymentService
 	emailService        email.EmailService
 	ticketGroupService  *services.TicketGroupService
-	paymentConfig       payment.PaymentConfig
 	pdfService          *services.PDFService
 	notificationService services.NotificationService
 }
@@ -38,7 +36,6 @@ func NewOrderHandler(orderService *services.OrderService,
 	paymentService *services.PaymentService,
 	emailService email.EmailService,
 	ticketGroupService *services.TicketGroupService,
-	paymentConfig payment.PaymentConfig,
 	pdfService *services.PDFService,
 	notificationService services.NotificationService) *OrderHandler {
 	return &OrderHandler{
@@ -48,7 +45,6 @@ func NewOrderHandler(orderService *services.OrderService,
 		paymentService:      paymentService,
 		emailService:        emailService,
 		ticketGroupService:  ticketGroupService,
-		paymentConfig:       paymentConfig,
 		pdfService:          pdfService,
 		notificationService: notificationService,
 	}

@@ -6,11 +6,12 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"j-ticketing/pkg/config"
+	"j-ticketing/internal/db/repositories"
 	logger "log/slog"
 	"math/rand"
 	"net/http"
 	"net/smtp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -105,37 +106,39 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
 }
 
 // NewEmailService creates a new email service
-func NewEmailService(cfg *config.Config) EmailService {
+func NewEmailService(generalRepo *repositories.GeneralRepository) EmailService {
 	var tokenManager *OAuth2TokenManager
 	useOAuth := false
 
+	generalModel, _ := generalRepo.FindFirst()
+
 	// Check if OAuth2 credentials are configured
-	if cfg.Email.ClientID != "" && cfg.Email.ClientSecret != "" && cfg.Email.RefreshToken != "" {
+	if generalModel.EmailClientId != "" && generalModel.EmailClientSecret != "" && generalModel.EmailRefreshToken != "" {
 		useOAuth = true
 
 		// Log OAuth configuration (for debugging)
 		logger.Info("Initializing OAuth2 email service")
-		logger.Info("OAuth2 email username", "value", cfg.Email.Username)
-		logger.Info("OAuth2 client ID", "length", len(cfg.Email.ClientID))
-		logger.Info("OAuth2 client secret", "length", len(cfg.Email.ClientSecret))
-		logger.Info("OAuth2 refresh token", "length", len(cfg.Email.RefreshToken))
+		logger.Info("OAuth2 email username", "value", generalModel.EmailUsername)
+		logger.Info("OAuth2 client ID", "length", len(generalModel.EmailClientId))
+		logger.Info("OAuth2 client secret", "length", len(generalModel.EmailClientSecret))
+		logger.Info("OAuth2 refresh token", "length", len(generalModel.EmailRefreshToken))
 
 		tokenManager = NewOAuth2TokenManager(OAuth2Config{
-			ClientID:     cfg.Email.ClientID,
-			ClientSecret: cfg.Email.ClientSecret,
-			RefreshToken: cfg.Email.RefreshToken,
+			ClientID:     generalModel.EmailClientId,
+			ClientSecret: generalModel.EmailClientSecret,
+			RefreshToken: generalModel.EmailRefreshToken,
 		})
 	} else {
 		logger.Warn("OAuth2 is NOT enabled - missing one or more required credentials")
 	}
 
 	return &emailService{
-		from:         cfg.Email.From,
-		host:         cfg.Email.Host,
-		port:         cfg.Email.Port,
-		username:     cfg.Email.Username,
-		password:     cfg.Email.Password,
-		useSSL:       cfg.Email.UseSSL,
+		from:         generalModel.EmailFrom,
+		host:         generalModel.EmailHost,
+		port:         strconv.Itoa(generalModel.EmailPort),
+		username:     generalModel.EmailUsername,
+		password:     generalModel.EmailPassword,
+		useSSL:       generalModel.EmailUseSsl,
 		useOAuth:     useOAuth,
 		tokenManager: tokenManager,
 	}

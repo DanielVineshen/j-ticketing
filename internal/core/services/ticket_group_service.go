@@ -9,7 +9,6 @@ import (
 	dto "j-ticketing/internal/core/dto/ticket_group"
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
-	"j-ticketing/pkg/config"
 	"j-ticketing/pkg/external"
 	"j-ticketing/pkg/utils"
 	"log"
@@ -28,8 +27,7 @@ type TicketGroupService struct {
 	groupGalleryRepo  *repositories.GroupGalleryRepository
 	ticketDetailRepo  *repositories.TicketDetailRepository
 	ticketVariantRepo *repositories.TicketVariantRepository
-	zooAPIClient      *external.ZooAPIClient
-	config            *config.Config
+	generalRepo       *repositories.GeneralRepository
 }
 
 // NewTicketGroupService creates a new instance of TicketGroupService
@@ -39,22 +37,15 @@ func NewTicketGroupService(
 	groupGalleryRepo *repositories.GroupGalleryRepository,
 	ticketDetailRepo *repositories.TicketDetailRepository,
 	ticketVariantRepo *repositories.TicketVariantRepository,
-	cfg *config.Config,
+	generalRepo *repositories.GeneralRepository,
 ) *TicketGroupService {
-	zooAPIClient := external.NewZooAPIClient(
-		cfg.ZooAPI.ZooBaseURL,
-		cfg.ZooAPI.Username,
-		cfg.ZooAPI.Password,
-	)
-
 	return &TicketGroupService{
 		ticketGroupRepo:   ticketGroupRepo,
 		tagRepo:           tagRepo,
 		groupGalleryRepo:  groupGalleryRepo,
 		ticketDetailRepo:  ticketDetailRepo,
 		ticketVariantRepo: ticketVariantRepo,
-		zooAPIClient:      zooAPIClient,
-		config:            cfg,
+		generalRepo:       generalRepo,
 	}
 }
 
@@ -478,6 +469,8 @@ func (s *TicketGroupService) getLocalTicketVariants(ticketGroupId uint) ([]dto.T
 
 // GetTicketVariants retrieves ticket variants for a specific ticket group and date
 func (s *TicketGroupService) GetTicketVariants(ticketGroupId uint, date string) (*dto.TicketVariantResponse, error) {
+	generalModel, _ := s.generalRepo.FindFirst()
+
 	// First, check if the ticket group exists
 	ticketGroup, err := s.ticketGroupRepo.FindByID(ticketGroupId)
 	if err != nil {
@@ -486,8 +479,16 @@ func (s *TicketGroupService) GetTicketVariants(ticketGroupId uint, date string) 
 
 	ticketVariants := make([]dto.TicketVariantDTO, 0)
 	if !ticketGroup.IsTicketInternal {
+		zooAPIClient := external.NewZooAPIClient(
+			generalModel.ZooApiBaseUrl,
+			generalModel.ZooTokenEndpoint,
+			generalModel.ZooTicketEndpoint,
+			generalModel.ZooApiUsername,
+			generalModel.ZooApiPassword,
+		)
+
 		// Get available ticket items from the external API
-		ticketItems, err := s.zooAPIClient.GetTicketItems(ticketGroup.GroupNameBm, date)
+		ticketItems, err := zooAPIClient.GetTicketItems(date)
 		if err != nil {
 			return nil, err
 		}

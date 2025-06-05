@@ -9,6 +9,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"j-ticketing/internal/core/dto/payment"
 	services "j-ticketing/internal/core/services"
+	"j-ticketing/internal/db/repositories"
+	"j-ticketing/pkg/config"
 	"j-ticketing/pkg/email"
 	"j-ticketing/pkg/utils"
 	"log"
@@ -21,33 +23,36 @@ import (
 
 type PaymentHandler struct {
 	paymentService      *services.PaymentService
-	paymentConfig       payment.PaymentConfig
 	emailService        email.EmailService
 	ticketGroupService  *services.TicketGroupService
 	pdfService          *services.PDFService
 	orderService        *services.OrderService
 	customerService     *services.CustomerService
 	notificationService *services.NotificationService
+	generalRepo         *repositories.GeneralRepository
+	cfg                 *config.Config
 }
 
 // NewPaymentHandler creates a new instance of PaymentHandler
 func NewPaymentHandler(paymentService *services.PaymentService,
-	paymentConfig payment.PaymentConfig,
 	emailService email.EmailService,
 	ticketGroupService *services.TicketGroupService,
 	pdfService *services.PDFService,
 	orderService *services.OrderService,
 	customerService *services.CustomerService,
-	notificationService *services.NotificationService) *PaymentHandler {
+	notificationService *services.NotificationService,
+	generalRepo *repositories.GeneralRepository,
+	cfg *config.Config) *PaymentHandler {
 	return &PaymentHandler{
 		paymentService:      paymentService,
-		paymentConfig:       paymentConfig,
 		emailService:        emailService,
 		ticketGroupService:  ticketGroupService,
 		pdfService:          pdfService,
 		orderService:        orderService,
 		customerService:     customerService,
 		notificationService: notificationService,
+		generalRepo:         generalRepo,
+		cfg:                 cfg,
 	}
 }
 
@@ -256,7 +261,7 @@ func (h *PaymentHandler) PaymentReturn(c *fiber.Ctx) error {
 		}
 	}
 
-	successURL := h.paymentConfig.FrontendBaseURL + "/paymentRedirect"
+	successURL := h.cfg.Server.FrontendBaseUrl + "/paymentRedirect"
 
 	log.Printf("Redirecting to external success page: %s", successURL)
 
@@ -634,6 +639,8 @@ func (h *PaymentHandler) PaymentRedirect(c *fiber.Ctx) error {
 }
 
 func (h *PaymentHandler) decipherPayload(c *fiber.Ctx) (payment.TransactionResponse, error) {
+	generalModel, _ := h.generalRepo.FindFirst()
+
 	// Get query parameters
 	queryParams := c.Queries()
 	logger.Info("queryParams from decipherPayload: %v", queryParams)
@@ -657,7 +664,7 @@ func (h *PaymentHandler) decipherPayload(c *fiber.Ctx) (payment.TransactionRespo
 	log.Printf("ivBase64: %s", ivBase64)
 	log.Printf("cipherText: %s", cipherText)
 
-	hexKey := h.paymentConfig.APIKey
+	hexKey := generalModel.JpApiKey
 
 	// Take the first 32 characters of the key
 	key := []byte(hexKey[:32])

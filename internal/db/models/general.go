@@ -45,11 +45,12 @@ type General struct {
 	RefundPolicyLastUpdatedDate    string `gorm:"column:refund_policy_last_updated_date;type:varchar(255);not null"`
 
 	// Zoo API Configuration
-	ZooApiBaseUrl    string `gorm:"column:zoo_api_base_url;type:varchar(255);not null"`
-	ZooQrEndpoint    string `gorm:"column:zoo_qr_endpoint;type:varchar(255);not null"`
-	ZooTokenEndpoint string `gorm:"column:zoo_token_endpoint;type:varchar(255);not null"`
-	ZooApiUsername   string `gorm:"column:zoo_api_username;type:varchar(255);not null"`
-	ZooApiPassword   string `gorm:"column:zoo_api_password;type:varchar(255);not null"`
+	ZooApiBaseUrl     string `gorm:"column:zoo_api_base_url;type:varchar(255);not null"`
+	ZooQrEndpoint     string `gorm:"column:zoo_qr_endpoint;type:varchar(255);not null"`
+	ZooTokenEndpoint  string `gorm:"column:zoo_token_endpoint;type:varchar(255);not null"`
+	ZooTicketEndpoint string `gorm:"column:zoo_ticket_endpoint;type:varchar(255);not null"`
+	ZooApiUsername    string `gorm:"column:zoo_api_username;type:varchar(255);not null"`
+	ZooApiPassword    string `gorm:"column:zoo_api_password;type:varchar(255);not null"`
 
 	// JohorPay Configuration
 	JpGatewayUrl       string `gorm:"column:jp_gateway_url;type:varchar(255);not null"`

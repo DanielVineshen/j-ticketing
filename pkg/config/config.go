@@ -2,12 +2,10 @@
 package config
 
 import (
+	"github.com/joho/godotenv"
 	logger "log/slog"
 	"os"
 	"strconv"
-	"strings"
-
-	"github.com/joho/godotenv"
 )
 
 type DBConfig struct {
@@ -42,8 +40,9 @@ type ZooAPIConfig struct {
 type Config struct {
 	DB     DBConfig
 	Server struct {
-		CorePort      string
-		SchedulerPort string
+		CorePort        string
+		SchedulerPort   string
+		FrontendBaseUrl string
 	}
 	// Migration section to control migration behavior
 	Migration struct {
@@ -80,6 +79,7 @@ func LoadConfig() (*Config, error) {
 	// Server config
 	config.Server.CorePort = getEnv("SERVER_CORE_PORT", "8080")
 	config.Server.SchedulerPort = getEnv("SERVER_SCHEDULER_PORT", "8081")
+	config.Server.FrontendBaseUrl = getEnv("FRONTEND_BASE_URL", "http://localhost:3000")
 
 	// Migration config
 	config.Migration.AutoMigrate = getEnvBool("AUTO_MIGRATE", false)
@@ -91,46 +91,46 @@ func LoadConfig() (*Config, error) {
 	config.JWT.RefreshTokenTTL = getEnvInt64("JWT_REFRESH_TOKEN_TTL", 24*7) // 7 days
 
 	// Email config
-	config.Email.Host = getEnv("EMAIL_HOST", "smtp.gmail.com")
-	config.Email.Port = getEnv("EMAIL_PORT", "587") // Default to 587 which works well with OAuth2
-	config.Email.Username = getEnv("EMAIL_USERNAME", "etiket@johor.gov.my")
-	config.Email.Password = getEnv("EMAIL_PASSWORD", "")
-	config.Email.From = getEnv("EMAIL_FROM", "etiket@johor.gov.my")
+	//config.Email.Host = getEnv("EMAIL_HOST", "smtp.gmail.com")
+	//config.Email.Port = getEnv("EMAIL_PORT", "587") // Default to 587 which works well with OAuth2
+	//config.Email.Username = getEnv("EMAIL_USERNAME", "etiket@johor.gov.my")
+	//config.Email.Password = getEnv("EMAIL_PASSWORD", "")
+	//config.Email.From = getEnv("EMAIL_FROM", "etiket@johor.gov.my")
 
 	// Automatically determine SSL usage based on port
-	port := config.Email.Port
-	if port == "465" {
-		config.Email.UseSSL = true
-		logger.Info("Using SSL mode for email (port 465)")
-	} else {
-		config.Email.UseSSL = getEnvBool("EMAIL_USE_SSL", false)
-		if port == "587" && !config.Email.UseSSL {
-			logger.Info("Using STARTTLS mode for email (port 587)")
-		} else if port == "587" && config.Email.UseSSL {
-			logger.Info("Warning: Port 587 typically uses STARTTLS, not SSL. Consider setting EMAIL_USE_SSL=false")
-		}
-	}
+	//port := config.Email.Port
+	//if port == "465" {
+	//	config.Email.UseSSL = true
+	//	logger.Info("Using SSL mode for email (port 465)")
+	//} else {
+	//	config.Email.UseSSL = getEnvBool("EMAIL_USE_SSL", false)
+	//	if port == "587" && !config.Email.UseSSL {
+	//		logger.Info("Using STARTTLS mode for email (port 587)")
+	//	} else if port == "587" && config.Email.UseSSL {
+	//		logger.Info("Warning: Port 587 typically uses STARTTLS, not SSL. Consider setting EMAIL_USE_SSL=false")
+	//	}
+	//}
 
 	// OAuth2 configuration
-	clientID := getEnv("CLIENT_ID", "")
-	// Check if client ID has a URL prefix and remove it
-	if strings.HasPrefix(clientID, "http://") || strings.HasPrefix(clientID, "https://") {
-		logger.Info("Warning: CLIENT_ID contains a URL prefix. Removing prefix for OAuth2 authentication.")
-		// Remove http:// or https:// prefix
-		clientID = strings.TrimPrefix(strings.TrimPrefix(clientID, "http://"), "https://")
-	}
-	config.Email.ClientID = clientID
-	config.Email.ClientSecret = getEnv("CLIENT_SECRET", "")
-	config.Email.RefreshToken = getEnv("REFRESH_TOKEN", "")
+	//clientID := getEnv("CLIENT_ID", "")
+	//// Check if client ID has a URL prefix and remove it
+	//if strings.HasPrefix(clientID, "http://") || strings.HasPrefix(clientID, "https://") {
+	//	logger.Info("Warning: CLIENT_ID contains a URL prefix. Removing prefix for OAuth2 authentication.")
+	//	// Remove http:// or https:// prefix
+	//	clientID = strings.TrimPrefix(strings.TrimPrefix(clientID, "http://"), "https://")
+	//}
+	//config.Email.ClientID = clientID
+	//config.Email.ClientSecret = getEnv("CLIENT_SECRET", "")
+	//config.Email.RefreshToken = getEnv("REFRESH_TOKEN", "")
 
 	// Zoo API config
-	zooBaseURL := getEnv("ZOO_API_BASE_URL", "https://eglobal2.ddns.net/johorzooapi")
-	if !strings.HasPrefix(zooBaseURL, "http://") && !strings.HasPrefix(zooBaseURL, "https://") {
-		zooBaseURL = "https://" + zooBaseURL
-	}
-	config.ZooAPI.ZooBaseURL = zooBaseURL
-	config.ZooAPI.Username = getEnv("ZOO_API_USERNAME", "")
-	config.ZooAPI.Password = getEnv("ZOO_API_PASSWORD", "")
+	//zooBaseURL := getEnv("ZOO_API_BASE_URL", "https://eglobal2.ddns.net/johorzooapi")
+	//if !strings.HasPrefix(zooBaseURL, "http://") && !strings.HasPrefix(zooBaseURL, "https://") {
+	//	zooBaseURL = "https://" + zooBaseURL
+	//}
+	//config.ZooAPI.ZooBaseURL = zooBaseURL
+	//config.ZooAPI.Username = getEnv("ZOO_API_USERNAME", "")
+	//config.ZooAPI.Password = getEnv("ZOO_API_PASSWORD", "")
 
 	return config, nil
 }

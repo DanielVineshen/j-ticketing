@@ -9,7 +9,6 @@ import (
 	"j-ticketing/internal/core/dto/payment"
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
-	"j-ticketing/pkg/config"
 	"j-ticketing/pkg/email"
 	"j-ticketing/pkg/utils"
 	"log"
@@ -28,8 +27,7 @@ type PaymentService struct {
 	tagRepo              *repositories.TagRepository
 	groupGalleryRepo     *repositories.GroupGalleryRepository
 	ticketDetailRepo     *repositories.TicketDetailRepository
-	paymentConfig        *payment.PaymentConfig
-	cfg                  *config.Config
+	generalRepo          *repositories.GeneralRepository
 }
 
 // NewPaymentService creates a new order service
@@ -40,8 +38,7 @@ func NewPaymentService(
 	tagRepo *repositories.TagRepository,
 	groupGalleryRepo *repositories.GroupGalleryRepository,
 	ticketDetailRepo *repositories.TicketDetailRepository,
-	paymentConfig *payment.PaymentConfig,
-	cfg *config.Config,
+	generalRepo *repositories.GeneralRepository,
 ) *PaymentService {
 	return &PaymentService{
 		orderTicketGroupRepo: orderTicketGroupRepo,
@@ -50,7 +47,7 @@ func NewPaymentService(
 		tagRepo:              tagRepo,
 		groupGalleryRepo:     groupGalleryRepo,
 		ticketDetailRepo:     ticketDetailRepo,
-		cfg:                  cfg,
+		generalRepo:          generalRepo,
 	}
 }
 
@@ -82,6 +79,8 @@ func (s *PaymentService) UpdateOrderTicketGroup(orderTicketGroup *models.OrderTi
 
 // Define the function to post to the Zoo API
 func (s *PaymentService) PostToZooAPI(orderNo string) (*models.OrderTicketGroup, []email.OrderInfo, []email.TicketInfo, error) {
+	generalModel, _ := s.generalRepo.FindFirst()
+
 	// Find the order first
 	orderTicketGroup, err := s.orderTicketGroupRepo.FindByOrderNo(orderNo)
 	if err != nil {
@@ -133,7 +132,7 @@ func (s *PaymentService) PostToZooAPI(orderNo string) (*models.OrderTicketGroup,
 		}
 
 		// Get a fresh token from the token generation endpoint
-		token, err := generateZooAPIToken(s.cfg)
+		token, err := generateZooAPIToken(generalModel)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("failed to generate API token: %w", err)
 		}
@@ -143,15 +142,7 @@ func (s *PaymentService) PostToZooAPI(orderNo string) (*models.OrderTicketGroup,
 			Timeout: time.Second * 60,
 		}
 
-		// Create the request
-		var value = "PostOnlinePurchase2"
-		//if ticketGroupName == "Zoo Johor" {
-		//	value = "PostOnlinePurchase"
-		//} else {
-		//	value = "PostOnlinePurchase2" // Used for botani
-		//}
-
-		req, err := http.NewRequest("POST", s.cfg.ZooAPI.ZooBaseURL+"/api/JohorZoo/"+value, bytes.NewBuffer(jsonData))
+		req, err := http.NewRequest("POST", generalModel.ZooApiBaseUrl+generalModel.ZooQrEndpoint, bytes.NewBuffer(jsonData))
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("failed to create request: %w", err)
 		}
@@ -277,7 +268,7 @@ func (s *PaymentService) PostToZooAPI(orderNo string) (*models.OrderTicketGroup,
 }
 
 // Function to generate a token for the Zoo API
-func generateZooAPIToken(cfg *config.Config) (string, error) {
+func generateZooAPIToken(generalModel *models.General) (string, error) {
 	// Create form data for x-www-form-urlencoded request
 	formData := url.Values{}
 	formData.Set("grant_type", "password")
@@ -290,7 +281,7 @@ func generateZooAPIToken(cfg *config.Config) (string, error) {
 	}
 
 	// Create a new request
-	req, err := http.NewRequest("POST", cfg.ZooAPI.ZooBaseURL+"/Token", strings.NewReader(formData.Encode()))
+	req, err := http.NewRequest("POST", generalModel.ZooApiBaseUrl+generalModel.ZooTokenEndpoint, strings.NewReader(formData.Encode()))
 	if err != nil {
 		return "", fmt.Errorf("error creating token request: %w", err)
 	}

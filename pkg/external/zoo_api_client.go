@@ -14,10 +14,12 @@ import (
 
 // ZooAPIClient is the client for the Zoo API
 type ZooAPIClient struct {
-	baseURL    string
-	username   string
-	password   string
-	httpClient *http.Client
+	baseURL        string
+	tokenEndpoint  string
+	ticketEndpoint string
+	username       string
+	password       string
+	httpClient     *http.Client
 }
 
 // TokenResponse represents the response of the token request
@@ -39,17 +41,19 @@ type TicketItem struct {
 }
 
 // NewZooAPIClient creates a new Zoo API client
-func NewZooAPIClient(baseURL, username, password string) *ZooAPIClient {
+func NewZooAPIClient(baseURL, tokenEndpoint, ticketEndpoint, username, password string) *ZooAPIClient {
 	// Ensure baseURL has a protocol
 	if baseURL != "" && !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
 		baseURL = "https://" + baseURL
 	}
 
 	return &ZooAPIClient{
-		baseURL:    baseURL,
-		username:   username,
-		password:   password,
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		baseURL:        baseURL,
+		tokenEndpoint:  tokenEndpoint,
+		ticketEndpoint: ticketEndpoint,
+		username:       username,
+		password:       password,
+		httpClient:     &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
@@ -60,7 +64,7 @@ func (c *ZooAPIClient) GetToken() (string, error) {
 	data.Set("UserName", c.username)
 	data.Set("Password", c.password)
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/Token", c.baseURL), strings.NewReader(data.Encode()))
+	req, err := http.NewRequest("POST", c.baseURL+c.tokenEndpoint, strings.NewReader(data.Encode()))
 	if err != nil {
 		return "", fmt.Errorf("failed to create token request: %w", err)
 	}
@@ -92,21 +96,14 @@ func (c *ZooAPIClient) GetToken() (string, error) {
 }
 
 // GetTicketItems gets the ticket items for a specific date
-func (c *ZooAPIClient) GetTicketItems(ticketGroupName string, date string) ([]TicketItem, error) {
+func (c *ZooAPIClient) GetTicketItems(date string) ([]TicketItem, error) {
 	// First, get a token
 	token, err := c.GetToken()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get token: %w", err)
 	}
 
-	var value = "GetOnlineItem2"
-	//if ticketGroupName == "Zoo Johor" {
-	//	value = "GetOnlineItem"
-	//} else {
-	//	value = "GetOnlineItem2" // Used for botani
-	//}
-
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/JohorZoo/%s?TranDate=%s", c.baseURL, value, date), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s%s?TranDate=%s", c.baseURL, c.ticketEndpoint, date), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ticket items request: %w", err)
 	}

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	orderDto "j-ticketing/internal/core/dto/order"
-	"j-ticketing/internal/core/dto/payment"
 	ticketGroupDto "j-ticketing/internal/core/dto/ticket_group"
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
@@ -32,9 +31,9 @@ type OrderService struct {
 	tagRepo              *repositories.TagRepository
 	groupGalleryRepo     *repositories.GroupGalleryRepository
 	ticketDetailRepo     *repositories.TicketDetailRepository
-	paymentConfig        *payment.PaymentConfig
 	ticketGroupService   *TicketGroupService
 	orderTicketLogRepo   *repositories.OrderTicketLogRepository
+	generalRepo          *repositories.GeneralRepository
 	customerService      *CustomerService
 }
 
@@ -46,9 +45,9 @@ func NewOrderService(
 	tagRepo *repositories.TagRepository,
 	groupGalleryRepo *repositories.GroupGalleryRepository,
 	ticketDetailRepo *repositories.TicketDetailRepository,
-	paymentConfig *payment.PaymentConfig,
 	ticketGroupService *TicketGroupService,
 	orderTicketLogRepo *repositories.OrderTicketLogRepository,
+	generalRepo *repositories.GeneralRepository,
 	customerService *CustomerService,
 ) *OrderService {
 	return &OrderService{
@@ -58,9 +57,9 @@ func NewOrderService(
 		tagRepo:              tagRepo,
 		groupGalleryRepo:     groupGalleryRepo,
 		ticketDetailRepo:     ticketDetailRepo,
-		paymentConfig:        paymentConfig,
 		ticketGroupService:   ticketGroupService,
 		orderTicketLogRepo:   orderTicketLogRepo,
+		generalRepo:          generalRepo,
 		customerService:      customerService,
 	}
 }
@@ -725,8 +724,10 @@ func (s *OrderService) CreateFreeOrder(cust *models.Customer, req *orderDto.Crea
 // getBankNameByCode retrieves a bank name by its code and validates if the bank is enabled
 // Returns the bank name if found and enabled, or an error if not
 func (s *OrderService) getBankNameByCode(bankCode, mode string) (string, error) {
+	generalModel, _ := s.generalRepo.FindFirst()
+
 	// Get the API key from config
-	apiKey := s.paymentConfig.APIKey
+	apiKey := generalModel.JpApiKey
 
 	// Create form data for x-www-form-urlencoded request
 	formData := url.Values{}
@@ -744,7 +745,7 @@ func (s *OrderService) getBankNameByCode(bankCode, mode string) (string, error) 
 	}
 
 	// Create a new request
-	req, err := http.NewRequest("POST", s.paymentConfig.GatewayURL+"/JP_gateway/getBankList", strings.NewReader(formData.Encode()))
+	req, err := http.NewRequest("POST", generalModel.JpGatewayUrl+generalModel.JpBankListEndpoint, strings.NewReader(formData.Encode()))
 	if err != nil {
 		log.Printf("Error creating request: %v", err)
 		return "", fmt.Errorf("error creating request: %w", err)

@@ -88,11 +88,12 @@ func (r *UpdateRefundPolicyRequest) Validate() error {
 
 type UpdateIntegrationConfigRequest struct {
 	// Zoo API Configuration
-	ZooApiBaseUrl    string `json:"zooApiBaseUrl" validate:"required,url,max=255"`
-	ZooQrEndpoint    string `json:"zooQrEndpoint" validate:"required,max=255"`
-	ZooTokenEndpoint string `json:"zooTokenEndpoint" validate:"required,max=255"`
-	ZooApiUsername   string `json:"zooApiUsername" validate:"required,max=255"`
-	ZooApiPassword   string `json:"zooApiPassword" validate:"required,max=255"`
+	ZooApiBaseUrl     string `json:"zooApiBaseUrl" validate:"required,url,max=255"`
+	ZooQrEndpoint     string `json:"zooQrEndpoint" validate:"required,max=255"`
+	ZooTokenEndpoint  string `json:"zooTokenEndpoint" validate:"required,max=255"`
+	ZooTicketEndpoint string `json:"zooTicketEndpoint" validate:"required,max=255"`
+	ZooApiUsername    string `json:"zooApiUsername" validate:"required,max=255"`
+	ZooApiPassword    string `json:"zooApiPassword" validate:"required,max=255"`
 
 	// JohorPay Configuration
 	JpGatewayUrl       string `json:"jpGatewayUrl" validate:"required,url,max=255"`

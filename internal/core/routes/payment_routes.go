@@ -13,8 +13,8 @@ import (
 	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"io"
-	"j-ticketing/internal/core/dto/payment"
 	"j-ticketing/internal/core/handlers"
+	"j-ticketing/internal/db/repositories"
 	"log"
 	"net/http"
 	"net/url"
@@ -22,10 +22,11 @@ import (
 	"time"
 )
 
-func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, paymentHandler *handlers.PaymentHandler) {
+func SetupPaymentRoutes(app *fiber.App, paymentHandler *handlers.PaymentHandler, generalRepo *repositories.GeneralRepository) {
 	paymentGroup := app.Group("/payment")
 
 	paymentGroup.Get("/decrypt", func(c *fiber.Ctx) error {
+		generalModel, _ := generalRepo.FindFirst()
 
 		// Original combined payload (IV:ciphertext)
 		payload := c.Query("payload")
@@ -45,7 +46,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, pay
 		cipherText = strings.ReplaceAll(cipherText, "\\/", "/")
 
 		// Use the raw key directly from the PHP example
-		hexKey := paymentConfig.APIKey
+		hexKey := generalModel.JpApiKey
 
 		// Take the first 32 characters of the key
 		// This is what worked in our previous test
@@ -117,6 +118,8 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, pay
 
 	// Payment process - this will redirect to the payment gateway
 	paymentGroup.Post("/process", func(c *fiber.Ctx) error {
+		generalModel, _ := generalRepo.FindFirst()
+
 		randomStr, err := GenerateRandom16()
 		if err != nil {
 			// handle error
@@ -134,9 +137,9 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, pay
 		msgToken := c.FormValue("msgToken")
 		bankCode := c.FormValue("bankCode")
 
-		agToken := paymentConfig.AGToken
+		agToken := generalModel.JpAgToken
 		method := "getRedirectUrl"
-		redirectUrl := paymentConfig.BaseURL + "/payment/return"
+		redirectUrl := generalModel.JpGatewayUrl + "/payment/return"
 
 		// Calculate the jp_checksum as described
 		// Concatenate the values in the required order: buyerName + agToken + orderNo + totalAmount
@@ -183,7 +186,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, pay
 		}
 
 		// Prepare the request URL - ensure it's using HTTPS
-		apiURL := paymentConfig.GatewayURL + "/jpgate/JP_Redirect/baseRedirect"
+		apiURL := generalModel.JpGatewayUrl + generalModel.JpPaymentEndpoint
 
 		// Log the request parameters for debugging
 		log.Printf("Making request to: %s", apiURL)
@@ -275,8 +278,10 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, pay
 
 	// API endpoint to generate a token
 	paymentGroup.Post("/generateToken", func(c *fiber.Ctx) error {
+		generalModel, _ := generalRepo.FindFirst()
+
 		// Get the API key from config
-		apiKey := paymentConfig.APIKey
+		apiKey := generalModel.JpApiKey
 
 		// Create form data for x-www-form-urlencoded request
 		formData := url.Values{}
@@ -290,7 +295,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, pay
 		}
 
 		// Create a new request
-		req, err := http.NewRequest("POST", paymentConfig.GatewayURL+"/JP_gateway/redflow", strings.NewReader(formData.Encode()))
+		req, err := http.NewRequest("POST", generalModel.JpGatewayUrl+generalModel.JpRedflowEndpoint, strings.NewReader(formData.Encode()))
 		if err != nil {
 			log.Printf("Error creating request: %v", err)
 			return c.JSON(fiber.Map{
@@ -357,6 +362,8 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, pay
 
 	// API endpoint to get bank list
 	paymentGroup.Post("/bankList", func(c *fiber.Ctx) error {
+		generalModel, _ := generalRepo.FindFirst()
+
 		// Parse request body
 		var request struct {
 			Mode string `json:"mode"`
@@ -378,7 +385,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, pay
 		}
 
 		// Get the API key from config
-		apiKey := paymentConfig.APIKey
+		apiKey := generalModel.JpApiKey
 
 		// Create form data for x-www-form-urlencoded request
 		formData := url.Values{}
@@ -392,7 +399,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentConfig payment.PaymentConfig, pay
 		}
 
 		// Create a new request
-		req, err := http.NewRequest("POST", paymentConfig.GatewayURL+"/JP_gateway/getBankList", strings.NewReader(formData.Encode()))
+		req, err := http.NewRequest("POST", generalModel.JpGatewayUrl+generalModel.JpBankListEndpoint, strings.NewReader(formData.Encode()))
 		if err != nil {
 			log.Printf("Error creating request: %v", err)
 			return c.Status(500).JSON(fiber.Map{

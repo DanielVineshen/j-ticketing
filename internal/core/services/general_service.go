@@ -73,6 +73,7 @@ func (s *GeneralService) GetGeneralSettings() (*dto.GeneralResponse, error) {
 		ZooApiBaseUrl:                  generalModel.ZooApiBaseUrl,
 		ZooQrEndpoint:                  generalModel.ZooQrEndpoint,
 		ZooTokenEndpoint:               generalModel.ZooTokenEndpoint,
+		ZooTicketEndpoint:              generalModel.ZooTicketEndpoint,
 		ZooApiUsername:                 generalModel.ZooApiUsername,
 		ZooApiPassword:                 generalModel.ZooApiPassword,
 		JpGatewayUrl:                   generalModel.JpGatewayUrl,
@@ -319,6 +320,7 @@ func (s *GeneralService) UpdateIntegrationConfig(request *dto.UpdateIntegrationC
 	existingGeneral.ZooApiBaseUrl = request.ZooApiBaseUrl
 	existingGeneral.ZooQrEndpoint = request.ZooQrEndpoint
 	existingGeneral.ZooTokenEndpoint = request.ZooTokenEndpoint
+	existingGeneral.ZooTicketEndpoint = request.ZooTicketEndpoint
 	existingGeneral.ZooApiUsername = request.ZooApiUsername
 	existingGeneral.ZooApiPassword = request.ZooApiPassword
 	existingGeneral.JpGatewayUrl = request.JpGatewayUrl

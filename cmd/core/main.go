@@ -3,7 +3,6 @@ package main
 
 import (
 	"fmt"
-	"j-ticketing/internal/core/dto/payment"
 	"j-ticketing/internal/core/handlers"
 	"j-ticketing/internal/core/routes"
 	service "j-ticketing/internal/core/services"
@@ -68,13 +67,13 @@ func main() {
 	}
 
 	// Initialize payment config
-	paymentConfig := payment.PaymentConfig{
-		GatewayURL:      getRequiredEnv("PAYMENT_GATEWAY_URL", slogger),
-		APIKey:          getRequiredEnv("JP_API_KEY", slogger),
-		BaseURL:         getRequiredEnv("BASE_URL", slogger),
-		AGToken:         getRequiredEnv("AG_TOKEN", slogger),
-		FrontendBaseURL: getRequiredEnv("FRONTEND_BASE_URL", slogger),
-	}
+	//paymentConfig := payment.PaymentConfig{
+	//	GatewayURL:      getRequiredEnv("PAYMENT_GATEWAY_URL", slogger),
+	//	APIKey:          getRequiredEnv("JP_API_KEY", slogger),
+	//	BaseURL:         getRequiredEnv("BASE_URL", slogger),
+	//	AGToken:         getRequiredEnv("AG_TOKEN", slogger),
+	//	FrontendBaseURL: getRequiredEnv("FRONTEND_BASE_URL", slogger),
+	//}
 
 	// Initialize database connection with auto-migration control
 	dbConfig := &db.DBConfig{
@@ -91,20 +90,6 @@ func main() {
 
 	// Initialize JWT service
 	jwtService := jwt.NewJWTService(cfg)
-
-	// Initialize email service
-	emailService := email.NewEmailService(cfg)
-
-	// Test the email connection if we're using OAuth2
-	if cfg.Email.ClientID != "" && cfg.Email.ClientSecret != "" && cfg.Email.RefreshToken != "" {
-		slogger.Info("Testing OAuth2 token acquisition...")
-		if err := testOAuth2(emailService); err != nil {
-			slogger.Warn("OAuth2 token test failed, email sending with OAuth2 might not work correctly",
-				"error", err)
-		} else {
-			slogger.Info("OAuth2 token test succeeded - email service should work correctly")
-		}
-	}
 
 	// Initialize repositories
 	ticketGroupRepo := repositories.NewTicketGroupRepository(database)
@@ -123,6 +108,9 @@ func main() {
 	ticketVariantRepo := repositories.NewTicketVariantRepository(database)
 	generalRepo := repositories.NewGeneralRepository(database)
 
+	// Initialize email service
+	emailService := email.NewEmailService(generalRepo)
+
 	// Initialize services
 	paymentService := service.NewPaymentService(
 		orderTicketGroupRepo,
@@ -131,8 +119,7 @@ func main() {
 		tagRepo,
 		groupGalleryRepo,
 		ticketDetailRepo,
-		&paymentConfig,
-		cfg,
+		generalRepo,
 	)
 	ticketGroupService := service.NewTicketGroupService(
 		ticketGroupRepo,
@@ -140,7 +127,7 @@ func main() {
 		groupGalleryRepo,
 		ticketDetailRepo,
 		ticketVariantRepo,
-		cfg,
+		generalRepo,
 	)
 	authService := service.NewAuthService(
 		jwtService,
@@ -159,9 +146,9 @@ func main() {
 		tagRepo,
 		groupGalleryRepo,
 		ticketDetailRepo,
-		&paymentConfig,
 		ticketGroupService,
 		orderTicketLogRepo,
+		generalRepo,
 		customerService,
 	)
 	dashboardService := service.NewDashboardService( // ADD THESE LINES
@@ -185,8 +172,8 @@ func main() {
 	customerHandler := handlers.NewCustomerHandler(*customerService, *notificationService)
 	bannerHandler := handlers.NewBannerHandler(bannerService, *notificationService)
 	groupGalleryHandler := handlers.NewGroupGalleryHandler(groupGalleryService)
-	orderHandler := handlers.NewOrderHandler(orderService, *customerService, jwtService, paymentService, emailService, ticketGroupService, paymentConfig, pdfService, *notificationService)
-	paymentHandler := handlers.NewPaymentHandler(paymentService, paymentConfig, emailService, ticketGroupService, pdfService, orderService, customerService, notificationService)
+	orderHandler := handlers.NewOrderHandler(orderService, *customerService, jwtService, paymentService, emailService, ticketGroupService, pdfService, *notificationService)
+	paymentHandler := handlers.NewPaymentHandler(paymentService, emailService, ticketGroupService, pdfService, orderService, customerService, notificationService, generalRepo, cfg)
 	dashboardHandler := handlers.NewDashboardHandler(dashboardService)
 	pdfHandler := handlers.NewPDFHandler(pdfService)
 	notificationHandler := handlers.NewNotificationHandler(*notificationService)
@@ -213,7 +200,7 @@ func main() {
 	routes.SetupTicketGroupRoutes(app, ticketGroupHandler, jwtService)
 	routes.SetupAuthRoutes(app, authHandler, jwtService)
 	routes.SetupOrderRoutes(app, orderHandler, jwtService)
-	routes.SetupPaymentRoutes(app, paymentConfig, paymentHandler)
+	routes.SetupPaymentRoutes(app, paymentHandler, generalRepo)
 	routes.SetupViewRoutes(app)
 	routes.SetupCustomerRoutes(app, customerHandler, jwtService)
 	routes.SetupBannerRoutes(app, bannerHandler, jwtService)
@@ -282,12 +269,4 @@ func getRequiredEnv(key string, slogger *slog.Logger) string {
 		os.Exit(1)
 	}
 	return value
-}
-
-// Helper function to test OAuth2 token acquisition
-func testOAuth2(emailService email.EmailService) error {
-	// Use SendEmail to a fake recipient, but with a flag to just test token acquisition
-	// Return nil to indicate success
-	// Temporary implementation, requires proper email to ensure it works
-	return nil
 }

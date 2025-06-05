@@ -34,6 +34,26 @@ type GeneralResponse struct {
 	RefundPolicyContentBm          string `json:"refundPolicyContentBm"`
 	RefundPolicyContentCn          string `json:"refundPolicyContentCn"`
 	RefundPolicyLastUpdatedDate    string `json:"refundPolicyLastUpdatedDate"`
+	ZooApiBaseUrl                  string `json:"zooApiBaseUrl"`
+	ZooQrEndpoint                  string `json:"zooQrEndpoint"`
+	ZooTokenEndpoint               string `json:"zooTokenEndpoint"`
+	ZooApiUsername                 string `json:"zooApiUsername"`
+	ZooApiPassword                 string `json:"zooApiPassword"`
+	JpGatewayUrl                   string `json:"jpGatewayUrl"`
+	JpPaymentEndpoint              string `json:"jpPaymentEndpoint"`
+	JpRedflowEndpoint              string `json:"jpRedflowEndpoint"`
+	JpBankListEndpoint             string `json:"jpBankListEndpoint"`
+	JpApiKey                       string `json:"jpApiKey"`
+	JpAgToken                      string `json:"jpAgToken"`
+	EmailHost                      string `json:"emailHost"`
+	EmailPort                      int    `json:"emailPort"`
+	EmailUsername                  string `json:"emailUsername"`
+	EmailPassword                  string `json:"emailPassword"`
+	EmailFrom                      string `json:"emailFrom"`
+	EmailUseSsl                    bool   `json:"emailUseSsl"`
+	EmailClientId                  string `json:"emailClientId"`
+	EmailClientSecret              string `json:"emailClientSecret"`
+	EmailRefreshToken              string `json:"emailRefreshToken"`
 	CreatedAt                      string `json:"createdAt"` // yyyy-MM-dd HH:mm:ss format (Malaysia time)
 	UpdatedAt                      string `json:"updatedAt"` // yyyy-MM-dd HH:mm:ss format (Malaysia time)
 }

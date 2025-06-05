@@ -426,3 +426,27 @@ func (h *GeneralHandler) UpdateRefundPolicy(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
+
+func (h *GeneralHandler) UpdateIntegration(c *fiber.Ctx) error {
+	var request dto.UpdateIntegrationConfigRequest
+	if err := c.BodyParser(&request); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			"Invalid request body", nil,
+		))
+	}
+
+	// Validate request
+	if err := request.Validate(); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(err)
+	}
+
+	// Update integration through service
+	err := h.generalService.UpdateIntegrationConfig(&request)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
+			err.Error(), nil,
+		))
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
+}

@@ -70,6 +70,26 @@ func (s *GeneralService) GetGeneralSettings() (*dto.GeneralResponse, error) {
 		RefundPolicyContentBm:          generalModel.RefundPolicyContentBm,
 		RefundPolicyContentCn:          generalModel.RefundPolicyContentCn,
 		RefundPolicyLastUpdatedDate:    generalModel.RefundPolicyLastUpdatedDate,
+		ZooApiBaseUrl:                  generalModel.ZooApiBaseUrl,
+		ZooQrEndpoint:                  generalModel.ZooQrEndpoint,
+		ZooTokenEndpoint:               generalModel.ZooTokenEndpoint,
+		ZooApiUsername:                 generalModel.ZooApiUsername,
+		ZooApiPassword:                 generalModel.ZooApiPassword,
+		JpGatewayUrl:                   generalModel.JpGatewayUrl,
+		JpPaymentEndpoint:              generalModel.JpPaymentEndpoint,
+		JpRedflowEndpoint:              generalModel.JpRedflowEndpoint,
+		JpBankListEndpoint:             generalModel.JpBankListEndpoint,
+		JpApiKey:                       generalModel.JpApiKey,
+		JpAgToken:                      generalModel.JpAgToken,
+		EmailHost:                      generalModel.EmailHost,
+		EmailPort:                      generalModel.EmailPort,
+		EmailUsername:                  generalModel.EmailUsername,
+		EmailPassword:                  generalModel.EmailPassword,
+		EmailFrom:                      generalModel.EmailFrom,
+		EmailUseSsl:                    generalModel.EmailUseSsl,
+		EmailClientId:                  generalModel.EmailClientId,
+		EmailClientSecret:              generalModel.EmailClientSecret,
+		EmailRefreshToken:              generalModel.EmailRefreshToken,
 		CreatedAt:                      formattedCreatedAt,
 		UpdatedAt:                      formattedUpdatedAt,
 	}
@@ -282,6 +302,37 @@ func (s *GeneralService) UpdateRefundPolicy(request *dto.UpdateRefundPolicyReque
 	existingGeneral.RefundPolicyContentBm = request.RefundPolicyContentBm
 	existingGeneral.RefundPolicyContentCn = request.RefundPolicyContentCn
 	existingGeneral.RefundPolicyLastUpdatedDate = request.RefundPolicyLastUpdatedDate
+	existingGeneral.UpdatedAt = time.Now()
+
+	// Save to database
+	return s.generalRepo.Update(existingGeneral)
+}
+
+func (s *GeneralService) UpdateIntegrationConfig(request *dto.UpdateIntegrationConfigRequest) error {
+	// Find existing general settings
+	existingGeneral, err := s.generalRepo.FindFirst()
+	if err != nil {
+		return errors.New("general settings not found")
+	}
+
+	// Update integration fields
+	existingGeneral.ZooApiBaseUrl = request.ZooApiBaseUrl
+	existingGeneral.ZooQrEndpoint = request.ZooQrEndpoint
+	existingGeneral.ZooTokenEndpoint = request.ZooTokenEndpoint
+	existingGeneral.ZooApiUsername = request.ZooApiUsername
+	existingGeneral.ZooApiPassword = request.ZooApiPassword
+	existingGeneral.JpGatewayUrl = request.JpGatewayUrl
+	existingGeneral.JpPaymentEndpoint = request.JpPaymentEndpoint
+	existingGeneral.JpRedflowEndpoint = request.JpRedflowEndpoint
+	existingGeneral.JpBankListEndpoint = request.JpBankListEndpoint
+	existingGeneral.JpApiKey = request.JpApiKey
+	existingGeneral.JpAgToken = request.JpAgToken
+	existingGeneral.EmailUsername = request.EmailUsername
+	existingGeneral.EmailPassword = request.EmailPassword
+	existingGeneral.EmailFrom = request.EmailFrom
+	existingGeneral.EmailClientId = request.EmailClientId
+	existingGeneral.EmailClientSecret = request.EmailClientSecret
+	existingGeneral.EmailRefreshToken = request.EmailRefreshToken
 	existingGeneral.UpdatedAt = time.Now()
 
 	// Save to database

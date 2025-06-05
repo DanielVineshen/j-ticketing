@@ -28,4 +28,7 @@ func SetupGeneralRoutes(app *fiber.App, generalHandler *handlers.GeneralHandler,
 	settings.Put("/faq", middleware.Protected(jwtService), middleware.HasAnyRole("SYSADMIN"), generalHandler.UpdateFaq)
 	settings.Put("/contactUs", middleware.Protected(jwtService), middleware.HasAnyRole("SYSADMIN"), generalHandler.UpdateContactUs)
 	settings.Put("/refundPolicy", middleware.Protected(jwtService), middleware.HasAnyRole("SYSADMIN"), generalHandler.UpdateRefundPolicy)
+
+	// Integrations
+	settings.Put("/integration", middleware.Protected(jwtService), middleware.HasAnyRole("SYSADMIN"), generalHandler.UpdateIntegration)
 }

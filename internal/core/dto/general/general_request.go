@@ -85,3 +85,33 @@ type UpdateRefundPolicyRequest struct {
 func (r *UpdateRefundPolicyRequest) Validate() error {
 	return validation.ValidateStruct(r)
 }
+
+type UpdateIntegrationConfigRequest struct {
+	// Zoo API Configuration
+	ZooApiBaseUrl    string `json:"zooApiBaseUrl" validate:"required,url,max=255"`
+	ZooQrEndpoint    string `json:"zooQrEndpoint" validate:"required,max=255"`
+	ZooTokenEndpoint string `json:"zooTokenEndpoint" validate:"required,max=255"`
+	ZooApiUsername   string `json:"zooApiUsername" validate:"required,max=255"`
+	ZooApiPassword   string `json:"zooApiPassword" validate:"required,max=255"`
+
+	// JohorPay Configuration
+	JpGatewayUrl       string `json:"jpGatewayUrl" validate:"required,url,max=255"`
+	JpPaymentEndpoint  string `json:"jpPaymentEndpoint" validate:"required,max=255"`
+	JpRedflowEndpoint  string `json:"jpRedflowEndpoint" validate:"required,max=255"`
+	JpBankListEndpoint string `json:"jpBankListEndpoint" validate:"required,max=255"`
+	JpApiKey           string `json:"jpApiKey" validate:"required,max=255"`
+	JpAgToken          string `json:"jpAgToken" validate:"required,max=255"`
+
+	// Email Configuration
+	EmailUsername     string `json:"emailUsername" validate:"required,email,max=255"`
+	EmailPassword     string `json:"emailPassword" validate:"required,max=255"`
+	EmailFrom         string `json:"emailFrom" validate:"required,email,max=255"`
+	EmailClientId     string `json:"emailClientId" validate:"omitempty,max=510"`
+	EmailClientSecret string `json:"emailClientSecret" validate:"omitempty,max=255"`
+	EmailRefreshToken string `json:"emailRefreshToken" validate:"omitempty,max=255"`
+}
+
+// Validate validates the update general config request
+func (r *UpdateIntegrationConfigRequest) Validate() error {
+	return validation.ValidateStruct(r)
+}

@@ -36,9 +36,15 @@ func (s *AdminServiceExtended) GetAdminByID(id string) (*models.Admin, error) {
 }
 
 // UpdateAdminProfile updates an admin's own profile (no username changes)
-func (s *AdminServiceExtended) UpdateAdminProfile(req dto.UpdateAdminProfileRequest) (*models.Admin, error) {
+func (s *AdminServiceExtended) UpdateAdminProfile(adminID string, req dto.UpdateAdminProfileRequest) (*models.Admin, error) {
+	// Convert string ID to uint
+	adminIDUint, err := strconv.ParseUint(adminID, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("invalid admin ID format")
+	}
+
 	// Get current admin
-	admin, err := s.adminRepo.FindByID(req.AdminID)
+	admin, err := s.adminRepo.FindByID(uint(adminIDUint))
 	if err != nil {
 		return nil, fmt.Errorf("admin not found")
 	}
@@ -58,8 +64,14 @@ func (s *AdminServiceExtended) UpdateAdminProfile(req dto.UpdateAdminProfileRequ
 }
 
 // ChangePassword changes an admin's password
-func (s *AdminServiceExtended) ChangePassword(req dto.ChangePasswordRequest) (*models.Admin, error) {
-	admin, err := s.adminRepo.FindByID(req.AdminID)
+func (s *AdminServiceExtended) ChangePassword(adminID string, req dto.ChangePasswordRequest) (*models.Admin, error) {
+	// Convert string ID to uint
+	adminIDUint, err := strconv.ParseUint(adminID, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("invalid admin ID format")
+	}
+
+	admin, err := s.adminRepo.FindByID(uint(adminIDUint))
 	if err != nil {
 		return nil, fmt.Errorf("admin not found")
 	}

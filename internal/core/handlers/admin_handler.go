@@ -57,6 +57,9 @@ func (h *AdminHandler) GetAdminProfile(c *fiber.Ctx) error {
 
 // UpdateAdminProfile handles updating an admin's own profile
 func (h *AdminHandler) UpdateAdminProfile(c *fiber.Ctx) error {
+	// Get admin ID from JWT token
+	userID := c.Locals("userId").(string)
+
 	// Parse request
 	var req dto.UpdateAdminProfileRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -73,7 +76,7 @@ func (h *AdminHandler) UpdateAdminProfile(c *fiber.Ctx) error {
 	}
 
 	// Update admin profile using adminId from request body
-	_, err := h.adminService.UpdateAdminProfile(req)
+	_, err := h.adminService.UpdateAdminProfile(userID, req)
 	if err != nil {
 		if err.Error() == "admin not found" {
 			return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(
@@ -111,6 +114,9 @@ func (h *AdminHandler) UpdateAdminProfile(c *fiber.Ctx) error {
 
 // ChangePassword handles changing an admin's password
 func (h *AdminHandler) ChangePassword(c *fiber.Ctx) error {
+	// Get admin ID from JWT token
+	userID := c.Locals("userId").(string)
+
 	var req dto.ChangePasswordRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
@@ -126,7 +132,7 @@ func (h *AdminHandler) ChangePassword(c *fiber.Ctx) error {
 	}
 
 	// Change password using adminId from request body
-	_, err := h.adminService.ChangePassword(req)
+	_, err := h.adminService.ChangePassword(userID, req)
 	if err != nil {
 		if err.Error() == "admin not found" {
 			return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(

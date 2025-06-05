@@ -7,7 +7,6 @@ import (
 
 // UpdateAdminProfileRequest represents the structure for updating own admin profile
 type UpdateAdminProfileRequest struct {
-	AdminID   uint   `json:"adminId" validate:"required"`
 	FullName  string `json:"fullName" validate:"required,max=255"`
 	Email     string `json:"email" validate:"required,email,max=255"`
 	ContactNo string `json:"contactNo" validate:"required,max=255"`
@@ -20,7 +19,6 @@ func (r *UpdateAdminProfileRequest) Validate() error {
 
 // ChangePasswordRequest represents the structure for changing password
 type ChangePasswordRequest struct {
-	AdminID         uint   `json:"adminId" validate:"required"`
 	CurrentPassword string `json:"currentPassword" validate:"required,min=8"`
 	NewPassword     string `json:"newPassword" validate:"required,min=8"`
 }

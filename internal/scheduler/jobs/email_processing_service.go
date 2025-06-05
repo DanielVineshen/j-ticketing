@@ -2,7 +2,6 @@ package jobs
 
 import (
 	"fmt"
-	"j-ticketing/internal/core/dto/payment"
 	services "j-ticketing/internal/core/services"
 	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
@@ -16,7 +15,6 @@ type EmailProcessingService struct {
 	paymentService       *services.PaymentService
 	orderTicketGroupRepo *repositories.OrderTicketGroupRepository
 	orderTicketInfoRepo  *repositories.OrderTicketInfoRepository
-	paymentConfig        payment.PaymentConfig
 	emailService         email.EmailService
 	ticketGroupService   *services.TicketGroupService
 	pdfService           *services.PDFService
@@ -24,18 +22,19 @@ type EmailProcessingService struct {
 }
 
 // NewEmailProcessingService creates a new EmailProcessingService
-func NewEmailProcessingService(paymentService *services.PaymentService,
+func NewEmailProcessingService(
+	paymentService *services.PaymentService,
 	orderTicketGroupRepo *repositories.OrderTicketGroupRepository,
 	orderTicketInfoRepo *repositories.OrderTicketInfoRepository,
-	paymentConfig payment.PaymentConfig, emailService email.EmailService,
+	emailService email.EmailService,
 	ticketGroupService *services.TicketGroupService,
 	pdfService *services.PDFService,
-	orderService *services.OrderService) *EmailProcessingService {
+	orderService *services.OrderService,
+) *EmailProcessingService {
 	return &EmailProcessingService{
 		paymentService:       paymentService,
 		orderTicketGroupRepo: orderTicketGroupRepo,
 		orderTicketInfoRepo:  orderTicketInfoRepo,
-		paymentConfig:        paymentConfig,
 		emailService:         emailService,
 		ticketGroupService:   ticketGroupService,
 		pdfService:           pdfService,

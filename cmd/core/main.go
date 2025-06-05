@@ -14,7 +14,6 @@ import (
 	"j-ticketing/pkg/middleware"
 	"log/slog"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -26,25 +25,6 @@ import (
 func main() {
 	// Initialize slogger first so we can use it throughout
 	slogger := initLogger()
-
-	// Pre-processing for OAuth client ID - clean up any URL prefixes
-	if clientID := os.Getenv("CLIENT_ID"); strings.HasPrefix(clientID, "http://") || strings.HasPrefix(clientID, "https://") {
-		cleanClientID := strings.TrimPrefix(strings.TrimPrefix(clientID, "http://"), "https://")
-		truncatedID := cleanClientID
-		if len(cleanClientID) > 10 {
-			truncatedID = cleanClientID[:10]
-		}
-
-		slogger.Info("CLIENT_ID contains URL prefix, using cleaned value",
-			"original", clientID,
-			"cleaned", truncatedID)
-
-		err := os.Setenv("CLIENT_ID", cleanClientID)
-		if err != nil {
-			slogger.Error("Failed to set cleaned CLIENT_ID", "error", err)
-			return
-		}
-	}
 
 	// Load configuration
 	cfg, err := config.LoadConfig()

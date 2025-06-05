@@ -3,7 +3,6 @@ package main
 
 import (
 	"fmt"
-	"j-ticketing/internal/core/dto/payment"
 	service "j-ticketing/internal/core/services"
 	"j-ticketing/internal/db"
 	"j-ticketing/internal/db/repositories"
@@ -14,7 +13,6 @@ import (
 	"log"
 	"log/slog"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -27,34 +25,12 @@ func main() {
 	// Initialize slogger first so we can use it throughout
 	slogger := initLogger()
 
-	// Pre-processing for OAuth client ID - clean up any URL prefixes
-	if clientID := os.Getenv("CLIENT_ID"); strings.HasPrefix(clientID, "http://") || strings.HasPrefix(clientID, "https://") {
-		cleanClientID := strings.TrimPrefix(strings.TrimPrefix(clientID, "http://"), "https://")
-		truncatedID := cleanClientID
-		if len(cleanClientID) > 10 {
-			truncatedID = cleanClientID[:10]
-		}
-
-		slogger.Info("CLIENT_ID contains URL prefix, using cleaned value",
-			"original", clientID,
-			"cleaned", truncatedID)
-
-		err := os.Setenv("CLIENT_ID", cleanClientID)
-		if err != nil {
-			slogger.Error("Failed to set cleaned CLIENT_ID", "error", err)
-			return
-		}
-	}
-
 	// Load configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		slogger.Error("Failed to load configuration", "error", err)
 		os.Exit(1)
 	}
-
-	// Initialize email service
-	emailService := email.NewEmailService(cfg)
 
 	// Control auto-migration from environment variable
 	autoMigrate := false
@@ -70,13 +46,13 @@ func main() {
 	}
 
 	// Initialize payment config
-	paymentConfig := payment.PaymentConfig{
-		GatewayURL:      getRequiredEnv("PAYMENT_GATEWAY_URL", slogger),
-		APIKey:          getRequiredEnv("JP_API_KEY", slogger),
-		BaseURL:         getRequiredEnv("BASE_URL", slogger),
-		AGToken:         getRequiredEnv("AG_TOKEN", slogger),
-		FrontendBaseURL: getRequiredEnv("FRONTEND_BASE_URL", slogger),
-	}
+	//paymentConfig := payment.PaymentConfig{
+	//	GatewayURL:      getRequiredEnv("PAYMENT_GATEWAY_URL", slogger),
+	//	APIKey:          getRequiredEnv("JP_API_KEY", slogger),
+	//	BaseURL:         getRequiredEnv("BASE_URL", slogger),
+	//	AGToken:         getRequiredEnv("AG_TOKEN", slogger),
+	//	FrontendBaseURL: getRequiredEnv("FRONTEND_BASE_URL", slogger),
+	//}
 
 	// Initialize database connection with auto-migration control
 	dbConfig := &db.DBConfig{
@@ -102,6 +78,10 @@ func main() {
 	customerRepo := repositories.NewCustomerRepository(database)
 	customerLogRepo := repositories.NewCustomerLogRepository(database)
 	ticketVariantRepo := repositories.NewTicketVariantRepository(database)
+	generalRepo := repositories.NewGeneralRepository(database)
+
+	// Initialize email service
+	emailService := email.NewEmailService(generalRepo)
 
 	// Initialize services
 	paymentService := service.NewPaymentService(
@@ -111,8 +91,7 @@ func main() {
 		tagRepo,
 		groupGalleryRepo,
 		ticketDetailRepo,
-		&paymentConfig,
-		cfg,
+		generalRepo,
 	)
 	ticketGroupService := service.NewTicketGroupService(
 		ticketGroupRepo,
@@ -120,7 +99,7 @@ func main() {
 		groupGalleryRepo,
 		ticketDetailRepo,
 		ticketVariantRepo,
-		cfg,
+		generalRepo,
 	)
 	customerService := service.NewCustomerService(customerRepo, customerLogRepo)
 	orderService := service.NewOrderService(
@@ -130,14 +109,14 @@ func main() {
 		tagRepo,
 		groupGalleryRepo,
 		ticketDetailRepo,
-		&paymentConfig,
 		ticketGroupService,
 		orderTicketLogRepo,
+		generalRepo,
 		customerService,
 	)
 	pdfService := service.NewPDFService()
 
-	emailProcessingService := jobs.NewEmailProcessingService(paymentService, orderTicketGroupRepo, orderTicketInfoRepo, paymentConfig, emailService, ticketGroupService, pdfService, orderService)
+	emailProcessingService := jobs.NewEmailProcessingService(paymentService, orderTicketGroupRepo, orderTicketInfoRepo, emailService, ticketGroupService, pdfService, orderService)
 
 	go runScheduler(emailProcessingService)
 

@@ -398,13 +398,7 @@ func (s *OrderService) mapOrderToDTO(order *models.OrderTicketGroup) (orderDto.O
 }
 
 // CreateOrder creates a new order ticket group and returns the order ID
-func (s *OrderService) CreateOrder(custId string, req *orderDto.CreateOrderRequest) (*models.OrderTicketGroup, error) {
-	// Validate ticket group exists
-	ticketGroup, err := s.ticketGroupRepo.FindByID(req.TicketGroupId)
-	if err != nil {
-		return nil, fmt.Errorf("ticket group not found: %w", err)
-	}
-
+func (s *OrderService) CreateOrder(ticketGroup *models.TicketGroup, custId string, req *orderDto.CreateOrderRequest) (*models.OrderTicketGroup, error) {
 	// Ensure ticket group is active
 	if !ticketGroup.IsActive {
 		return nil, errors.New("ticket group is not active")

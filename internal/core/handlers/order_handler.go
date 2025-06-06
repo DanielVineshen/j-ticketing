@@ -172,6 +172,23 @@ func (h *OrderHandler) CreateOrderTicketGroup(c *fiber.Ctx) error {
 		))
 	}
 
+	ticketGroup, err := h.ticketGroupService.GetTicketGroup(req.TicketGroupId)
+	if err != nil {
+		log.Printf("Error finding ticket group %s: %v", req.TicketGroupId, err)
+	}
+
+	// Get sum to check ticket order limit
+	var totalQty int
+	for _, ticket := range req.Tickets {
+		totalQty += ticket.Qty
+	}
+
+	if totalQty > ticketGroup.OrderTicketLimit {
+		return c.Status(fiber.StatusForbidden).JSON(models.NewBaseErrorResponse(
+			"Tickets quantity have exceeded the total limit allowed of "+strconv.Itoa(ticketGroup.OrderTicketLimit), nil,
+		))
+	}
+
 	authHeader := c.Get("Authorization")
 	token := strings.TrimPrefix(authHeader, "Bearer ")
 	claims, err := h.jwtService.ValidateToken(token)
@@ -229,7 +246,7 @@ func (h *OrderHandler) CreateOrderTicketGroup(c *fiber.Ctx) error {
 	}
 
 	// Create the order using the custId we determined
-	orderTicketGroup, err := h.orderService.CreateOrder(custId, &req)
+	orderTicketGroup, err := h.orderService.CreateOrder(ticketGroup, custId, &req)
 	if err != nil {
 		// Determine appropriate error code based on the error
 		if strings.Contains(err.Error(), "not found") {
@@ -292,6 +309,23 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 	if err := req.Validate(); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
 			err.Error(), nil,
+		))
+	}
+
+	ticketGroup, err := h.ticketGroupService.GetTicketGroup(req.TicketGroupId)
+	if err != nil {
+		log.Printf("Error finding ticket group %s: %v", req.TicketGroupId, err)
+	}
+	
+	// Get sum to check ticket order limit
+	var totalQty int
+	for _, ticket := range req.Tickets {
+		totalQty += ticket.Qty
+	}
+
+	if totalQty > ticketGroup.OrderTicketLimit {
+		return c.Status(fiber.StatusForbidden).JSON(models.NewBaseErrorResponse(
+			"Tickets quantity have exceeded the total limit allowed of "+strconv.Itoa(ticketGroup.OrderTicketLimit), nil,
 		))
 	}
 
@@ -408,11 +442,6 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 	)
 	if err != nil {
 		return err
-	}
-
-	ticketGroup, err := h.ticketGroupService.GetTicketGroup(orderTicketGroup.TicketGroupId)
-	if err != nil {
-		log.Printf("Error finding ticket group %s: %v", orderTicketGroup.TicketGroupId, err)
 	}
 
 	var orderItems []email.OrderInfo

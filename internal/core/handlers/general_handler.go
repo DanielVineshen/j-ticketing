@@ -145,6 +145,24 @@ func (h *GeneralHandler) GetGeneralAttachment(c *fiber.Ctx) error {
 	return c.SendFile(filePath)
 }
 
+func (h *GeneralHandler) GetPrivacyPolicy(c *fiber.Ctx) error {
+	general, err := h.generalService.FindGeneralSettings()
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(
+			"Error getting general:"+err.Error(), nil,
+		))
+	}
+
+	privacyPolicy := dto.PrivacyPolicyResponse{
+		PrivacyPolicyContentBm:       general.PrivacyPolicyContentBm,
+		PrivacyPolicyContentEn:       general.PrivacyPolicyContentEn,
+		PrivacyPolicyContentCn:       general.PrivacyPolicyContentCn,
+		PrivacyPolicyLastUpdatedDate: general.PrivacyPolicyLastUpdatedDate,
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(privacyPolicy))
+}
+
 // UpdatePrivacyPolicy updates the privacy policy content
 func (h *GeneralHandler) UpdatePrivacyPolicy(c *fiber.Ctx) error {
 	// // Get the admin info from the context (set by auth middleware)
@@ -190,6 +208,24 @@ func (h *GeneralHandler) UpdatePrivacyPolicy(c *fiber.Ctx) error {
 	// }
 
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
+}
+
+func (h *GeneralHandler) GetTermsOfPurchase(c *fiber.Ctx) error {
+	general, err := h.generalService.FindGeneralSettings()
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(
+			"Error getting general:"+err.Error(), nil,
+		))
+	}
+
+	termsOfPurchase := dto.TermsOfPurchaseResponse{
+		TermsOfPurchaseContentEn:       general.TermsOfPurchaseContentEn,
+		TermsOfPurchaseContentBm:       general.TermsOfPurchaseContentBm,
+		TermsOfPurchaseContentCn:       general.TermsOfPurchaseContentCn,
+		TermsOfPurchaseLastUpdatedDate: general.TermsOfPurchaseLastUpdatedDate,
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(termsOfPurchase))
 }
 
 // UpdateTermsOfPurchase updates the terms of purchase content
@@ -239,6 +275,24 @@ func (h *GeneralHandler) UpdateTermsOfPurchase(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
 
+func (h *GeneralHandler) GetTermsOfService(c *fiber.Ctx) error {
+	general, err := h.generalService.FindGeneralSettings()
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(
+			"Error getting general:"+err.Error(), nil,
+		))
+	}
+
+	termsOfService := dto.TermsOfServiceResponse{
+		TermsOfServiceContentEn:       general.TermsOfServiceContentEn,
+		TermsOfServiceContentBm:       general.TermsOfServiceContentBm,
+		TermsOfServiceContentCn:       general.TermsOfServiceContentCn,
+		TermsOfServiceLastUpdatedDate: general.TermsOfServiceLastUpdatedDate,
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(termsOfService))
+}
+
 // UpdateTermsOfService updates the terms of service content
 func (h *GeneralHandler) UpdateTermsOfService(c *fiber.Ctx) error {
 	// // Get the admin info from the context (set by auth middleware)
@@ -284,6 +338,24 @@ func (h *GeneralHandler) UpdateTermsOfService(c *fiber.Ctx) error {
 	// }
 
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
+}
+
+func (h *GeneralHandler) GetFaq(c *fiber.Ctx) error {
+	general, err := h.generalService.FindGeneralSettings()
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(
+			"Error getting general:"+err.Error(), nil,
+		))
+	}
+
+	faq := dto.FaqResponse{
+		FaqContentEn:       general.FaqContentEn,
+		FaqContentBm:       general.FaqContentBm,
+		FaqContentCn:       general.FaqContentCn,
+		FaqLastUpdatedDate: general.FaqLastUpdatedDate,
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(faq))
 }
 
 // UpdateFaq updates the FAQ content
@@ -333,6 +405,24 @@ func (h *GeneralHandler) UpdateFaq(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
 
+func (h *GeneralHandler) GetContactUs(c *fiber.Ctx) error {
+	general, err := h.generalService.FindGeneralSettings()
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(
+			"Error getting general:"+err.Error(), nil,
+		))
+	}
+
+	contactUs := dto.ContactUsResponse{
+		ContactUsContentEn:       general.ContactUsContentEn,
+		ContactUsContentBm:       general.ContactUsContentBm,
+		ContactUsContentCn:       general.ContactUsContentCn,
+		ContactUsLastUpdatedDate: general.ContactUsLastUpdatedDate,
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(contactUs))
+}
+
 // UpdateContactUs updates the contact us content
 func (h *GeneralHandler) UpdateContactUs(c *fiber.Ctx) error {
 	// // Get the admin info from the context (set by auth middleware)
@@ -378,6 +468,24 @@ func (h *GeneralHandler) UpdateContactUs(c *fiber.Ctx) error {
 	// }
 
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
+}
+
+func (h *GeneralHandler) GetRefundPolicy(c *fiber.Ctx) error {
+	general, err := h.generalService.FindGeneralSettings()
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(models.NewBaseErrorResponse(
+			"Error getting general:"+err.Error(), nil,
+		))
+	}
+
+	refundPolicy := dto.RefundPolicyResponse{
+		RefundPolicyContentEn:       general.RefundPolicyContentEn,
+		RefundPolicyContentBm:       general.RefundPolicyContentBm,
+		RefundPolicyContentCn:       general.RefundPolicyContentCn,
+		RefundPolicyLastUpdatedDate: general.RefundPolicyLastUpdatedDate,
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(refundPolicy))
 }
 
 // UpdateRefundPolicy updates the refund policy content

@@ -4,6 +4,7 @@ package service
 import (
 	"errors"
 	dto "j-ticketing/internal/core/dto/general"
+	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
 	"j-ticketing/pkg/utils"
 	"mime/multipart"
@@ -96,6 +97,15 @@ func (s *GeneralService) GetGeneralSettings() (*dto.GeneralResponse, error) {
 	}
 
 	return response, nil
+}
+func (s *GeneralService) FindGeneralSettings() (*models.General, error) {
+	// Find existing general settings
+	existingGeneral, err := s.generalRepo.FindFirst()
+	if err != nil {
+		return nil, errors.New("general settings not found")
+	}
+
+	return existingGeneral, nil
 }
 
 // UpdateGeneralSettings updates the general settings

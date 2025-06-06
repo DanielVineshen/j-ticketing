@@ -58,3 +58,45 @@ type GeneralResponse struct {
 	CreatedAt                      string `json:"createdAt"` // yyyy-MM-dd HH:mm:ss format (Malaysia time)
 	UpdatedAt                      string `json:"updatedAt"` // yyyy-MM-dd HH:mm:ss format (Malaysia time)
 }
+
+type PrivacyPolicyResponse struct {
+	PrivacyPolicyContentEn       string `json:"privacyPolicyContentEn"`
+	PrivacyPolicyContentBm       string `json:"privacyPolicyContentBm"`
+	PrivacyPolicyContentCn       string `json:"privacyPolicyContentCn"`
+	PrivacyPolicyLastUpdatedDate string `json:"privacyPolicyLastUpdatedDate"`
+}
+
+type TermsOfPurchaseResponse struct {
+	TermsOfPurchaseContentEn       string `json:"termsOfPurchaseContentEn"`
+	TermsOfPurchaseContentBm       string `json:"termsOfPurchaseContentBm"`
+	TermsOfPurchaseContentCn       string `json:"termsOfPurchaseContentCn"`
+	TermsOfPurchaseLastUpdatedDate string `json:"termsOfPurchaseLastUpdatedDate"`
+}
+
+type TermsOfServiceResponse struct {
+	TermsOfServiceContentEn       string `json:"termsOfServiceContentEn"`
+	TermsOfServiceContentBm       string `json:"termsOfServiceContentBm"`
+	TermsOfServiceContentCn       string `json:"termsOfServiceContentCn"`
+	TermsOfServiceLastUpdatedDate string `json:"termsOfServiceLastUpdatedDate"`
+}
+
+type FaqResponse struct {
+	FaqContentEn       string `json:"faqContentEn"`
+	FaqContentBm       string `json:"faqContentBm"`
+	FaqContentCn       string `json:"faqContentCn"`
+	FaqLastUpdatedDate string `json:"faqLastUpdatedDate"`
+}
+
+type ContactUsResponse struct {
+	ContactUsContentEn       string `json:"contactUsContentEn"`
+	ContactUsContentBm       string `json:"contactUsContentBm"`
+	ContactUsContentCn       string `json:"contactUsContentCn"`
+	ContactUsLastUpdatedDate string `json:"contactUsLastUpdatedDate"`
+}
+
+type RefundPolicyResponse struct {
+	RefundPolicyContentEn       string `json:"refundPolicyContentEn"`
+	RefundPolicyContentBm       string `json:"refundPolicyContentBm"`
+	RefundPolicyContentCn       string `json:"refundPolicyContentCn"`
+	RefundPolicyLastUpdatedDate string `json:"refundPolicyLastUpdatedDate"`
+}

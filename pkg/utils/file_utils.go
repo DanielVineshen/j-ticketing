@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -44,8 +45,11 @@ func (f *FileUtil) UploadAttachmentFile(file *multipart.FileHeader, storagePath 
 		return "", err
 	}
 
+	// Sanitize the original filename
+	sanitizedFilename := f.sanitizeFilename(file.Filename)
+
 	// Generate unique filename
-	uniqueFileName := uuid.New().String() + "-" + file.Filename
+	uniqueFileName := uuid.New().String() + "-" + sanitizedFilename
 
 	// Validate storage path
 	if storagePath == "" {
@@ -64,6 +68,37 @@ func (f *FileUtil) UploadAttachmentFile(file *multipart.FileHeader, storagePath 
 	}
 
 	return uniqueFileName, nil
+}
+
+// sanitizeFilename removes or replaces problematic characters in filenames
+func (f *FileUtil) sanitizeFilename(filename string) string {
+	// Replace spaces with underscores
+	sanitized := strings.ReplaceAll(filename, " ", "_")
+
+	// Replace other problematic characters
+	problematicChars := []string{
+		"<", ">", ":", "\"", "|", "?", "*", "/", "\\",
+		"\t", "\n", "\r", "\x00",
+	}
+
+	for _, char := range problematicChars {
+		sanitized = strings.ReplaceAll(sanitized, char, "_")
+	}
+
+	// Remove multiple consecutive underscores
+	for strings.Contains(sanitized, "__") {
+		sanitized = strings.ReplaceAll(sanitized, "__", "_")
+	}
+
+	// Trim underscores from beginning and end
+	sanitized = strings.Trim(sanitized, "_")
+
+	// Ensure filename is not empty after sanitization
+	if sanitized == "" {
+		sanitized = "file"
+	}
+
+	return sanitized
 }
 
 // DeleteAttachmentFile deletes a file by its unique filename from the specified storage path

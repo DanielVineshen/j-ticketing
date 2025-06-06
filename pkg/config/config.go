@@ -42,7 +42,7 @@ type Config struct {
 	Server struct {
 		CorePort        string
 		SchedulerPort   string
-		BackendBaseURL  string
+		BackendBaseUrl  string
 		FrontendBaseUrl string
 	}
 	// Migration section to control migration behavior
@@ -81,7 +81,7 @@ func LoadConfig() (*Config, error) {
 	config.Server.CorePort = getEnv("SERVER_CORE_PORT", "8080")
 	config.Server.SchedulerPort = getEnv("SERVER_SCHEDULER_PORT", "8081")
 	config.Server.FrontendBaseUrl = getEnv("FRONTEND_BASE_URL", "http://localhost:3000")
-	config.Server.FrontendBaseUrl = getEnv("BASE_URL", "http://localhost:8080")
+	config.Server.BackendBaseUrl = getEnv("BASE_URL", "http://localhost:8080")
 
 	// Migration config
 	config.Migration.AutoMigrate = getEnvBool("AUTO_MIGRATE", false)

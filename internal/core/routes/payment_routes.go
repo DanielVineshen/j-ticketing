@@ -140,7 +140,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentHandler *handlers.PaymentHandler,
 
 		agToken := generalModel.JpAgToken
 		method := "getRedirectUrl"
-		redirectUrl := cfg.Server.BackendBaseURL + "/payment/return"
+		redirectUrl := cfg.Server.BackendBaseUrl + "/payment/return"
 
 		// Calculate the jp_checksum as described
 		// Concatenate the values in the required order: buyerName + agToken + orderNo + totalAmount

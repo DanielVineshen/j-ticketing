@@ -100,17 +100,10 @@ func (h *GeneralHandler) UpdateGeneralSettings(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
 }
 
-// GetGeneralAttachment serves a general attachment by its unique extension
+// GetGeneralAttachment serves the general attachment from the settings record
 func (h *GeneralHandler) GetGeneralAttachment(c *fiber.Ctx) error {
-	uniqueExtension := c.Params("uniqueExtension")
-	if uniqueExtension == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
-			"Missing uniqueExtension parameter", nil,
-		))
-	}
-
-	// Get the content type and file path from the service
-	contentType, filePath, err := h.generalService.GetImageInfo(uniqueExtension)
+	// Get the content type and file path from the service (no uniqueExtension needed)
+	contentType, filePath, uniqueExtension, err := h.generalService.GetImageInfo()
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(models.NewBaseErrorResponse(
 			"File not found.", nil,

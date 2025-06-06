@@ -15,7 +15,7 @@ func SetupGeneralRoutes(app *fiber.App, generalHandler *handlers.GeneralHandler,
 	settings := app.Group("/api/settings")
 
 	// Public route for serving attachments
-	settings.Get("/general/attachment/:uniqueExtension", generalHandler.GetGeneralAttachment)
+	settings.Get("/general/siteLogo", generalHandler.GetGeneralAttachment)
 
 	// Protected routes (only SYSADMIN can access)
 	settings.Get("/general", middleware.Protected(jwtService), middleware.HasAnyRole("SYSADMIN"), generalHandler.GetGeneralSettings)

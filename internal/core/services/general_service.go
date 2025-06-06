@@ -170,28 +170,39 @@ func (s *GeneralService) UpdateGeneralSettings(request *dto.UpdateGeneralRequest
 	return nil
 }
 
-// GetImageInfo retrieves information about an attachment based on its unique extension
-func (s *GeneralService) GetImageInfo(uniqueExtension string) (string, string, error) {
-	// Get content type from general repository
-	contentType, err := s.generalRepo.GetContentTypeByUniqueExtension(uniqueExtension)
+// GetImageInfo retrieves information about the general settings attachment
+func (s *GeneralService) GetImageInfo() (string, string, string, error) {
+	// Get the general settings record from the repository
+	generalRecord, err := s.generalRepo.FindFirst()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
+	if generalRecord == nil {
+		return "", "", "", errors.New("general settings record not found")
+	}
+
+	// Check if the record has an attachment
+	if generalRecord.UniqueExtension == "" {
+		return "", "", "", errors.New("no attachment found in general settings")
+	}
+
+	// Get content type from the record
+	contentType := generalRecord.ContentType
 	if contentType == "" {
-		return "", "", errors.New("content type not found")
+		return "", "", "", errors.New("content type not found")
 	}
 
 	// Get storage path from environment variable
 	storagePath := os.Getenv("GENERAL_STORAGE_PATH")
 
 	// Validate that the file exists
-	filePath := filepath.Join(storagePath, uniqueExtension)
+	filePath := filepath.Join(storagePath, generalRecord.UniqueExtension)
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return "", "", err
+		return "", "", "", err
 	}
 
-	return contentType, filePath, nil
+	return contentType, filePath, generalRecord.UniqueExtension, nil
 }
 
 // formatTimestampToMalaysia converts UTC timestamp to Malaysia time in yyyy-MM-dd HH:mm:ss format

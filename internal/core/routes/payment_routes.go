@@ -15,6 +15,7 @@ import (
 	"io"
 	"j-ticketing/internal/core/handlers"
 	"j-ticketing/internal/db/repositories"
+	"j-ticketing/pkg/config"
 	"log"
 	"net/http"
 	"net/url"
@@ -22,7 +23,7 @@ import (
 	"time"
 )
 
-func SetupPaymentRoutes(app *fiber.App, paymentHandler *handlers.PaymentHandler, generalRepo *repositories.GeneralRepository) {
+func SetupPaymentRoutes(app *fiber.App, paymentHandler *handlers.PaymentHandler, generalRepo *repositories.GeneralRepository, cfg *config.Config) {
 	paymentGroup := app.Group("/payment")
 
 	paymentGroup.Get("/decrypt", func(c *fiber.Ctx) error {
@@ -139,7 +140,7 @@ func SetupPaymentRoutes(app *fiber.App, paymentHandler *handlers.PaymentHandler,
 
 		agToken := generalModel.JpAgToken
 		method := "getRedirectUrl"
-		redirectUrl := generalModel.JpGatewayUrl + "/payment/return"
+		redirectUrl := cfg.Server.BackendBaseURL + "/payment/return"
 
 		// Calculate the jp_checksum as described
 		// Concatenate the values in the required order: buyerName + agToken + orderNo + totalAmount

@@ -180,7 +180,7 @@ func main() {
 	routes.SetupTicketGroupRoutes(app, ticketGroupHandler, jwtService)
 	routes.SetupAuthRoutes(app, authHandler, jwtService)
 	routes.SetupOrderRoutes(app, orderHandler, jwtService)
-	routes.SetupPaymentRoutes(app, paymentHandler, generalRepo)
+	routes.SetupPaymentRoutes(app, paymentHandler, generalRepo, cfg)
 	routes.SetupViewRoutes(app)
 	routes.SetupCustomerRoutes(app, customerHandler, jwtService)
 	routes.SetupBannerRoutes(app, bannerHandler, jwtService)

@@ -137,6 +137,11 @@ func main() {
 		customerRepo,
 		notificationRepo,
 	)
+	// Initialize sales analytics service
+	salesAnalyticsService := service.NewSalesAnalyticsService(
+		orderTicketGroupRepo,
+		ticketGroupRepo,
+	)
 	adminService := service.NewAdminServiceExtended(adminRepo, tokenRepo)
 	tagService := service.NewTagService(tagRepo)
 	bannerService := service.NewBannerService(bannerRepo)
@@ -147,6 +152,7 @@ func main() {
 	onsiteVisitorsAnalyticsService := service.NewOnsiteVisitorsAnalyticsService(customerRepo)
 
 	// Initialize handlers
+	salesAnalyticsHandler := handlers.NewSalesAnalyticsHandler(salesAnalyticsService)
 	adminHandler := handlers.NewAdminHandler(adminService, *notificationService)
 	ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService, notificationService)
 	authHandler := handlers.NewAuthHandler(authService, emailService, *customerService, *notificationService)
@@ -178,6 +184,7 @@ func main() {
 	app.Static("/public", "./pkg/public")
 
 	// Setup routes
+	routes.SetupSalesAnalyticsRoutes(app, salesAnalyticsHandler, jwtService)
 	routes.SetupAdminRoutes(app, adminHandler, jwtService)
 	routes.SetupTicketGroupRoutes(app, ticketGroupHandler, jwtService)
 	routes.SetupAuthRoutes(app, authHandler, jwtService)

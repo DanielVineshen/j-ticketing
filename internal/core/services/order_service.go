@@ -463,6 +463,7 @@ func (s *OrderService) CreateOrder(ticketGroup *models.TicketGroup, custId strin
 		BuyerEmail:        req.Email,
 		ProductDesc:       ticketGroup.GroupNameBm,
 		IsEmailSent:       false,
+		AdmitDate:         orderDate.Format("2006-01-02"),
 		CreatedAt:         time.Now(),
 		UpdatedAt:         time.Now(),
 	}
@@ -639,6 +640,7 @@ func (s *OrderService) CreateFreeOrder(cust *models.Customer, req *orderDto.Crea
 		BuyerEmail:        req.Email,
 		ProductDesc:       ticketGroup.GroupNameBm,
 		IsEmailSent:       false,
+		AdmitDate:         orderDate.Format("2006-01-02"),
 		CreatedAt:         time.Now(),
 		UpdatedAt:         time.Now(),
 	}

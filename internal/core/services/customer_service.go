@@ -341,3 +341,73 @@ func nullStringToPointer(ns sql.NullString) *string {
 	}
 	return nil
 }
+
+// CustomerDateRangeResponse represents the JSON response structure
+type CustomerDateRangeResponse struct {
+	StartDate    string              `json:"startDate"`
+	EndDate      string              `json:"endDate"`
+	TotalRecords int                 `json:"totalRecords"`
+	DailyData    []CustomerDailyData `json:"dailyData"`
+}
+
+type CustomerDailyData struct {
+	Date  string `json:"date"`
+	Count int    `json:"count"`
+}
+
+// GetCustomerRecordsByDateRange retrieves customer records grouped by day within date range
+func (s *CustomerService) GetCustomerRecordsByDateRange(startDate, endDate string) (*CustomerDateRangeResponse, error) {
+	// Fetch all customers within the date range using repository
+	customers, err := s.customerRepo.FindByDateRange(startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch customers: %v", err)
+	}
+
+	// Group customers by date
+	dailyCounts := make(map[string]int)
+
+	for _, customer := range customers {
+		// Convert UTC CreatedAt to Malaysia timezone
+		malaysiaTime, err := utils.ToMalaysiaTime(customer.CreatedAt)
+		if err != nil {
+			continue // Skip if timezone conversion fails
+		}
+
+		dateStr := malaysiaTime.Format(utils.DateOnlyFormat)
+		dailyCounts[dateStr]++
+	}
+
+	// Generate complete date range (including days with 0 records)
+	dates := s.generateDateRange(startDate, endDate)
+	dailyData := make([]CustomerDailyData, 0)
+	totalRecords := 0
+
+	for _, date := range dates {
+		count := dailyCounts[date] // Will be 0 if date not in map
+		dailyData = append(dailyData, CustomerDailyData{
+			Date:  date,
+			Count: count,
+		})
+		totalRecords += count
+	}
+
+	return &CustomerDateRangeResponse{
+		StartDate:    startDate,
+		EndDate:      endDate,
+		TotalRecords: totalRecords,
+		DailyData:    dailyData,
+	}, nil
+}
+
+// generateDateRange generates a slice of date strings between start and end dates
+func (s *CustomerService) generateDateRange(startDate, endDate string) []string {
+	start, _ := time.Parse(utils.DateOnlyFormat, startDate)
+	end, _ := time.Parse(utils.DateOnlyFormat, endDate)
+
+	var dates []string
+	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
+		dates = append(dates, d.Format(utils.DateOnlyFormat))
+	}
+
+	return dates
+}

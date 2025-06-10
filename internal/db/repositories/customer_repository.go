@@ -2,7 +2,10 @@
 package repositories
 
 import (
+	"fmt"
 	"j-ticketing/internal/db/models"
+	"j-ticketing/pkg/utils"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -16,6 +19,7 @@ type CustomerRepository interface {
 	Update(customer *models.Customer) error
 	Delete(id string) error
 	List() ([]models.Customer, error)
+	FindByDateRange(startDate, endDate string) ([]models.Customer, error)
 }
 
 type customerRepository struct {
@@ -93,4 +97,26 @@ func (r *customerRepository) List() ([]models.Customer, error) {
 		return nil, err
 	}
 	return customers, nil
+}
+
+func (r *customerRepository) FindByDateRange(startDate, endDate string) ([]models.Customer, error) {
+	startTime, err := time.Parse(utils.DateOnlyFormat, startDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid start date format: %v", err)
+	}
+
+	endTime, err := time.Parse(utils.DateOnlyFormat, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid end date format: %v", err)
+	}
+
+	// Set end time to end of day
+	endTime = endTime.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+
+	var customers []models.Customer
+	result := r.db.Where("created_at >= ? AND created_at <= ?", startTime, endTime).
+		Order("created_at ASC").
+		Find(&customers)
+
+	return customers, result.Error
 }

@@ -88,8 +88,10 @@ func main() {
 	ticketVariantRepo := repositories.NewTicketVariantRepository(database)
 	generalRepo := repositories.NewGeneralRepository(database)
 
+	generalModel, _ := generalRepo.FindFirst()
+
 	// Initialize email service
-	emailService := email.NewEmailService(generalRepo)
+	emailService := email.NewEmailService(generalModel)
 
 	// Initialize services
 	paymentService := service.NewPaymentService(
@@ -149,7 +151,7 @@ func main() {
 	pdfService := service.NewPDFService()
 	notificationService := service.NewNotificationService(notificationRepo)
 	generalService := service.NewGeneralService(generalRepo)
-	onsiteVisitorsAnalyticsService := service.NewOnsiteVisitorsAnalyticsService(customerRepo)
+	orderTicketGroupService := service.NewOrderTicketGroupService(orderTicketGroupRepo)
 
 	// Initialize handlers
 	salesAnalyticsHandler := handlers.NewSalesAnalyticsHandler(salesAnalyticsService)
@@ -166,7 +168,7 @@ func main() {
 	notificationHandler := handlers.NewNotificationHandler(*notificationService)
 	tagHandler := handlers.NewTagHandler(tagService)
 	generalHandler := handlers.NewGeneralHandler(generalService, *notificationService)
-	onsiteVisitorsAnalytics := handlers.NewOnsiteVisitorsAnalyticsHandler(customerService, onsiteVisitorsAnalyticsService)
+	onsiteVisitorsAnalyticsHandler := handlers.NewOnsiteVisitorsAnalyticsHandler(orderTicketGroupService, customerService)
 
 	// Create Fiber app with adapted error handler for slog
 	app := fiber.New(fiber.Config{
@@ -199,7 +201,7 @@ func main() {
 	routes.SetupNotificationRoutes(app, notificationHandler, jwtService)
 	routes.SetupTagRoutes(app, tagHandler, jwtService)
 	routes.SetupGeneralRoutes(app, generalHandler, jwtService)
-	routes.SetupOnsiteVisitorsAnalyticsRoutes(app, onsiteVisitorsAnalytics, jwtService)
+	routes.SetupOnsiteVisitorsAnalyticsRoutes(app, onsiteVisitorsAnalyticsHandler, jwtService)
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.Server.CorePort)

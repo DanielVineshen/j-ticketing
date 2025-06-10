@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"j-ticketing/internal/db/repositories"
+	"j-ticketing/internal/db/models"
 	logger "log/slog"
 	"math/rand"
 	"net/http"
@@ -108,11 +108,9 @@ func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, 
 }
 
 // NewEmailService creates a new email service
-func NewEmailService(generalRepo *repositories.GeneralRepository) EmailService {
+func NewEmailService(generalModel *models.General) EmailService {
 	var tokenManager *OAuth2TokenManager
 	useOAuth := false
-
-	generalModel, _ := generalRepo.FindFirst()
 
 	// Check if OAuth2 credentials are configured
 	if generalModel.EmailClientId != "" && generalModel.EmailClientSecret != "" && generalModel.EmailRefreshToken != "" {

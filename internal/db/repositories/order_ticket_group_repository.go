@@ -3,7 +3,10 @@ package repositories
 
 import (
 	"errors"
+	"fmt"
 	"j-ticketing/internal/db/models"
+	"j-ticketing/pkg/utils"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -18,10 +21,31 @@ func NewOrderTicketGroupRepository(db *gorm.DB) *OrderTicketGroupRepository {
 	return &OrderTicketGroupRepository{db: db}
 }
 
+func (r *OrderTicketGroupRepository) FindOrderWithinDateRange(startDate, endDate string) ([]models.OrderTicketGroup, error) {
+	startTime, err := time.Parse(utils.DateOnlyFormat, startDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid start date format: %v", err)
+	}
+
+	endTime, err := time.Parse(utils.DateOnlyFormat, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid end date format: %v", err)
+	}
+
+	// Set end time to end of day
+	endTime = endTime.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+
+	var orderTicketGroups []models.OrderTicketGroup
+	result := r.db.Where("created_at >= ? AND created_at <= ?", startTime, endTime).
+		Order("created_at DESC").
+		Find(&orderTicketGroups)
+	return orderTicketGroups, result.Error
+}
+
 // FindAll returns all order ticket groups
 func (r *OrderTicketGroupRepository) FindAll() ([]models.OrderTicketGroup, error) {
 	var orderTicketGroups []models.OrderTicketGroup
-	result := r.db.Preload("Customer").
+	result := r.db.
 		Preload("OrderTicketLogs", func(db *gorm.DB) *gorm.DB {
 			return db.Order("created_at DESC")
 		}).
@@ -38,7 +62,6 @@ func (r *OrderTicketGroupRepository) FindAll() ([]models.OrderTicketGroup, error
 		Preload("TicketGroup.GroupGalleries").
 		Preload("TicketGroup.TicketDetails").
 		Preload("TicketGroup.TicketVariants").
-		Preload("OrderTicketInfos").
 		Order("order_ticket_group_id DESC").
 		Find(&orderTicketGroups)
 	return orderTicketGroups, result.Error

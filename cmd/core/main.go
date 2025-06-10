@@ -144,6 +144,7 @@ func main() {
 	pdfService := service.NewPDFService()
 	notificationService := service.NewNotificationService(notificationRepo)
 	generalService := service.NewGeneralService(generalRepo)
+	onsiteVisitorsAnalyticsService := service.NewOnsiteVisitorsAnalyticsService(customerRepo)
 
 	// Initialize handlers
 	adminHandler := handlers.NewAdminHandler(adminService, *notificationService)
@@ -159,6 +160,7 @@ func main() {
 	notificationHandler := handlers.NewNotificationHandler(*notificationService)
 	tagHandler := handlers.NewTagHandler(tagService)
 	generalHandler := handlers.NewGeneralHandler(generalService, *notificationService)
+	onsiteVisitorsAnalytics := handlers.NewOnsiteVisitorsAnalyticsHandler(customerService, onsiteVisitorsAnalyticsService)
 
 	// Create Fiber app with adapted error handler for slog
 	app := fiber.New(fiber.Config{
@@ -190,6 +192,7 @@ func main() {
 	routes.SetupNotificationRoutes(app, notificationHandler, jwtService)
 	routes.SetupTagRoutes(app, tagHandler, jwtService)
 	routes.SetupGeneralRoutes(app, generalHandler, jwtService)
+	routes.SetupOnsiteVisitorsAnalyticsRoutes(app, onsiteVisitorsAnalytics, jwtService)
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.Server.CorePort)

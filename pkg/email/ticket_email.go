@@ -2,11 +2,11 @@ package email
 
 import (
 	"bytes"
-	"encoding/base64"
 	"fmt"
 	"github.com/boombuler/barcode"
 	"github.com/boombuler/barcode/qr"
 	"image/png"
+	logger "log/slog"
 	"strconv"
 	"time"
 )
@@ -164,7 +164,7 @@ func getEmailTexts(lang string, ticketGroup string) EmailText {
 }
 
 // SendTicketsEmail sends an email with QR codes for tickets in the specified language
-func sendTicketsEmail(orderOverview OrderOverview, orderItems []OrderInfo, tickets []TicketInfo, language string) (subjectReturn string, bodyReturn string, err error) {
+func sendTicketsEmail(orderOverview OrderOverview, orderItems []OrderInfo, tickets []TicketInfo, language string) (subjectReturn string, bodyReturn string, attachments []Attachment, err error) {
 	// Get localized text
 	text := getEmailTexts(language, orderOverview.TicketGroup)
 
@@ -196,6 +196,8 @@ func sendTicketsEmail(orderOverview OrderOverview, orderItems []OrderInfo, ticke
 		email = "botani.johor@gmail.com"
 	}
 
+	// Generate QR code attachments
+	var qrAttachments []Attachment
 	// Begin building HTML content
 	var contentBuilder bytes.Buffer
 
@@ -261,31 +263,41 @@ func sendTicketsEmail(orderOverview OrderOverview, orderItems []OrderInfo, ticke
 	maxColumns := 3
 
 	for i, ticket := range tickets {
-		qrCode, err := qr.Encode(ticket.Content, qr.M, qr.Auto)
+		// Generate QR code as bytes
+		qrBytes, err := generateQRCodeBytes(ticket.Content)
 		if err != nil {
-			return "", "", fmt.Errorf("failed to generate QR code: %w", err)
+			logger.Error("Failed to generate QR code", "ticket", i, "error", err)
+			// Add placeholder for failed QR codes
+			contentBuilder.WriteString(`
+            <td align="center" valign="top" style="padding: 5px; width: 160px;">
+                <div style="width: 150px; height: 150px; border: 2px solid #ff6b6b; background: #fff5f5; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #e74c3c;">
+                    QR Error
+                </div>
+                <div style="font-size: 12px; font-weight: bold; color: #333; text-align: center; word-wrap: break-word; line-height: 1.2;">` + ticket.Label + `</div>
+            </td>
+            `)
+			continue
 		}
 
-		qrCode, err = barcode.Scale(qrCode, 150, 150)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to scale QR code: %w", err)
+		// Create attachment with Content-ID
+		cidName := fmt.Sprintf("qr-code-%d", i)
+		qrAttachment := Attachment{
+			Name:    fmt.Sprintf("qr_%s.png", ticket.Label),
+			Content: qrBytes,
+			Type:    "image/png",
+			CID:     cidName,
 		}
+		qrAttachments = append(qrAttachments, qrAttachment)
 
-		var qrBuffer bytes.Buffer
-		err = png.Encode(&qrBuffer, qrCode)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to encode QR code as PNG: %w", err)
-		}
-
-		qrBase64 := base64.StdEncoding.EncodeToString(qrBuffer.Bytes())
-
+		// Reference the attachment using cid: in HTML
 		contentBuilder.WriteString(`
             <td align="center" valign="top" style="padding: 5px; width: 160px;">
-                <img src="data:image/png;base64,` + qrBase64 + `" alt="QR Code" style="width: 150px; height: 150px; border: 1px solid #eee; padding: 5px; margin-bottom: 8px;">
+                <img src="cid:` + cidName + `" alt="QR Code" style="width: 150px; height: 150px; border: 1px solid #eee; padding: 5px; margin-bottom: 8px;">
                 <div style="font-size: 12px; font-weight: bold; color: #333; text-align: center; word-wrap: break-word; line-height: 1.2;">` + ticket.Label + `</div>
             </td>
         `)
 
+		// Handle row wrapping
 		if (i+1)%maxColumns == 0 && i < ticketCount-1 {
 			contentBuilder.WriteString(`
 			</tr>
@@ -293,6 +305,12 @@ func sendTicketsEmail(orderOverview OrderOverview, orderItems []OrderInfo, ticke
 			`)
 		}
 	}
+
+	// Close the QR codes table
+	contentBuilder.WriteString(`
+        </tr>
+        </table>
+    `)
 
 	contentBuilder.WriteString(`
         </tr>
@@ -431,5 +449,32 @@ func sendTicketsEmail(orderOverview OrderOverview, orderItems []OrderInfo, ticke
 `, orderOverview.TicketGroup, address, contentBuilder.String(),
 		text.AutomaticMessage, text.ContactUs, contactNo, email, text.Copyright)
 
-	return subject, body, nil
+	return subject, body, qrAttachments, nil
+}
+
+func generateQRCodeBytes(content string) ([]byte, error) {
+	if content == "" {
+		return nil, fmt.Errorf("QR content cannot be empty")
+	}
+
+	// Generate QR code
+	qrCode, err := qr.Encode(content, qr.M, qr.Auto)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate QR code: %w", err)
+	}
+
+	// Scale QR code
+	scaledQR, err := barcode.Scale(qrCode, 150, 150)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scale QR code: %w", err)
+	}
+
+	// Encode to PNG
+	var qrBuffer bytes.Buffer
+	err = png.Encode(&qrBuffer, scaledQR)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode QR code as PNG: %w", err)
+	}
+
+	return qrBuffer.Bytes(), nil
 }

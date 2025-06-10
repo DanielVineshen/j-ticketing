@@ -100,9 +100,11 @@ type TicketInfo struct {
 }
 
 func (s *emailService) SendTicketsEmail(to string, orderOverview OrderOverview, orderItems []OrderInfo, tickets []TicketInfo, attachments []Attachment, language string) error {
-	subject, body, _ := sendTicketsEmail(orderOverview, orderItems, tickets, language)
+	subject, body, qrAttachments, _ := sendTicketsEmail(orderOverview, orderItems, tickets, language)
 
-	return s.sendEmailWithAttachmentsWithRetry([]string{to}, subject, body, attachments)
+	allAttachments := append(attachments, qrAttachments...)
+
+	return s.sendEmailWithAttachmentsWithRetry([]string{to}, subject, body, allAttachments)
 }
 
 // NewEmailService creates a new email service
@@ -289,6 +291,7 @@ type Attachment struct {
 	Name    string
 	Content []byte
 	Type    string
+	CID     string
 }
 
 // sendEmailViaSmtpWithAttachments sends an email with attachments using SMTP
@@ -303,10 +306,22 @@ func (s *emailService) sendEmailViaSmtpWithAttachments(to []string, subject, bod
 	message.WriteString(fmt.Sprintf("From: %s\r\n", s.from))
 	message.WriteString(fmt.Sprintf("Subject: %s\r\n", subject))
 
+	// Check if we have CID attachments
+	hasCIDAttachments := false
+	for _, attachment := range attachments {
+		if attachment.CID != "" {
+			hasCIDAttachments = true
+			break
+		}
+	}
+
 	// Set content type based on whether there are attachments
-	if len(attachments) > 0 {
-		message.WriteString(fmt.Sprintf("Content-Type: multipart/mixed; boundary=\"%s\"\r\n\r\n", boundary))
-		message.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+	if hasCIDAttachments {
+		// Use multipart/related for inline images with CID
+		message.WriteString(fmt.Sprintf("Content-Type: multipart/related; boundary=%s\r\n\r\n", boundary))
+	} else {
+		// Use multipart/mixed for regular attachments
+		message.WriteString(fmt.Sprintf("Content-Type: multipart/mixed; boundary=%s\r\n\r\n", boundary))
 	}
 
 	// Add HTML body
@@ -319,7 +334,16 @@ func (s *emailService) sendEmailViaSmtpWithAttachments(to []string, subject, bod
 	for _, attachment := range attachments {
 		message.WriteString(fmt.Sprintf("\r\n--%s\r\n", boundary))
 		message.WriteString(fmt.Sprintf("Content-Type: %s\r\n", attachment.Type))
-		message.WriteString(fmt.Sprintf("Content-Disposition: attachment; filename=\"%s\"\r\n", attachment.Name))
+
+		if attachment.CID != "" {
+			// Inline attachment with Content-ID
+			message.WriteString(fmt.Sprintf("Content-ID: <%s>\r\n", attachment.CID))
+			message.WriteString("Content-Disposition: inline\r\n")
+		} else {
+			// Regular attachment
+			message.WriteString(fmt.Sprintf("Content-Disposition: attachment; filename=\"%s\"\r\n", attachment.Name))
+		}
+
 		message.WriteString("Content-Transfer-Encoding: base64\r\n\r\n")
 
 		// Convert attachment to base64
@@ -378,28 +402,44 @@ func (s *emailService) sendEmailViaGmailAPIWithAttachments(to []string, subject,
 	messageBuffer.WriteString(fmt.Sprintf("Subject: %s\r\n", subject))
 	messageBuffer.WriteString("MIME-Version: 1.0\r\n")
 
+	// Check if we have CID attachments
+	hasCIDAttachments := false
+	for _, attachment := range attachments {
+		if attachment.CID != "" {
+			hasCIDAttachments = true
+			break
+		}
+	}
+
 	// If we have attachments, create a multipart message
 	if len(attachments) > 0 {
-		logger.Info("Creating multipart MIME message",
-			"attachmentCount", len(attachments))
+		if hasCIDAttachments {
+			// Use multipart/related for inline images with CID
+			messageBuffer.WriteString(fmt.Sprintf("Content-Type: multipart/related; boundary=%s\r\n\r\n", boundary))
+		} else {
+			// Use multipart/mixed for regular attachments
+			messageBuffer.WriteString(fmt.Sprintf("Content-Type: multipart/mixed; boundary=%s\r\n\r\n", boundary))
+		}
 
-		messageBuffer.WriteString(fmt.Sprintf("Content-Type: multipart/mixed; boundary=%s\r\n\r\n", boundary))
 		messageBuffer.WriteString(fmt.Sprintf("--%s\r\n", boundary))
 		messageBuffer.WriteString("Content-Type: text/html; charset=UTF-8\r\n\r\n")
 		messageBuffer.WriteString(body)
 		messageBuffer.WriteString("\r\n")
 
-		// Add each attachment
-		for i, attachment := range attachments {
-			logger.Info("Adding attachment to email",
-				"index", i+1,
-				"name", attachment.Name,
-				"type", attachment.Type,
-				"size", len(attachment.Content))
-
+		// Add attachments
+		for _, attachment := range attachments {
 			messageBuffer.WriteString(fmt.Sprintf("\r\n--%s\r\n", boundary))
 			messageBuffer.WriteString(fmt.Sprintf("Content-Type: %s\r\n", attachment.Type))
-			messageBuffer.WriteString(fmt.Sprintf("Content-Disposition: attachment; filename=\"%s\"\r\n", attachment.Name))
+
+			if attachment.CID != "" {
+				// Inline attachment with Content-ID
+				messageBuffer.WriteString(fmt.Sprintf("Content-ID: <%s>\r\n", attachment.CID))
+				messageBuffer.WriteString("Content-Disposition: inline\r\n")
+			} else {
+				// Regular attachment
+				messageBuffer.WriteString(fmt.Sprintf("Content-Disposition: attachment; filename=\"%s\"\r\n", attachment.Name))
+			}
+
 			messageBuffer.WriteString("Content-Transfer-Encoding: base64\r\n\r\n")
 
 			// Encode attachment as base64 in 76-character lines
@@ -413,11 +453,9 @@ func (s *emailService) sendEmailViaGmailAPIWithAttachments(to []string, subject,
 			}
 		}
 
-		// Close the MIME message
 		messageBuffer.WriteString(fmt.Sprintf("\r\n--%s--\r\n", boundary))
 	} else {
 		// Simple HTML email without attachments
-		logger.Info("Creating simple HTML email without attachments")
 		messageBuffer.WriteString("Content-Type: text/html; charset=UTF-8\r\n\r\n")
 		messageBuffer.WriteString(body)
 	}

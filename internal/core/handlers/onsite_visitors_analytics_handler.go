@@ -44,7 +44,7 @@ func (o *OnsiteVisitorsAnalyticsHandler) GetTotalOnsiteVisitors(c *fiber.Ctx) er
 	response, err := o.orderTicketGroupService.GetTotalOnsiteVisitorsWithinRange(startDate, endDate)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": fmt.Sprintf("Failed to fetch customer records: %v", err),
+			"error": fmt.Sprintf("Failed to fetch records: %v", err),
 		})
 	}
 
@@ -72,7 +72,7 @@ func (o *OnsiteVisitorsAnalyticsHandler) GetNewVsReturningVisitors(c *fiber.Ctx)
 	response, err := o.orderTicketGroupService.GetNewVsReturningVisitors(startDate, endDate)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": fmt.Sprintf("Failed to fetch customer records: %v", err),
+			"error": fmt.Sprintf("Failed to fetch records: %v", err),
 		})
 	}
 
@@ -80,19 +80,115 @@ func (o *OnsiteVisitorsAnalyticsHandler) GetNewVsReturningVisitors(c *fiber.Ctx)
 }
 
 func (o *OnsiteVisitorsAnalyticsHandler) GetAveragePeakDayAnalysis(c *fiber.Ctx) error {
-	return c.JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
+	startDate := c.Query("startDate")
+	endDate := c.Query("endDate")
+
+	// Validate required parameters
+	if startDate == "" || endDate == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "startDate and endDate are required parameters",
+		})
+	}
+
+	// Validate date format
+	if !isValidDateFormat(startDate) || !isValidDateFormat(endDate) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid date format. Use YYYY-MM-DD",
+		})
+	}
+
+	response, err := o.orderTicketGroupService.GetAveragePeakDayAnalysis(startDate, endDate)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": fmt.Sprintf("Failed to fetch records: %v", err),
+		})
+	}
+
+	return c.JSON(models.NewBaseSuccessResponse(response))
 }
 
 func (o *OnsiteVisitorsAnalyticsHandler) GetVisitorsByAttraction(c *fiber.Ctx) error {
-	return c.JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
+	startDate := c.Query("startDate")
+	endDate := c.Query("endDate")
+
+	// Validate required parameters
+	if startDate == "" || endDate == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "startDate and endDate are required parameters",
+		})
+	}
+
+	// Validate date format
+	if !isValidDateFormat(startDate) || !isValidDateFormat(endDate) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid date format. Use YYYY-MM-DD",
+		})
+	}
+
+	response, err := o.orderTicketGroupService.GetVisitorsByAttraction(startDate, endDate)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": fmt.Sprintf("Failed to fetch records: %v", err),
+		})
+	}
+
+	return c.JSON(models.NewBaseSuccessResponse(response))
 }
 
 func (o *OnsiteVisitorsAnalyticsHandler) GetVisitorsByAgeGroup(c *fiber.Ctx) error {
-	return c.JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
+	startDate := c.Query("startDate")
+	endDate := c.Query("endDate")
+
+	// Validate required parameters
+	if startDate == "" || endDate == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "startDate and endDate are required parameters",
+		})
+	}
+
+	// Validate date format
+	if !isValidDateFormat(startDate) || !isValidDateFormat(endDate) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid date format. Use YYYY-MM-DD",
+		})
+	}
+
+	response, err := o.orderTicketGroupService.GetVisitorsByAgeGroup(startDate, endDate)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": fmt.Sprintf("Failed to fetch records: %v", err),
+		})
+	}
+
+	return c.JSON(models.NewBaseSuccessResponse(response))
 }
 
 func (o *OnsiteVisitorsAnalyticsHandler) GetVisitorsByNationality(c *fiber.Ctx) error {
-	return c.JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
+	startDate := c.Query("startDate")
+	endDate := c.Query("endDate")
+
+	// Validate required parameters
+	if startDate == "" || endDate == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "startDate and endDate are required parameters",
+		})
+	}
+
+	// Validate date format
+	if !isValidDateFormat(startDate) || !isValidDateFormat(endDate) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid date format. Use YYYY-MM-DD",
+		})
+	}
+
+	response, err := o.orderTicketGroupService.GetVisitorsByNationality(startDate, endDate)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": fmt.Sprintf("Failed to fetch records: %v", err),
+		})
+	}
+
+	return c.JSON(models.NewBaseSuccessResponse(response))
 }
 
 // Helper function to validate date format

@@ -2,23 +2,28 @@ package service
 
 import (
 	"fmt"
-	"j-ticketing/internal/db/models"
 	"j-ticketing/internal/db/repositories"
 	"j-ticketing/pkg/utils"
 	"math"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 )
 
 type OrderTicketGroupService struct {
 	orderTicketGroupRepo *repositories.OrderTicketGroupRepository
+	ticketGroupRepo      *repositories.TicketGroupRepository
 }
 
 // NewOrderTicketGroupService creates a new instance of OrderTicketGroupService
 func NewOrderTicketGroupService(
 	orderTicketGroupRepo *repositories.OrderTicketGroupRepository,
+	ticketGroupRepo *repositories.TicketGroupRepository,
 ) *OrderTicketGroupService {
 	return &OrderTicketGroupService{
 		orderTicketGroupRepo: orderTicketGroupRepo,
+		ticketGroupRepo:      ticketGroupRepo,
 	}
 }
 
@@ -52,48 +57,58 @@ func (o *OrderTicketGroupService) GetTotalOnsiteVisitorsWithinRange(startDate, e
 	duration := end.Sub(start)
 
 	// Calculate past period dates
-	pastEndDate := start.AddDate(0, 0, -1)      // Day before startDate
-	pastStartDate := pastEndDate.Add(-duration) // Same duration backwards
+	pastEndDate := start.AddDate(0, 0, -1)
+	pastStartDate := pastEndDate.Add(-duration)
 
-	// Get current period orders
-	orders, _ := o.orderTicketGroupRepo.FindOrderWithinDateRange(startDate, endDate)
+	// Get all orders
+	allOrders, err := o.orderTicketGroupRepo.FindAllSuccessfulOrders()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve orders: %w", err)
+	}
 
-	// Get past period orders - just need the count
-	pastOrders, _ := o.orderTicketGroupRepo.FindOrderWithinDateRange(
-		pastStartDate.Format(utils.DateOnlyFormat),
-		pastEndDate.Format(utils.DateOnlyFormat),
-	)
+	// Filter orders by admit date and count tickets
+	currentTotalRecords := 0
+	pastTotalRecords := 0
+	dailyCounts := make(map[string]int)
 
-	// Calculate totals
-	currentTotalRecords := len(orders)
-	pastTotalRecords := len(pastOrders)
+	for _, order := range allOrders {
+		if len(order.OrderTicketInfos) == 0 {
+			continue // Skip orders without ticket info
+		}
 
-	// Calculate percentage difference from past period
+		// Get admit date from first ticket info (all will be the same)
+		admitDateStr := order.OrderTicketInfos[0].AdmitDate
+		admitDate, err := time.Parse("2006-01-02", admitDateStr)
+		if err != nil {
+			continue // Skip invalid dates
+		}
+
+		ticketCount := len(order.OrderTicketInfos)
+
+		// Check if admit date falls in current period
+		if admitDate.After(start.Add(-time.Second)) && admitDate.Before(end.Add(24*time.Hour)) {
+			currentTotalRecords += ticketCount
+			dailyCounts[admitDateStr] += ticketCount
+		}
+
+		// Check if admit date falls in past period
+		if admitDate.After(pastStartDate.Add(-time.Second)) && admitDate.Before(pastEndDate.Add(24*time.Hour)) {
+			pastTotalRecords += ticketCount
+		}
+	}
+
+	// Calculate percentage difference
 	var diffFromPastPeriod float64
 	if pastTotalRecords > 0 {
 		diffFromPastPeriod = ((float64(currentTotalRecords) - float64(pastTotalRecords)) / float64(pastTotalRecords)) * 100
-		// Round to 2 decimal places
 		diffFromPastPeriod = math.Round(diffFromPastPeriod*100) / 100
 	} else if currentTotalRecords > 0 {
-		// If past period has 0 records but current has records, it's 100% increase
 		diffFromPastPeriod = 100.00
 	} else {
-		// Both periods have 0 records, no change
 		diffFromPastPeriod = 0.00
 	}
 
-	// Group current orders by date
-	dailyCounts := make(map[string]int)
-	for _, order := range orders {
-		malaysiaTime, err := utils.ToMalaysiaTime(order.CreatedAt)
-		if err != nil {
-			continue
-		}
-		dateStr := malaysiaTime.Format(utils.DateOnlyFormat)
-		dailyCounts[dateStr]++
-	}
-
-	// Generate complete date range (including days with 0 records)
+	// Generate complete date range for daily data
 	dates := o.generateDateRange(startDate, endDate)
 	dailyData := make([]OrderDailyData, 0)
 
@@ -135,7 +150,7 @@ type NewVsReturningDailyData struct {
 }
 
 func (o *OrderTicketGroupService) GetNewVsReturningVisitors(startDate, endDate string) (*NewVsReturningDateRangeResponse, error) {
-	// Parse dates to calculate the period duration
+	// Parse dates
 	start, err := time.Parse(utils.DateOnlyFormat, startDate)
 	if err != nil {
 		return nil, fmt.Errorf("invalid startDate format: %w", err)
@@ -146,101 +161,83 @@ func (o *OrderTicketGroupService) GetNewVsReturningVisitors(startDate, endDate s
 		return nil, fmt.Errorf("invalid endDate format: %w", err)
 	}
 
-	// Calculate the duration of the current period
-	duration := end.Sub(start)
-
 	// Calculate past period dates
-	pastEndDate := start.AddDate(0, 0, -1)      // Day before startDate
-	pastStartDate := pastEndDate.Add(-duration) // Same duration backwards
+	duration := end.Sub(start)
+	pastEndDate := start.AddDate(0, 0, -1)
+	pastStartDate := pastEndDate.Add(-duration)
 
-	// Get ALL orders to determine first order for each customer
-	allOrders, err := o.orderTicketGroupRepo.FindAll()
+	// Get all orders
+	allOrders, err := o.orderTicketGroupRepo.FindAllSuccessfulOrders()
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve all orders: %w", err)
 	}
 
-	// Create a map to track each customer's first order date
-	customerFirstOrderDate := make(map[string]time.Time)
+	// Track each customer's first admit date
+	customerFirstAdmitDate := make(map[string]time.Time)
 
 	for _, order := range allOrders {
-		// Convert UTC CreatedAt to Malaysia timezone
-		malaysiaTime, err := utils.ToMalaysiaTime(order.CreatedAt)
-		if err != nil {
+		if len(order.OrderTicketInfos) == 0 {
 			continue
 		}
 
 		custId := order.CustId
-
-		// Track the earliest order date for each customer
-		if firstOrderDate, exists := customerFirstOrderDate[custId]; !exists || malaysiaTime.Before(firstOrderDate) {
-			customerFirstOrderDate[custId] = malaysiaTime
-		}
-	}
-
-	// Filter orders for current period
-	currentPeriodOrders := make([]models.OrderTicketGroup, 0)
-	pastPeriodOrders := make([]models.OrderTicketGroup, 0)
-
-	for _, order := range allOrders {
-		malaysiaTime, err := utils.ToMalaysiaTime(order.CreatedAt)
+		admitDateStr := order.OrderTicketInfos[0].AdmitDate
+		admitDate, err := time.Parse("2006-01-02", admitDateStr)
 		if err != nil {
 			continue
 		}
 
-		// Check if order falls in current period
-		if malaysiaTime.After(start.Add(-time.Second)) && malaysiaTime.Before(end.Add(24*time.Hour)) {
-			currentPeriodOrders = append(currentPeriodOrders, order)
-		}
-
-		// Check if order falls in past period
-		if malaysiaTime.After(pastStartDate.Add(-time.Second)) && malaysiaTime.Before(pastEndDate.Add(24*time.Hour)) {
-			pastPeriodOrders = append(pastPeriodOrders, order)
+		// Track earliest admit date for each customer
+		if firstAdmitDate, exists := customerFirstAdmitDate[custId]; !exists || admitDate.Before(firstAdmitDate) {
+			customerFirstAdmitDate[custId] = admitDate
 		}
 	}
 
-	// Process current period orders
+	// Process current and past periods
 	currentNewCount := 0
 	currentReturningCount := 0
-	currentDailyCounts := make(map[string]map[string]int) // date -> type -> count
-
-	for _, order := range currentPeriodOrders {
-		malaysiaTime, _ := utils.ToMalaysiaTime(order.CreatedAt)
-		dateStr := malaysiaTime.Format(utils.DateOnlyFormat)
-
-		if currentDailyCounts[dateStr] == nil {
-			currentDailyCounts[dateStr] = make(map[string]int)
-		}
-
-		custId := order.CustId
-		firstOrderDate := customerFirstOrderDate[custId]
-
-		// Check if this order date is the same as the customer's first order date
-		if malaysiaTime.Format(utils.DateOnlyFormat) == firstOrderDate.Format(utils.DateOnlyFormat) {
-			// New customer
-			currentNewCount++
-			currentDailyCounts[dateStr]["new"]++
-		} else {
-			// Returning customer
-			currentReturningCount++
-			currentDailyCounts[dateStr]["returning"]++
-		}
-	}
-
-	// Process past period orders
 	pastNewCount := 0
 	pastReturningCount := 0
+	currentDailyCounts := make(map[string]map[string]int)
 
-	for _, order := range pastPeriodOrders {
-		malaysiaTime, _ := utils.ToMalaysiaTime(order.CreatedAt)
+	for _, order := range allOrders {
+		if len(order.OrderTicketInfos) == 0 {
+			continue
+		}
 
 		custId := order.CustId
-		firstOrderDate := customerFirstOrderDate[custId]
+		admitDateStr := order.OrderTicketInfos[0].AdmitDate
+		admitDate, err := time.Parse("2006-01-02", admitDateStr)
+		if err != nil {
+			continue
+		}
 
-		// Check if this order date is the same as the customer's first order date
-		if malaysiaTime.Format(utils.DateOnlyFormat) == firstOrderDate.Format(utils.DateOnlyFormat) {
-			pastNewCount++
-		} else {
-			pastReturningCount++
+		ticketCount := len(order.OrderTicketInfos)
+		firstAdmitDate := customerFirstAdmitDate[custId]
+		isNewVisitor := admitDate.Format("2006-01-02") == firstAdmitDate.Format("2006-01-02")
+
+		// Check if admit date is in current period
+		if admitDate.After(start.Add(-time.Second)) && admitDate.Before(end.Add(24*time.Hour)) {
+			if currentDailyCounts[admitDateStr] == nil {
+				currentDailyCounts[admitDateStr] = make(map[string]int)
+			}
+
+			if isNewVisitor {
+				currentNewCount += ticketCount
+				currentDailyCounts[admitDateStr]["new"] += ticketCount
+			} else {
+				currentReturningCount += ticketCount
+				currentDailyCounts[admitDateStr]["returning"] += ticketCount
+			}
+		}
+
+		// Check if admit date is in past period
+		if admitDate.After(pastStartDate.Add(-time.Second)) && admitDate.Before(pastEndDate.Add(24*time.Hour)) {
+			if isNewVisitor {
+				pastNewCount += ticketCount
+			} else {
+				pastReturningCount += ticketCount
+			}
 		}
 	}
 
@@ -265,7 +262,7 @@ func (o *OrderTicketGroupService) GetNewVsReturningVisitors(startDate, endDate s
 		diffReturningFromPastPeriod = 0.00
 	}
 
-	// Generate complete date range for daily data
+	// Generate daily data
 	dates := o.generateDateRange(startDate, endDate)
 	dailyData := make([]NewVsReturningDailyData, 0)
 
@@ -312,4 +309,647 @@ func (o *OrderTicketGroupService) generateDateRange(startDate, endDate string) [
 	}
 
 	return dates
+}
+
+type PeakDayAnalysisResponse struct {
+	StartDate    string          `json:"startDate"`
+	EndDate      string          `json:"endDate"`
+	PeakDay      string          `json:"peakDay"`
+	PeakDayCount int             `json:"peakDayCount"`
+	WeeklyData   []WeeklyDayData `json:"weeklyData"`
+}
+
+type WeeklyDayData struct {
+	DayOfWeek string  `json:"dayOfWeek"`
+	Count     int     `json:"count"`
+	Average   float64 `json:"average"`
+}
+
+func (o *OrderTicketGroupService) GetAveragePeakDayAnalysis(startDate, endDate string) (*PeakDayAnalysisResponse, error) {
+	// Parse dates
+	start, err := time.Parse(utils.DateOnlyFormat, startDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid startDate format: %w", err)
+	}
+
+	end, err := time.Parse(utils.DateOnlyFormat, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid endDate format: %w", err)
+	}
+
+	// Get all orders
+	allOrders, err := o.orderTicketGroupRepo.FindAllSuccessfulOrders()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve orders: %w", err)
+	}
+
+	// Group ticket counts by day of week
+	dayOfWeekCounts := make(map[time.Weekday]int)
+	dayOfWeekDates := make(map[time.Weekday][]string) // Track dates for each day of week for averaging
+
+	// Initialize all days to 0
+	for i := time.Sunday; i <= time.Saturday; i++ {
+		dayOfWeekCounts[i] = 0
+		dayOfWeekDates[i] = make([]string, 0)
+	}
+
+	// Track unique dates in the range for proper averaging calculation
+	uniqueDatesInRange := make(map[string]bool)
+
+	for _, order := range allOrders {
+		if len(order.OrderTicketInfos) == 0 {
+			continue
+		}
+
+		// Get admit date from first ticket info
+		admitDateStr := order.OrderTicketInfos[0].AdmitDate
+		admitDate, err := time.Parse("2006-01-02", admitDateStr)
+		if err != nil {
+			continue
+		}
+
+		// Check if admit date falls within the specified range
+		if admitDate.After(start.Add(-time.Second)) && admitDate.Before(end.Add(24*time.Hour)) {
+			ticketCount := len(order.OrderTicketInfos)
+			dayOfWeek := admitDate.Weekday()
+
+			dayOfWeekCounts[dayOfWeek] += ticketCount
+
+			// Track unique dates for this day of week
+			if !contains(dayOfWeekDates[dayOfWeek], admitDateStr) {
+				dayOfWeekDates[dayOfWeek] = append(dayOfWeekDates[dayOfWeek], admitDateStr)
+			}
+
+			// Track all unique dates in range
+			uniqueDatesInRange[admitDateStr] = true
+		}
+	}
+
+	// Calculate averages and find peak day
+	weeklyData := make([]WeeklyDayData, 0)
+	peakDay := ""
+	peakDayCount := 0
+
+	// Convert weekday to string names
+	dayNames := map[time.Weekday]string{
+		time.Sunday:    "Sunday",
+		time.Monday:    "Monday",
+		time.Tuesday:   "Tuesday",
+		time.Wednesday: "Wednesday",
+		time.Thursday:  "Thursday",
+		time.Friday:    "Friday",
+		time.Saturday:  "Saturday",
+	}
+
+	// Calculate the number of each day of week in the date range
+	dayOfWeekOccurrences := calculateDayOccurrences(start, end)
+
+	for day := time.Sunday; day <= time.Saturday; day++ {
+		dayName := dayNames[day]
+		totalCount := dayOfWeekCounts[day]
+		occurrences := dayOfWeekOccurrences[day]
+
+		var average float64
+		if occurrences > 0 {
+			average = float64(totalCount) / float64(occurrences)
+		}
+
+		// Round to 2 decimal places
+		average = math.Round(average*100) / 100
+
+		weeklyData = append(weeklyData, WeeklyDayData{
+			DayOfWeek: dayName,
+			Count:     totalCount,
+			Average:   average,
+		})
+
+		// Find peak day (day with highest total count)
+		if totalCount > peakDayCount {
+			peakDayCount = totalCount
+			peakDay = dayName
+		}
+	}
+
+	return &PeakDayAnalysisResponse{
+		StartDate:    startDate,
+		EndDate:      endDate,
+		PeakDay:      peakDay,
+		PeakDayCount: peakDayCount,
+		WeeklyData:   weeklyData,
+	}, nil
+}
+
+// Helper function to calculate how many times each day of week occurs in the date range
+func calculateDayOccurrences(start, end time.Time) map[time.Weekday]int {
+	occurrences := make(map[time.Weekday]int)
+
+	// Initialize all days to 0
+	for i := time.Sunday; i <= time.Saturday; i++ {
+		occurrences[i] = 0
+	}
+
+	// Count occurrences of each day of week in the range
+	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
+		occurrences[d.Weekday()]++
+	}
+
+	return occurrences
+}
+
+// Helper function to check if slice contains string
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+type VisitorsByAttractionResponse struct {
+	StartDate      string                  `json:"startDate"`
+	EndDate        string                  `json:"endDate"`
+	TotalVisitors  int                     `json:"totalVisitors"`
+	AttractionData []AttractionVisitorData `json:"attractionData"`
+}
+
+type AttractionVisitorData struct {
+	TicketGroupId   uint    `json:"ticketGroupId"`
+	TicketGroupName string  `json:"ticketGroupName"`
+	TotalVisitors   int     `json:"totalVisitors"`
+	Percentage      float64 `json:"percentage"`
+}
+
+func (o *OrderTicketGroupService) GetVisitorsByAttraction(startDate, endDate string) (*VisitorsByAttractionResponse, error) {
+	// Parse dates
+	start, err := time.Parse(utils.DateOnlyFormat, startDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid startDate format: %w", err)
+	}
+
+	end, err := time.Parse(utils.DateOnlyFormat, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid endDate format: %w", err)
+	}
+
+	// Get all orders
+	allOrders, err := o.orderTicketGroupRepo.FindAllSuccessfulOrders()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve orders: %w", err)
+	}
+
+	// Get all ticket groups to ensure we show all attractions (even with 0 visitors)
+	allTicketGroups, err := o.ticketGroupRepo.FindAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve ticket groups: %w", err)
+	}
+
+	// Create a map to store visitor counts by ticket group
+	ticketGroupVisitors := make(map[uint]int)
+	ticketGroupNames := make(map[uint]string)
+
+	// Initialize all ticket groups with 0 visitors and store their names
+	for _, ticketGroup := range allTicketGroups {
+		ticketGroupVisitors[ticketGroup.TicketGroupId] = 0
+		// Use English name, fallback to BM if English is empty
+		if ticketGroup.GroupNameEn != "" {
+			ticketGroupNames[ticketGroup.TicketGroupId] = ticketGroup.GroupNameEn
+		} else {
+			ticketGroupNames[ticketGroup.TicketGroupId] = ticketGroup.GroupNameBm
+		}
+	}
+
+	// Count visitors for each ticket group within the date range
+	totalVisitors := 0
+
+	for _, order := range allOrders {
+		if len(order.OrderTicketInfos) == 0 {
+			continue
+		}
+
+		// Get admit date from first ticket info
+		admitDateStr := order.OrderTicketInfos[0].AdmitDate
+		admitDate, err := time.Parse("2006-01-02", admitDateStr)
+		if err != nil {
+			continue
+		}
+
+		// Check if admit date falls within the specified range
+		if admitDate.After(start.Add(-time.Second)) && admitDate.Before(end.Add(24*time.Hour)) {
+			ticketCount := len(order.OrderTicketInfos)
+			ticketGroupId := order.TicketGroupId
+
+			ticketGroupVisitors[ticketGroupId] += ticketCount
+			totalVisitors += ticketCount
+		}
+	}
+
+	// Build response data
+	attractionData := make([]AttractionVisitorData, 0)
+
+	for ticketGroupId, visitorCount := range ticketGroupVisitors {
+		// Calculate percentage
+		var percentage float64
+		if totalVisitors > 0 {
+			percentage = (float64(visitorCount) / float64(totalVisitors)) * 100
+			// Round to 2 decimal places
+			percentage = math.Round(percentage*100) / 100
+		}
+
+		attractionData = append(attractionData, AttractionVisitorData{
+			TicketGroupId:   ticketGroupId,
+			TicketGroupName: ticketGroupNames[ticketGroupId],
+			TotalVisitors:   visitorCount,
+			Percentage:      percentage,
+		})
+	}
+
+	// Sort by total visitors in descending order (most popular first)
+	sort.Slice(attractionData, func(i, j int) bool {
+		return attractionData[i].TotalVisitors > attractionData[j].TotalVisitors
+	})
+
+	return &VisitorsByAttractionResponse{
+		StartDate:      startDate,
+		EndDate:        endDate,
+		TotalVisitors:  totalVisitors,
+		AttractionData: attractionData,
+	}, nil
+}
+
+type VisitorsByAgeGroupResponse struct {
+	StartDate     string         `json:"startDate"`
+	EndDate       string         `json:"endDate"`
+	TotalVisitors int            `json:"totalVisitors"`
+	AgeGroupData  []AgeGroupData `json:"ageGroupData"`
+}
+
+type AgeGroupData struct {
+	AgeGroup      string  `json:"ageGroup"`
+	TotalVisitors int     `json:"totalVisitors"`
+	Percentage    float64 `json:"percentage"`
+}
+
+func (o *OrderTicketGroupService) GetVisitorsByAgeGroup(startDate, endDate string) (*VisitorsByAgeGroupResponse, error) {
+	// Parse dates
+	start, err := time.Parse(utils.DateOnlyFormat, startDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid startDate format: %w", err)
+	}
+
+	end, err := time.Parse(utils.DateOnlyFormat, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid endDate format: %w", err)
+	}
+
+	// Get all orders
+	allOrders, err := o.orderTicketGroupRepo.FindAllSuccessfulOrders()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve orders: %w", err)
+	}
+
+	// Initialize age group counters
+	ageGroupCounts := map[string]int{
+		"0-12":    0,
+		"13-17":   0,
+		"18-35":   0,
+		"36-50":   0,
+		"51+":     0,
+		"Unknown": 0, // For cases where age cannot be determined
+	}
+
+	totalVisitors := 0
+	currentYear := time.Now().Year()
+
+	for _, order := range allOrders {
+		if len(order.OrderTicketInfos) == 0 {
+			continue
+		}
+
+		// Get admit date from first ticket info
+		admitDateStr := order.OrderTicketInfos[0].AdmitDate
+		admitDate, err := time.Parse("2006-01-02", admitDateStr)
+		if err != nil {
+			continue
+		}
+
+		// Check if admit date falls within the specified range
+		if admitDate.After(start.Add(-time.Second)) && admitDate.Before(end.Add(24*time.Hour)) {
+			ticketCount := len(order.OrderTicketInfos)
+
+			// Get customer age from IC
+			age := extractAgeFromMalaysianIC(order.Customer.IdentificationNo, currentYear)
+			ageGroup := categorizeAge(age)
+
+			ageGroupCounts[ageGroup] += ticketCount
+			totalVisitors += ticketCount
+		}
+	}
+
+	// Build response data
+	ageGroupData := make([]AgeGroupData, 0)
+
+	// Define the order of age groups for consistent output
+	ageGroupOrder := []string{"0-12", "13-17", "18-35", "36-50", "51+", "Unknown"}
+
+	for _, ageGroup := range ageGroupOrder {
+		visitorCount := ageGroupCounts[ageGroup]
+
+		// Calculate percentage
+		var percentage float64
+		if totalVisitors > 0 {
+			percentage = (float64(visitorCount) / float64(totalVisitors)) * 100
+			// Round to 2 decimal places
+			percentage = math.Round(percentage*100) / 100
+		}
+
+		ageGroupData = append(ageGroupData, AgeGroupData{
+			AgeGroup:      ageGroup,
+			TotalVisitors: visitorCount,
+			Percentage:    percentage,
+		})
+	}
+
+	return &VisitorsByAgeGroupResponse{
+		StartDate:     startDate,
+		EndDate:       endDate,
+		TotalVisitors: totalVisitors,
+		AgeGroupData:  ageGroupData,
+	}, nil
+}
+
+// extractAgeFromMalaysianIC extracts age from Malaysian IC number
+func extractAgeFromMalaysianIC(ic string, currentYear int) int {
+	if len(ic) < 2 {
+		return -1 // Invalid IC
+	}
+
+	// Get first two digits
+	yearStr := ic[:2]
+
+	// Convert to integer
+	year, err := strconv.Atoi(yearStr)
+	if err != nil {
+		return -1 // Invalid year
+	}
+
+	// Determine full birth year
+	// Malaysian IC format:
+	// - 00-99 for years 1900-1999 (old format)
+	// - For new format, need to check century
+	// Generally, if year > current year's last 2 digits, it's from previous century
+
+	var birthYear int
+	currentYearLastTwo := currentYear % 100
+
+	if year > currentYearLastTwo {
+		// Previous century (1900s)
+		birthYear = 1900 + year
+	} else {
+		// Current century (2000s)
+		birthYear = 2000 + year
+	}
+
+	// Calculate age
+	age := currentYear - birthYear
+
+	// Validate reasonable age range (0-150)
+	if age < 0 || age > 150 {
+		return -1 // Invalid age
+	}
+
+	return age
+}
+
+// categorizeAge categorizes age into predefined groups
+func categorizeAge(age int) string {
+	if age < 0 {
+		return "Unknown"
+	}
+
+	switch {
+	case age <= 12:
+		return "0-12"
+	case age <= 17:
+		return "13-17"
+	case age <= 35:
+		return "18-35"
+	case age <= 50:
+		return "36-50"
+	default:
+		return "51+"
+	}
+}
+
+type VisitorsByNationalityResponse struct {
+	StartDate       string            `json:"startDate"`
+	EndDate         string            `json:"endDate"`
+	TotalVisitors   int               `json:"totalVisitors"`
+	NationalityData []NationalityData `json:"nationalityData"`
+}
+
+type NationalityData struct {
+	Nationality   string  `json:"nationality"`
+	TotalVisitors int     `json:"totalVisitors"`
+	Percentage    float64 `json:"percentage"`
+}
+
+func (o *OrderTicketGroupService) GetVisitorsByNationality(startDate, endDate string) (*VisitorsByNationalityResponse, error) {
+	// Parse dates
+	start, err := time.Parse(utils.DateOnlyFormat, startDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid startDate format: %w", err)
+	}
+
+	end, err := time.Parse(utils.DateOnlyFormat, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid endDate format: %w", err)
+	}
+
+	// Get all orders
+	allOrders, err := o.orderTicketGroupRepo.FindAllSuccessfulOrders()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve orders: %w", err)
+	}
+
+	// Initialize nationality counters
+	nationalityCounts := map[string]int{
+		"Local":         0, // Malaysian
+		"International": 0, // Non-Malaysian
+	}
+
+	totalVisitors := 0
+
+	for _, order := range allOrders {
+		if len(order.OrderTicketInfos) == 0 {
+			continue
+		}
+
+		// Get admit date from first ticket info
+		admitDateStr := order.OrderTicketInfos[0].AdmitDate
+		admitDate, err := time.Parse("2006-01-02", admitDateStr)
+		if err != nil {
+			continue
+		}
+
+		// Check if admit date falls within the specified range
+		if admitDate.After(start.Add(-time.Second)) && admitDate.Before(end.Add(24*time.Hour)) {
+			ticketCount := len(order.OrderTicketInfos)
+
+			// Determine nationality based on IC format
+			nationality := determineNationality(order.Customer.IdentificationNo)
+
+			nationalityCounts[nationality] += ticketCount
+			totalVisitors += ticketCount
+		}
+	}
+
+	// Build response data
+	nationalityData := make([]NationalityData, 0)
+
+	// Define the order for consistent output (Local first, then International)
+	nationalityOrder := []string{"Local", "International"}
+
+	for _, nationality := range nationalityOrder {
+		visitorCount := nationalityCounts[nationality]
+
+		// Calculate percentage
+		var percentage float64
+		if totalVisitors > 0 {
+			percentage = (float64(visitorCount) / float64(totalVisitors)) * 100
+			// Round to 2 decimal places
+			percentage = math.Round(percentage*100) / 100
+		}
+
+		nationalityData = append(nationalityData, NationalityData{
+			Nationality:   nationality,
+			TotalVisitors: visitorCount,
+			Percentage:    percentage,
+		})
+	}
+
+	return &VisitorsByNationalityResponse{
+		StartDate:       startDate,
+		EndDate:         endDate,
+		TotalVisitors:   totalVisitors,
+		NationalityData: nationalityData,
+	}, nil
+}
+
+// determineNationality determines if the visitor is local (Malaysian) or international
+func determineNationality(identificationNo string) string {
+	if isMalaysianIC(identificationNo) {
+		return "Local"
+	}
+	return "International"
+}
+
+// isMalaysianIC checks if the identification number follows Malaysian IC format
+func isMalaysianIC(ic string) bool {
+	// Remove any spaces or dashes
+	ic = strings.ReplaceAll(ic, " ", "")
+	ic = strings.ReplaceAll(ic, "-", "")
+
+	// Malaysian IC can be 12 digits (original) or 14 digits (with replacement suffix)
+	if len(ic) != 12 && len(ic) != 14 {
+		return false
+	}
+
+	// Check if all characters are digits
+	for _, char := range ic {
+		if char < '0' || char > '9' {
+			return false
+		}
+	}
+
+	// Extract date parts (first 6 digits: YYMMDD)
+	month := ic[2:4]
+	day := ic[4:6]
+
+	// Strict date validation
+	monthInt, err1 := strconv.Atoi(month)
+	dayInt, err2 := strconv.Atoi(day)
+
+	if err1 != nil || err2 != nil {
+		return false
+	}
+
+	// Check valid month (01-12)
+	if monthInt < 1 || monthInt > 12 {
+		return false
+	}
+
+	// Check valid day (01-31)
+	if dayInt < 1 || dayInt > 31 {
+		return false
+	}
+
+	//// Check place of birth code (positions 7-8)
+	//placeCode := ic[6:8]
+	//placeInt, err := strconv.Atoi(placeCode)
+	//if err != nil {
+	//	return false
+	//}
+
+	//// Official Malaysian state/place codes (https://www.jpn.gov.my/my/kod-negeri)
+	//validPlaceCodes := []int{
+	//	// Johor
+	//	1, 21, 22, 23, 24,
+	//	// Kedah
+	//	2, 25, 26, 27,
+	//	// Kelantan
+	//	3, 28, 29,
+	//	// Melaka
+	//	4, 30,
+	//	// Negeri Sembilan
+	//	5, 31, 59,
+	//	// Pahang
+	//	6, 32, 33,
+	//	// Pulau Pinang
+	//	7, 34, 35,
+	//	// Perak
+	//	8, 36, 37, 38, 39,
+	//	// Perlis
+	//	9, 40,
+	//	// Selangor
+	//	10, 41, 42, 43, 44,
+	//	// Terengganu
+	//	11, 45, 46,
+	//	// Sabah
+	//	12, 47, 48, 49,
+	//	// Sarawak
+	//	13, 50, 51, 52, 53,
+	//	// Wilayah Persekutuan (Kuala Lumpur)
+	//	14, 54, 55, 56, 57,
+	//	// Wilayah Persekutuan (Labuan)
+	//	15, 58,
+	//	// Wilayah Persekutuan (Putrajaya)
+	//	16,
+	//	// Negeri Tidak Diketahui
+	//	82,
+	//}
+	//
+	//// Check if place code is valid
+	//isValidPlace := false
+	//for _, validCode := range validPlaceCodes {
+	//	if placeInt == validCode {
+	//		isValidPlace = true
+	//		break
+	//	}
+	//}
+
+	//if !isValidPlace {
+	//	return false
+	//}
+
+	// If 14 digits, validate the replacement suffix (last 2 digits should be 01-99)
+	if len(ic) == 14 {
+		replacementSuffix := ic[12:14]
+		suffixInt, err := strconv.Atoi(replacementSuffix)
+		if err != nil || suffixInt < 1 || suffixInt > 99 {
+			return false
+		}
+	}
+
+	return true
 }

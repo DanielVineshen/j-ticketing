@@ -151,7 +151,7 @@ func main() {
 	pdfService := service.NewPDFService()
 	notificationService := service.NewNotificationService(notificationRepo)
 	generalService := service.NewGeneralService(generalRepo)
-	orderTicketGroupService := service.NewOrderTicketGroupService(orderTicketGroupRepo)
+	orderTicketGroupService := service.NewOrderTicketGroupService(orderTicketGroupRepo, ticketGroupRepo)
 
 	// Initialize handlers
 	salesAnalyticsHandler := handlers.NewSalesAnalyticsHandler(salesAnalyticsService)

@@ -36,8 +36,34 @@ func (r *OrderTicketGroupRepository) FindOrderWithinDateRange(startDate, endDate
 	endTime = endTime.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
 
 	var orderTicketGroups []models.OrderTicketGroup
-	result := r.db.Where("created_at >= ? AND created_at <= ?", startTime, endTime).
-		Order("created_at DESC").
+	result := r.db.Where("admit_date >= ? AND admit_date <= ?", startTime, endTime).
+		Order("admit_date DESC").
+		Find(&orderTicketGroups)
+	return orderTicketGroups, result.Error
+}
+
+// FindAll returns all order ticket groups
+func (r *OrderTicketGroupRepository) FindAllSuccessfulOrders() ([]models.OrderTicketGroup, error) {
+	var orderTicketGroups []models.OrderTicketGroup
+	result := r.db.
+		Where("transaction_status >= 'success'").
+		Preload("OrderTicketLogs", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
+		Preload("Customer", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
+		Preload("OrderTicketInfos", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
+		Preload("TicketGroup", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		}).
+		Preload("TicketGroup.TicketTags.Tag").
+		Preload("TicketGroup.GroupGalleries").
+		Preload("TicketGroup.TicketDetails").
+		Preload("TicketGroup.TicketVariants").
+		Order("order_ticket_group_id DESC").
 		Find(&orderTicketGroups)
 	return orderTicketGroups, result.Error
 }

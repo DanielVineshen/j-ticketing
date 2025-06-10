@@ -28,6 +28,7 @@ type OrderTicketGroup struct {
 	BuyerEmail         string         `gorm:"column:buyer_email;type:varchar(255);not null"`
 	ProductDesc        string         `gorm:"column:product_desc;type:varchar(255);not null"`
 	IsEmailSent        bool           `gorm:"column:is_email_sent;type:boolean;default:false;not null"`
+	AdmitDate          string         `gorm:"column:admit_date;type:varchar(255);not null"`
 	CreatedAt          time.Time      `gorm:"column:created_at;type:datetime;not null"`
 	UpdatedAt          time.Time      `gorm:"column:updated_at;type:datetime;not null"`
 

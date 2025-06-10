@@ -80,8 +80,10 @@ func main() {
 	ticketVariantRepo := repositories.NewTicketVariantRepository(database)
 	generalRepo := repositories.NewGeneralRepository(database)
 
+	generalModel, _ := generalRepo.FindFirst()
+
 	// Initialize email service
-	emailService := email.NewEmailService(generalRepo)
+	emailService := email.NewEmailService(generalModel)
 
 	// Initialize services
 	paymentService := service.NewPaymentService(

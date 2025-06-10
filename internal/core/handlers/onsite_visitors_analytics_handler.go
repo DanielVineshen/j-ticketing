@@ -52,7 +52,31 @@ func (o *OnsiteVisitorsAnalyticsHandler) GetTotalOnsiteVisitors(c *fiber.Ctx) er
 }
 
 func (o *OnsiteVisitorsAnalyticsHandler) GetNewVsReturningVisitors(c *fiber.Ctx) error {
-	return c.JSON(models.NewBaseSuccessResponse(models.NewGenericMessage(true)))
+	startDate := c.Query("startDate")
+	endDate := c.Query("endDate")
+
+	// Validate required parameters
+	if startDate == "" || endDate == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "startDate and endDate are required parameters",
+		})
+	}
+
+	// Validate date format
+	if !isValidDateFormat(startDate) || !isValidDateFormat(endDate) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid date format. Use YYYY-MM-DD",
+		})
+	}
+
+	response, err := o.orderTicketGroupService.GetNewVsReturningVisitors(startDate, endDate)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": fmt.Sprintf("Failed to fetch customer records: %v", err),
+		})
+	}
+
+	return c.JSON(models.NewBaseSuccessResponse(response))
 }
 
 func (o *OnsiteVisitorsAnalyticsHandler) GetAveragePeakDayAnalysis(c *fiber.Ctx) error {

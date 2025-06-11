@@ -145,6 +145,8 @@ func main() {
 	salesAnalyticsService := service.NewSalesAnalyticsService(
 		orderTicketGroupRepo,
 		ticketGroupRepo,
+		customerRepo,
+		ticketVariantRepo,
 	)
 	adminService := service.NewAdminServiceExtended(adminRepo, tokenRepo)
 	tagService := service.NewTagService(tagRepo)

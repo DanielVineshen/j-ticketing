@@ -1,3 +1,4 @@
+// File: j-ticketing/pkg/utils/ic_utils.go
 package utils
 
 import (
@@ -9,7 +10,7 @@ import (
 func ExtractAgeFromMalaysianIC(ic string, currentYear int) int {
 	isMalaysianIC := IsMalaysianIC(ic)
 
-	if isMalaysianIC == false {
+	if !isMalaysianIC {
 		return -1 // Invalid IC
 	}
 

@@ -51,3 +51,64 @@ type TopSaleProductTrend struct {
 	TotalRevenue    float64 `json:"totalRevenue"`
 	TotalOrders     int     `json:"totalOrders"`
 }
+
+// SalesByTicketGroupResponse represents the response for sales by ticket group API
+type SalesByTicketGroupResponse struct {
+	TicketGroupTrend []TicketGroupTrend `json:"ticketGroupTrend"`
+}
+
+type TicketGroupTrend struct {
+	TicketGroupName string  `json:"ticketGroupName"`
+	TotalRevenue    float64 `json:"totalRevenue"`
+	TotalOrders     int     `json:"totalOrders"`
+	SalesPercentage float64 `json:"salesPercentage"`
+}
+
+// SalesByTicketVariantResponse represents the response for sales by ticket variant API
+type SalesByTicketVariantResponse struct {
+	TicketVariantTrend []TicketVariantTrend `json:"ticketVariantTrend"`
+}
+
+type TicketVariantTrend struct {
+	TicketGroup       string  `json:"ticketGroup"`
+	TicketVariantName string  `json:"ticketVariantName"`
+	TotalRevenue      float64 `json:"totalRevenue"`
+	TotalQuantity     int     `json:"totalQuantity"`
+	SalesPercentage   float64 `json:"salesPercentage"`
+}
+
+// SalesByAgeGroupResponse represents the response for sales by age group API
+type SalesByAgeGroupResponse struct {
+	SalesByAgeGroupTrend []AgeGroupTrend `json:"salesByAgeGroupTrend"`
+}
+
+type AgeGroupTrend struct {
+	AgeGroup        string  `json:"ageGroup"`
+	TotalRevenue    float64 `json:"totalRevenue"`
+	TotalOrders     int     `json:"totalOrders"`
+	SalesPercentage float64 `json:"salesPercentage"`
+}
+
+// SalesByPaymentMethodResponse represents the response for sales by payment method API
+type SalesByPaymentMethodResponse struct {
+	PaymentMethodTrend []PaymentMethodTrend `json:"paymentMethodTrend"`
+}
+
+type PaymentMethodTrend struct {
+	PaymentMethod   string  `json:"paymentMethod"`
+	TotalRevenue    float64 `json:"totalRevenue"`
+	TotalOrders     int     `json:"totalOrders"`
+	SalesPercentage float64 `json:"salesPercentage"`
+}
+
+// SalesByNationalityResponse represents the response for sales by nationality API
+type SalesByNationalityResponse struct {
+	SalesByNationalityTrend []NationalityTrend `json:"salesByNationalityTrend"`
+}
+
+type NationalityTrend struct {
+	Nationality     string  `json:"nationality"`
+	TotalRevenue    float64 `json:"totalRevenue"`
+	TotalOrders     int     `json:"totalOrders"`
+	SalesPercentage float64 `json:"salesPercentage"`
+}

@@ -10,12 +10,9 @@ import (
 )
 
 func SetupSalesAnalyticsRoutes(app *fiber.App, salesAnalyticsHandler *handlers.SalesAnalyticsHandler, jwtService jwt.JWTService) {
-	api := app.Group("/api")
+	analytics := app.Group("/api/analytics")
 
-	// Sales Analytics endpoints
-	analytics := api.Group("/analytics")
-
-	// Protect all analytics routes with authentication and role-based access
+	// Original 4 analytics routes
 	analytics.Get("/totalRevenue",
 		middleware.Protected(jwtService),
 		middleware.HasAnyRole("ADMIN", "MEMBER", "SYSADMIN"),
@@ -35,4 +32,24 @@ func SetupSalesAnalyticsRoutes(app *fiber.App, salesAnalyticsHandler *handlers.S
 		middleware.Protected(jwtService),
 		middleware.HasAnyRole("ADMIN", "MEMBER", "SYSADMIN"),
 		salesAnalyticsHandler.GetTopSalesProduct)
+
+	analytics.Get("/salesByTicketGroup",
+		middleware.Protected(jwtService),
+		middleware.HasAnyRole("ADMIN", "MEMBER", "SYSADMIN"),
+		salesAnalyticsHandler.GetSalesByTicketGroup)
+
+	analytics.Get("/salesByAgeGroup",
+		middleware.Protected(jwtService),
+		middleware.HasAnyRole("ADMIN", "MEMBER", "SYSADMIN"),
+		salesAnalyticsHandler.GetSalesByAgeGroup)
+
+	analytics.Get("/salesByPaymentMethod",
+		middleware.Protected(jwtService),
+		middleware.HasAnyRole("ADMIN", "MEMBER", "SYSADMIN"),
+		salesAnalyticsHandler.GetSalesByPaymentMethod)
+
+	analytics.Get("/salesByNationality",
+		middleware.Protected(jwtService),
+		middleware.HasAnyRole("ADMIN", "MEMBER", "SYSADMIN"),
+		salesAnalyticsHandler.GetSalesByNationality)
 }

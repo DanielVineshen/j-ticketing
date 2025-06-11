@@ -47,9 +47,6 @@ func (r *OrderTicketGroupRepository) FindAllSuccessfulOrders() ([]models.OrderTi
 	var orderTicketGroups []models.OrderTicketGroup
 	result := r.db.
 		Where("transaction_status >= 'success'").
-		Preload("OrderTicketLogs", func(db *gorm.DB) *gorm.DB {
-			return db.Order("created_at DESC")
-		}).
 		Preload("Customer", func(db *gorm.DB) *gorm.DB {
 			return db.Order("created_at DESC")
 		}).
@@ -59,10 +56,6 @@ func (r *OrderTicketGroupRepository) FindAllSuccessfulOrders() ([]models.OrderTi
 		Preload("TicketGroup", func(db *gorm.DB) *gorm.DB {
 			return db.Order("created_at DESC")
 		}).
-		Preload("TicketGroup.TicketTags.Tag").
-		Preload("TicketGroup.GroupGalleries").
-		Preload("TicketGroup.TicketDetails").
-		Preload("TicketGroup.TicketVariants").
 		Order("order_ticket_group_id DESC").
 		Find(&orderTicketGroups)
 	return orderTicketGroups, result.Error

@@ -81,7 +81,10 @@ func (o *OrderTicketGroupService) GetTotalOnsiteVisitorsWithinRange(startDate, e
 			continue // Skip invalid dates
 		}
 
-		ticketCount := len(order.OrderTicketInfos)
+		ticketCount := 0
+		for _, info := range order.OrderTicketInfos {
+			ticketCount += info.QuantityBought
+		}
 
 		// Check if admit date falls in current period
 		if admitDate.After(start.Add(-time.Second)) && admitDate.Before(end.Add(24*time.Hour)) {
@@ -210,7 +213,10 @@ func (o *OrderTicketGroupService) GetNewVsReturningVisitors(startDate, endDate s
 			continue
 		}
 
-		ticketCount := len(order.OrderTicketInfos)
+		ticketCount := 0
+		for _, info := range order.OrderTicketInfos {
+			ticketCount += info.QuantityBought
+		}
 		firstAdmitDate := customerFirstAdmitDate[custId]
 		isNewVisitor := admitDate.Format("2006-01-02") == firstAdmitDate.Format("2006-01-02")
 
@@ -368,7 +374,10 @@ func (o *OrderTicketGroupService) GetAveragePeakDayAnalysis(startDate, endDate s
 
 		// Check if admit date falls within the specified range
 		if admitDate.After(start.Add(-time.Second)) && admitDate.Before(end.Add(24*time.Hour)) {
-			ticketCount := len(order.OrderTicketInfos)
+			ticketCount := 0
+			for _, info := range order.OrderTicketInfos {
+				ticketCount += info.QuantityBought
+			}
 			dayOfWeek := admitDate.Weekday()
 
 			dayOfWeekCounts[dayOfWeek] += ticketCount
@@ -402,7 +411,13 @@ func (o *OrderTicketGroupService) GetAveragePeakDayAnalysis(startDate, endDate s
 	// Calculate the number of each day of week in the date range
 	dayOfWeekOccurrences := calculateDayOccurrences(start, end)
 
-	for day := time.Sunday; day <= time.Saturday; day++ {
+	// Follows Malaysian standard when showing days order
+	dayOrder := []time.Weekday{
+		time.Monday, time.Tuesday, time.Wednesday, time.Thursday,
+		time.Friday, time.Saturday, time.Sunday,
+	}
+
+	for _, day := range dayOrder {
 		dayName := dayNames[day]
 		totalCount := dayOfWeekCounts[day]
 		occurrences := dayOfWeekOccurrences[day]
@@ -534,7 +549,10 @@ func (o *OrderTicketGroupService) GetVisitorsByAttraction(startDate, endDate str
 
 		// Check if admit date falls within the specified range
 		if admitDate.After(start.Add(-time.Second)) && admitDate.Before(end.Add(24*time.Hour)) {
-			ticketCount := len(order.OrderTicketInfos)
+			ticketCount := 0
+			for _, info := range order.OrderTicketInfos {
+				ticketCount += info.QuantityBought
+			}
 			ticketGroupId := order.TicketGroupId
 
 			ticketGroupVisitors[ticketGroupId] += ticketCount
@@ -633,7 +651,10 @@ func (o *OrderTicketGroupService) GetVisitorsByAgeGroup(startDate, endDate strin
 
 		// Check if admit date falls within the specified range
 		if admitDate.After(start.Add(-time.Second)) && admitDate.Before(end.Add(24*time.Hour)) {
-			ticketCount := len(order.OrderTicketInfos)
+			ticketCount := 0
+			for _, info := range order.OrderTicketInfos {
+				ticketCount += info.QuantityBought
+			}
 
 			// Get customer age from IC
 			age := utils.ExtractAgeFromMalaysianIC(order.Customer.IdentificationNo, currentYear)
@@ -729,7 +750,10 @@ func (o *OrderTicketGroupService) GetVisitorsByNationality(startDate, endDate st
 
 		// Check if admit date falls within the specified range
 		if admitDate.After(start.Add(-time.Second)) && admitDate.Before(end.Add(24*time.Hour)) {
-			ticketCount := len(order.OrderTicketInfos)
+			ticketCount := 0
+			for _, info := range order.OrderTicketInfos {
+				ticketCount += info.QuantityBought
+			}
 
 			// Determine nationality based on IC format
 			nationality := utils.DetermineNationality(order.Customer.IdentificationNo)

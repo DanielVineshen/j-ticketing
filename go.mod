@@ -8,7 +8,6 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.6
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/jung-kurt/gofpdf v1.16.2
-	github.com/xuri/excelize/v2 v2.9.1
 )
 
 require (
@@ -36,7 +35,7 @@ require (
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/go-sql-driver/mysql v1.9.2 // indirect
 	github.com/golang-migrate/migrate/v4 v4.18.3
-	github.com/google/uuid v1.6.0
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/joho/godotenv v1.5.1
@@ -48,6 +47,7 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.51.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
+	github.com/xuri/excelize/v2 v2.9.1
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/crypto v0.38.0
 	golang.org/x/sys v0.33.0 // indirect

@@ -252,6 +252,27 @@ func (s *SalesAnalyticsService) GetSalesByNationality(startDate, endDate string)
 	}, nil
 }
 
+// GetSalesByTicketVariant retrieves sales by ticket variant analysis
+func (s *SalesAnalyticsService) GetSalesByTicketVariant(startDate, endDate string) (*dto.SalesByTicketVariantResponse, error) {
+	// Validate date range
+	if err := s.validateDateRange(startDate, endDate); err != nil {
+		return nil, err
+	}
+
+	// Get successful orders within date range
+	successfulOrders, err := s.getSuccessfulOrders(startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get successful orders: %w", err)
+	}
+
+	// Generate ticket variant trend
+	ticketVariantTrend := s.generateTicketVariantTrend(successfulOrders)
+
+	return &dto.SalesByTicketVariantResponse{
+		TicketVariantTrend: ticketVariantTrend,
+	}, nil
+}
+
 // Helper methods
 
 // validateDateRange validates the date format and ensures endDate is after startDate
@@ -620,4 +641,53 @@ func (s *SalesAnalyticsService) generateNationalityTrend(successfulOrders []mode
 	}
 
 	return nationalityTrend
+}
+
+// generateTicketVariantTrend generates ticket variant trend based on order ticket info
+func (s *SalesAnalyticsService) generateTicketVariantTrend(successfulOrders []models.OrderTicketGroup) []dto.TicketVariantTrend {
+	ticketVariantSales := make(map[string]*dto.TicketVariantTrend)
+	var totalQuantity int
+
+	// Process all OrderTicketInfo records from successful orders
+	for _, order := range successfulOrders {
+		// Get the ticket group name from the order's ticket group
+		ticketGroupName := order.TicketGroup.GroupNameEn
+
+		for _, ticketInfo := range order.OrderTicketInfos {
+			// Use item_desc_2 as the ticket variant name
+			variantName := ticketInfo.ItemDesc2
+
+			// Create unique key combining ticket group and variant
+			key := ticketGroupName + "|" + variantName
+
+			// Calculate revenue for this ticket info
+			infoRevenue := ticketInfo.UnitPrice * float64(ticketInfo.QuantityBought)
+			totalQuantity += ticketInfo.QuantityBought
+
+			// Initialize or update the variant data
+			if existingData, exists := ticketVariantSales[key]; exists {
+				existingData.TotalRevenue += infoRevenue
+				existingData.TotalQuantity += ticketInfo.QuantityBought
+			} else {
+				ticketVariantSales[key] = &dto.TicketVariantTrend{
+					TicketGroup:       ticketGroupName,
+					TicketVariantName: variantName,
+					TotalRevenue:      infoRevenue,
+					TotalQuantity:     ticketInfo.QuantityBought,
+					SalesPercentage:   0, // Will be calculated later
+				}
+			}
+		}
+	}
+
+	// Calculate percentages based on totalQuantity and convert to slice
+	var ticketVariantTrend []dto.TicketVariantTrend
+	for _, variantData := range ticketVariantSales {
+		if totalQuantity > 0 {
+			variantData.SalesPercentage = math.Round((float64(variantData.TotalQuantity)/float64(totalQuantity))*100*100) / 100
+		}
+		ticketVariantTrend = append(ticketVariantTrend, *variantData)
+	}
+
+	return ticketVariantTrend
 }

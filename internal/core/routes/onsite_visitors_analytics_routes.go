@@ -10,7 +10,7 @@ import (
 // SetupOnsiteVisitorsAnalyticsRoutes configures all onsiteVisitorAnalytics related routes
 func SetupOnsiteVisitorsAnalyticsRoutes(app *fiber.App, onsiteVisitorAnalyticsHandler *handlers.OnsiteVisitorsAnalyticsHandler, jwtService jwt.JWTService) {
 	// OnsiteVisitorsAnalytics routes group
-	onsiteVisitorAnalytics := app.Group("/api")
+	onsiteVisitorAnalytics := app.Group("/api/analytics")
 
 	onsiteVisitorAnalytics.Get("/totalOnsiteVisitors", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "SYSADMIN", "MEMBER"), onsiteVisitorAnalyticsHandler.GetTotalOnsiteVisitors)
 	onsiteVisitorAnalytics.Get("/newVsReturningVisitors", middleware.Protected(jwtService), middleware.HasAnyRole("ADMIN", "SYSADMIN", "MEMBER"), onsiteVisitorAnalyticsHandler.GetNewVsReturningVisitors)

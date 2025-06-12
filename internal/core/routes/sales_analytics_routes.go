@@ -52,4 +52,9 @@ func SetupSalesAnalyticsRoutes(app *fiber.App, salesAnalyticsHandler *handlers.S
 		middleware.Protected(jwtService),
 		middleware.HasAnyRole("ADMIN", "MEMBER", "SYSADMIN"),
 		salesAnalyticsHandler.GetSalesByNationality)
+
+	analytics.Get("/salesByTicketVariant",
+		middleware.Protected(jwtService),
+		middleware.HasAnyRole("ADMIN", "MEMBER", "SYSADMIN"),
+		salesAnalyticsHandler.GetSalesByTicketVariant)
 }

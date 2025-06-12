@@ -58,6 +58,43 @@ func (h *SalesAnalyticsHandler) GetTotalRevenue(c *fiber.Ctx) error {
 	return c.JSON(models.NewBaseSuccessResponse(response))
 }
 
+// GetSalesByTicketVariant handles GET /api/analytics/salesByTicketVariant
+func (h *SalesAnalyticsHandler) GetSalesByTicketVariant(c *fiber.Ctx) error {
+	// Parse and validate request
+	var req dto.SalesAnalyticsRequest
+	if err := c.QueryParser(&req); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Invalid request parameters",
+			"message": err.Error(),
+		})
+	}
+
+	// Validate request
+	if err := req.Validate(); err != nil {
+		if validationErr, ok := err.(*errors.ValidationError); ok {
+			return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+				"error":  "Validation failed",
+				"fields": validationErr.FieldErrors,
+			})
+		}
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Validation failed",
+			"message": err.Error(),
+		})
+	}
+
+	// Get sales by ticket variant from service
+	response, err := h.salesAnalyticsService.GetSalesByTicketVariant(req.StartDate, req.EndDate)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to retrieve sales by ticket variant",
+			"message": err.Error(),
+		})
+	}
+
+	return c.JSON(models.NewBaseSuccessResponse(response))
+}
+
 // GetSalesByTicketGroup handles GET /api/analytics/salesByTicketGroup
 func (h *SalesAnalyticsHandler) GetSalesByTicketGroup(c *fiber.Ctx) error {
 	// Parse and validate request

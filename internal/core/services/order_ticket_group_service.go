@@ -626,12 +626,11 @@ func (o *OrderTicketGroupService) GetVisitorsByAgeGroup(startDate, endDate strin
 
 	// Initialize age group counters
 	ageGroupCounts := map[string]int{
-		"0-12":    0,
-		"13-17":   0,
-		"18-35":   0,
-		"36-50":   0,
-		"51+":     0,
-		"Unknown": 0, // For cases where age cannot be determined
+		"0-12":  0,
+		"13-17": 0,
+		"18-35": 0,
+		"36-50": 0,
+		"51+":   0,
 	}
 
 	totalVisitors := 0
@@ -660,8 +659,10 @@ func (o *OrderTicketGroupService) GetVisitorsByAgeGroup(startDate, endDate strin
 			age := utils.ExtractAgeFromMalaysianIC(order.Customer.IdentificationNo, currentYear)
 			ageGroup := utils.CategorizeAge(age)
 
-			ageGroupCounts[ageGroup] += ticketCount
-			totalVisitors += ticketCount
+			if ageGroup != "Unknown" {
+				ageGroupCounts[ageGroup] += ticketCount
+				totalVisitors += ticketCount
+			}
 		}
 	}
 
@@ -669,7 +670,7 @@ func (o *OrderTicketGroupService) GetVisitorsByAgeGroup(startDate, endDate strin
 	ageGroupData := make([]AgeGroupData, 0)
 
 	// Define the order of age groups for consistent output
-	ageGroupOrder := []string{"0-12", "13-17", "18-35", "36-50", "51+", "Unknown"}
+	ageGroupOrder := []string{"0-12", "13-17", "18-35", "36-50", "51+"}
 
 	for _, ageGroup := range ageGroupOrder {
 		visitorCount := ageGroupCounts[ageGroup]

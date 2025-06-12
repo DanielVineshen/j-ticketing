@@ -165,6 +165,16 @@ func (s *ReportService) addTotalOnsiteVisitorsData(reportData *dto.ExcelReportDa
 		return err
 	}
 
+	summaryData := []dto.OrderedKeyValue{
+		{Key: "Start Date", Value: data.StartDate},
+		{Key: "End Date", Value: data.EndDate},
+		{Key: "Current Total Records", Value: data.CurrentTotalRecords},
+		{Key: "Past Total Records", Value: data.PastTotalRecords},
+		{Key: "Diff From Past Period (%)", Value: data.DiffFromPastPeriod},
+	}
+
+	tableHeaders := []string{"Date", "Count", "Day"}
+
 	// Daily data table
 	dailyTableData := make([]map[string]interface{}, 0, len(data.DailyData))
 	for _, daily := range data.DailyData {
@@ -189,15 +199,16 @@ func (s *ReportService) addTotalOnsiteVisitorsData(reportData *dto.ExcelReportDa
 	}
 
 	dailyDataSet := dto.ExcelDataSet{
-		Title:     "Daily Visitor Data",
-		Type:      "table",
-		TableData: dailyTableData,
+		Title:        "Daily Visitor Data",
+		Type:         "table",
+		SummaryData:  summaryData,
+		TableHeaders: tableHeaders,
+		TableData:    dailyTableData,
 		ChartConfig: &dto.ChartConfig{
 			ChartType:  "bar",
 			XAxis:      "Date",  // Must match the key in chartData
 			YAxis:      "Count", // Must match the key in chartData
 			Data:       chartData,
-			Width:      1600, // Make chart wider
 			SeriesName: "Daily Visitors",
 		},
 	}
@@ -219,35 +230,49 @@ func (s *ReportService) addNewVsReturningVisitorsData(reportData *dto.ExcelRepor
 		return err
 	}
 
-	// Convert to table data
-	tableData := []map[string]interface{}{
-		{
-			"Visitor Type": "New Visitors",
-			"Count":        data.CurrentNewTotalRecords,
-			"Percentage":   0, // TODO - TO FIX
-		},
-		{
-			"Visitor Type": "Returning Visitors",
-			"Count":        data.CurrentReturningTotalRecords,
-			"Percentage":   0, // TODO - TO FIX
-		},
+	summaryData := []dto.OrderedKeyValue{
+		{Key: "Start Date", Value: data.StartDate},
+		{Key: "End Date", Value: data.EndDate},
+		{Key: "New Total Records", Value: data.CurrentNewTotalRecords},
+		{Key: "Returning Total Records", Value: data.CurrentReturningTotalRecords},
+		{Key: "Diff From Past Period (%)", Value: data.DiffNewFromPastPeriod},
 	}
 
-	// Chart data
-	chartData := []map[string]interface{}{
-		{"Type": "New", "Count": data.CurrentNewTotalRecords},
-		{"Type": "Returning", "Count": data.CurrentReturningTotalRecords},
+	tableHeaders := []string{"Date", "New Visitors", "Returning Visitors", "Total Visitors"}
+
+	// Create table data with all three columns
+	tableData := make([]map[string]interface{}, 0)
+	chartData := make([]map[string]interface{}, 0)
+
+	// Process daily data to show trends over time
+	for _, daily := range data.DailyData { // Assuming you have daily breakdown
+		tableData = append(tableData, map[string]interface{}{
+			"Date":               daily.Date,
+			"New Visitors":       daily.NewCount,
+			"Returning Visitors": daily.ReturningCount,
+			"Total Visitors":     daily.NewCount + daily.ReturningCount,
+		})
+
+		// Chart data needs both series
+		chartData = append(chartData, map[string]interface{}{
+			"Date":               daily.Date,
+			"New Visitors":       daily.NewCount,
+			"Returning Visitors": daily.ReturningCount,
+		})
 	}
 
 	dataSet := dto.ExcelDataSet{
-		Title:     "New vs Returning Visitors",
-		Type:      "table",
-		TableData: tableData,
+		Title:        "New vs Returning Visitors Trends",
+		Type:         "table",
+		SummaryData:  summaryData,
+		TableData:    tableData,
+		TableHeaders: tableHeaders,
 		ChartConfig: &dto.ChartConfig{
-			ChartType: "pie",
-			XAxis:     "Type",
-			YAxis:     "Count",
-			Data:      chartData,
+			ChartType:  "line",
+			XAxis:      "Date",
+			YAxis:      "Visitors",
+			Data:       chartData,
+			SeriesName: "New vs Returning Visitors",
 		},
 	}
 
@@ -260,6 +285,15 @@ func (s *ReportService) addAveragePeakDayAnalysisData(reportData *dto.ExcelRepor
 	if err != nil {
 		return err
 	}
+
+	summaryData := []dto.OrderedKeyValue{
+		{Key: "Start Date", Value: data.StartDate},
+		{Key: "End Date", Value: data.EndDate},
+		{Key: "Peak Day", Value: data.PeakDay},
+		{Key: "Peak Visitors", Value: data.PeakDayCount},
+	}
+
+	tableHeaders := []string{"Day of Week", "Total Count", "Average"}
 
 	// Convert weekly data to table
 	tableData := make([]map[string]interface{}, 0)
@@ -279,9 +313,11 @@ func (s *ReportService) addAveragePeakDayAnalysisData(reportData *dto.ExcelRepor
 	}
 
 	dataSet := dto.ExcelDataSet{
-		Title:     "Peak Day Analysis",
-		Type:      "table",
-		TableData: tableData,
+		Title:        "Peak Day Analysis",
+		Type:         "table",
+		SummaryData:  summaryData,
+		TableData:    tableData,
+		TableHeaders: tableHeaders,
 		ChartConfig: &dto.ChartConfig{
 			ChartType: "bar",
 			XAxis:     "Day",
@@ -302,6 +338,8 @@ func (s *ReportService) addVisitorsByAttractionData(reportData *dto.ExcelReportD
 		return err
 	}
 
+	tableHeaders := []string{"Attraction", "Total Visitors", "Percentage"}
+
 	// Convert to table data
 	tableData := make([]map[string]interface{}, 0)
 	chartData := make([]map[string]interface{}, 0)
@@ -310,7 +348,7 @@ func (s *ReportService) addVisitorsByAttractionData(reportData *dto.ExcelReportD
 		tableData = append(tableData, map[string]interface{}{
 			"Attraction":     attraction.TicketGroupName,
 			"Total Visitors": attraction.TotalVisitors,
-			"Percentage":     attraction.Percentage,
+			"Percentage":     fmt.Sprintf("%.2f%%", attraction.Percentage),
 		})
 
 		if attraction.TotalVisitors > 0 { // Only include in chart if has visitors
@@ -322,11 +360,12 @@ func (s *ReportService) addVisitorsByAttractionData(reportData *dto.ExcelReportD
 	}
 
 	dataSet := dto.ExcelDataSet{
-		Title:     "Visitors by Attraction",
-		Type:      "table",
-		TableData: tableData,
+		Title:        "Visitors by Attraction",
+		Type:         "table",
+		TableData:    tableData,
+		TableHeaders: tableHeaders,
 		ChartConfig: &dto.ChartConfig{
-			ChartType: "bar",
+			ChartType: "pie",
 			XAxis:     "Attraction",
 			YAxis:     "Visitors",
 			Data:      chartData,
@@ -342,6 +381,8 @@ func (s *ReportService) addVisitorsByAgeGroupData(reportData *dto.ExcelReportDat
 	if err != nil {
 		return err
 	}
+
+	tableHeaders := []string{"Age Group", "Total Visitors", "Percentage"}
 
 	// Convert VisitorsByAgeGroupResponse to table data
 	tableData := make([]map[string]interface{}, 0)
@@ -365,9 +406,10 @@ func (s *ReportService) addVisitorsByAgeGroupData(reportData *dto.ExcelReportDat
 	}
 
 	dataSet := dto.ExcelDataSet{
-		Title:     "Visitors by Age Group",
-		Type:      "table",
-		TableData: tableData,
+		Title:        "Visitors by Age Group",
+		Type:         "table",
+		TableData:    tableData,
+		TableHeaders: tableHeaders,
 		ChartConfig: &dto.ChartConfig{
 			ChartType: "pie",
 			XAxis:     "AgeGroup",
@@ -386,6 +428,8 @@ func (s *ReportService) addVisitorsByNationalityData(reportData *dto.ExcelReport
 	if err != nil {
 		return err
 	}
+
+	tableHeaders := []string{"Nationality", "Total Visitors", "Percentage"}
 
 	// Convert VisitorsByNationalityResponse to table data
 	tableData := make([]map[string]interface{}, 0)
@@ -409,9 +453,10 @@ func (s *ReportService) addVisitorsByNationalityData(reportData *dto.ExcelReport
 	}
 
 	dataSet := dto.ExcelDataSet{
-		Title:     "Visitors by Nationality",
-		Type:      "table",
-		TableData: tableData,
+		Title:        "Visitors by Nationality",
+		Type:         "table",
+		TableData:    tableData,
+		TableHeaders: tableHeaders,
 		ChartConfig: &dto.ChartConfig{
 			ChartType: "bar",
 			XAxis:     "Nationality",

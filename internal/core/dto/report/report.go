@@ -1,6 +1,8 @@
 package report
 
-import "time"
+import (
+	"time"
+)
 
 // DTOs for API requests/responses
 type CreateReportRequest struct {
@@ -85,10 +87,12 @@ type ExcelReportData struct {
 }
 
 type ExcelDataSet struct {
-	Title       string                   `json:"title"`
-	Type        string                   `json:"type"` // table, chart
-	TableData   []map[string]interface{} `json:"tableData,omitempty"`
-	ChartConfig *ChartConfig             `json:"chartConfig,omitempty"`
+	Title        string                   `json:"title"`
+	Type         string                   `json:"type"` // table, chart
+	SummaryData  []OrderedKeyValue        `json:"summaryData"`
+	TableHeaders []string                 `json:"tableHeaders,omitempty"`
+	TableData    []map[string]interface{} `json:"tableData,omitempty"`
+	ChartConfig  *ChartConfig             `json:"chartConfig,omitempty"`
 }
 
 type ChartConfig struct {
@@ -99,4 +103,14 @@ type ChartConfig struct {
 	Width      int                      `json:"width"`
 	Height     int                      `json:"height"`
 	SeriesName string                   `json:"seriesName,omitempty"`
+}
+
+type SeriesConfig struct {
+	Name   string `json:"name"`
+	Column string `json:"column"`
+}
+
+type OrderedKeyValue struct {
+	Key   string      `json:"key"`
+	Value interface{} `json:"value"`
 }

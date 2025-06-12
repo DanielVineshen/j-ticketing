@@ -45,13 +45,6 @@ func (s *ExcelService) GenerateExcelReport(reportData *dto.ExcelReportData) ([]b
 		}
 	}
 
-	// Create charts sheet if there are chart configs
-	//if s.hasChartData(reportData) {
-	//	if err := s.createChartsSheet(f, reportData); err != nil {
-	//		return nil, fmt.Errorf("failed to create charts sheet: %w", err)
-	//	}
-	//}
-
 	// Delete the default Sheet1 if it exists and is empty
 	if sheetIndex, err := f.GetSheetIndex("Sheet1"); err == nil && sheetIndex >= 0 {
 		if err := f.DeleteSheet("Sheet1"); err != nil {
@@ -107,7 +100,7 @@ func (s *ExcelService) createOverviewSheet(f *excelize.File, reportData *dto.Exc
 	// Set title
 	f.SetCellValue(sheetName, "A1", reportData.ReportTitle)
 	f.SetCellStyle(sheetName, "A1", "A1", titleStyle)
-	f.MergeCell(sheetName, "A1", "D1")
+	f.MergeCell(sheetName, "A1", "B1")
 
 	// Report info
 	row := 3
@@ -130,20 +123,20 @@ func (s *ExcelService) createOverviewSheet(f *excelize.File, reportData *dto.Exc
 	f.SetCellValue(sheetName, "B"+strconv.Itoa(row), time.Now().Format("2006-01-02 15:04:05"))
 	f.SetCellStyle(sheetName, "A"+strconv.Itoa(row), "B"+strconv.Itoa(row), dataStyle)
 
-	// Summary section
-	if len(reportData.Summary) > 0 {
-		row += 2
-		f.SetCellValue(sheetName, "A"+strconv.Itoa(row), "Summary")
-		f.SetCellStyle(sheetName, "A"+strconv.Itoa(row), "B"+strconv.Itoa(row), headerStyle)
-		f.MergeCell(sheetName, "A"+strconv.Itoa(row), "B"+strconv.Itoa(row))
-
-		for key, value := range reportData.Summary {
-			row++
-			f.SetCellValue(sheetName, "A"+strconv.Itoa(row), key+":")
-			f.SetCellValue(sheetName, "B"+strconv.Itoa(row), value)
-			f.SetCellStyle(sheetName, "A"+strconv.Itoa(row), "B"+strconv.Itoa(row), dataStyle)
-		}
-	}
+	//// Summary section
+	//if len(reportData.Summary) > 0 {
+	//	row += 2
+	//	f.SetCellValue(sheetName, "A"+strconv.Itoa(row), "Summary")
+	//	f.SetCellStyle(sheetName, "A"+strconv.Itoa(row), "B"+strconv.Itoa(row), headerStyle)
+	//	f.MergeCell(sheetName, "A"+strconv.Itoa(row), "B"+strconv.Itoa(row))
+	//
+	//	for key, value := range reportData.Summary {
+	//		row++
+	//		f.SetCellValue(sheetName, "A"+strconv.Itoa(row), key+":")
+	//		f.SetCellValue(sheetName, "B"+strconv.Itoa(row), value)
+	//		f.SetCellStyle(sheetName, "A"+strconv.Itoa(row), "B"+strconv.Itoa(row), dataStyle)
+	//	}
+	//}
 
 	// Data sheets index
 	if len(reportData.DataSets) > 0 {
@@ -161,8 +154,8 @@ func (s *ExcelService) createOverviewSheet(f *excelize.File, reportData *dto.Exc
 	}
 
 	// Auto-fit columns
-	f.SetColWidth(sheetName, "A", "B", 20)
-	f.SetColWidth(sheetName, "C", "D", 15)
+	f.SetColWidth(sheetName, "A", "A", 20)
+	f.SetColWidth(sheetName, "B", "B", 40)
 
 	return nil
 }
@@ -204,46 +197,73 @@ func (s *ExcelService) createDataSheet(f *excelize.File, sheetName string, dataS
 	// Set title
 	f.SetCellValue(sheetName, "A1", dataSet.Title)
 	f.SetCellStyle(sheetName, "A1", "A1", titleStyle)
+	f.MergeCell(sheetName, "A1", "C1")
 
-	if len(dataSet.TableData) == 0 {
-		f.SetCellValue(sheetName, "A3", "No data available")
-		return nil
+	currentRow := 3
+
+	// Handle summary data in fixed order
+	if len(dataSet.SummaryData) > 0 {
+		for _, item := range dataSet.SummaryData {
+			if err := f.SetCellValue(sheetName, fmt.Sprintf("A%d", currentRow), item.Key); err != nil {
+				return fmt.Errorf("failed to set key in A%d: %w", currentRow, err)
+			}
+			if err := f.SetCellValue(sheetName, fmt.Sprintf("C%d", currentRow), item.Value); err != nil {
+				return fmt.Errorf("failed to set value in C%d: %w", currentRow, err)
+			}
+			currentRow++
+		}
+		currentRow += 2 // Add spacing after summary
 	}
 
-	// Get column headers from first row
-	headers := make([]string, 0)
-	for key := range dataSet.TableData[0] {
-		headers = append(headers, key)
-	}
+	// Handle table data with explicit column order
+	if len(dataSet.TableData) > 0 {
+		headers := dataSet.TableHeaders
+		if len(headers) == 0 {
+			// Fallback to first row keys if no explicit headers
+			for key := range dataSet.TableData[0] {
+				headers = append(headers, key)
+			}
+		}
 
-	// Write headers
-	row := 3
-	for i, header := range headers {
-		col := s.indexToColumn(i)
-		f.SetCellValue(sheetName, col+strconv.Itoa(row), header)
-		f.SetCellStyle(sheetName, col+strconv.Itoa(row), col+strconv.Itoa(row), headerStyle)
-	}
+		row := currentRow
 
-	// Write data
-	for _, rowData := range dataSet.TableData {
-		row++
+		// Write headers in specified order
 		for i, header := range headers {
 			col := s.indexToColumn(i)
-			value := rowData[header]
-			f.SetCellValue(sheetName, col+strconv.Itoa(row), value)
-			f.SetCellStyle(sheetName, col+strconv.Itoa(row), col+strconv.Itoa(row), dataStyle)
+			f.SetCellValue(sheetName, col+strconv.Itoa(row), header)
+			f.SetCellStyle(sheetName, col+strconv.Itoa(row), col+strconv.Itoa(row), headerStyle)
+		}
+
+		// Write data using header order
+		for _, rowData := range dataSet.TableData {
+			row++
+			for i, header := range headers {
+				col := s.indexToColumn(i)
+				value := rowData[header]
+				f.SetCellValue(sheetName, col+strconv.Itoa(row), value)
+				f.SetCellStyle(sheetName, col+strconv.Itoa(row), col+strconv.Itoa(row), dataStyle)
+			}
+		}
+
+		// Add chart if configured
+		if dataSet.ChartConfig != nil {
+			if err := s.addChartToSheet(f, sheetName, dataSet.ChartConfig, len(dataSet.TableData), currentRow, len(dataSet.TableHeaders)); err != nil {
+				fmt.Printf("Warning: Failed to add chart to sheet %s: %v\n", sheetName, err)
+			}
 		}
 	}
 
 	// Auto-fit columns
-	for i := range headers {
-		col := s.indexToColumn(i)
-		f.SetColWidth(sheetName, col, col, 15)
+	if len(dataSet.TableHeaders) > 0 {
+		for i := range dataSet.TableHeaders {
+			col := s.indexToColumn(i)
+			f.SetColWidth(sheetName, col, col, 20)
+		}
 	}
 
 	// Add chart if chart config exists
 	if dataSet.ChartConfig != nil {
-		if err := s.addChartToSheet(f, sheetName, dataSet.ChartConfig, len(dataSet.TableData), row+2); err != nil {
+		if err := s.addChartToSheet(f, sheetName, dataSet.ChartConfig, len(dataSet.TableData), currentRow, len(dataSet.TableHeaders)); err != nil {
 			// Log error but don't fail the whole process
 			fmt.Printf("Warning: Failed to add chart to sheet %s: %v\n", sheetName, err)
 		}
@@ -252,55 +272,8 @@ func (s *ExcelService) createDataSheet(f *excelize.File, sheetName string, dataS
 	return nil
 }
 
-// createChartsSheet creates a dedicated charts sheet
-//func (s *ExcelService) createChartsSheet(f *excelize.File, reportData *dto.ExcelReportData) error {
-//	sheetName := "Charts"
-//	_, err := f.NewSheet(sheetName)
-//	if err != nil {
-//		return err
-//	}
-//
-//	titleStyle, _ := f.NewStyle(&excelize.Style{
-//		Font:      &excelize.Font{Bold: true, Size: 14, Color: "#1f4e79"},
-//		Alignment: &excelize.Alignment{Horizontal: "center"},
-//	})
-//
-//	f.SetCellValue(sheetName, "A1", "Data Visualizations")
-//	f.SetCellStyle(sheetName, "A1", "A1", titleStyle)
-//
-//	row := 3
-//	for i, dataSet := range reportData.DataSets {
-//		if dataSet.ChartConfig != nil {
-//			// Create a data table for the chart
-//			headers := []string{dataSet.ChartConfig.XAxis, dataSet.ChartConfig.YAxis}
-//
-//			// Write headers
-//			for j, header := range headers {
-//				col := s.indexToColumn(j)
-//				f.SetCellValue(sheetName, col+strconv.Itoa(row), header)
-//			}
-//
-//			// Write chart data
-//			for _, chartRow := range dataSet.ChartConfig.Data {
-//				row++
-//				f.SetCellValue(sheetName, "A"+strconv.Itoa(row), chartRow[dataSet.ChartConfig.XAxis])
-//				f.SetCellValue(sheetName, "B"+strconv.Itoa(row), chartRow[dataSet.ChartConfig.YAxis])
-//			}
-//
-//			// Add chart
-//			if err := s.addChartToSheet(f, sheetName, dataSet.ChartConfig, len(dataSet.ChartConfig.Data), row+2); err != nil {
-//				fmt.Printf("Warning: Failed to add chart %d: %v\n", i, err)
-//			}
-//
-//			row += 15 // Space for next chart
-//		}
-//	}
-//
-//	return nil
-//}
-
 // addChartToSheet adds a chart to the specified sheet
-func (s *ExcelService) addChartToSheet(f *excelize.File, sheetName string, chartConfig *dto.ChartConfig, dataRows, startRow int) error {
+func (s *ExcelService) addChartToSheet(f *excelize.File, sheetName string, chartConfig *dto.ChartConfig, dataRows, startRow, tableHeadersLen int) error {
 	var chartType excelize.ChartType
 	switch chartConfig.ChartType {
 	case "bar":
@@ -313,10 +286,30 @@ func (s *ExcelService) addChartToSheet(f *excelize.File, sheetName string, chart
 		chartType = excelize.Col
 	}
 
-	// Use SeriesName if provided, otherwise use default
-	seriesName := chartConfig.XAxis + " vs " + chartConfig.YAxis
-	if chartConfig.SeriesName != "" {
-		seriesName = chartConfig.SeriesName
+	var series []excelize.ChartSeries
+
+	// Special handling for New vs Returning Visitors line chart
+	if chartConfig.ChartType == "line" && strings.Contains(strings.ToLower(chartConfig.SeriesName), "new vs returning") {
+		series = []excelize.ChartSeries{
+			{
+				Name:       fmt.Sprintf("%s!$B$%d", sheetName, startRow),
+				Categories: fmt.Sprintf("%s!$A$%d:$A$%d", sheetName, startRow+1, startRow+dataRows),
+				Values:     fmt.Sprintf("%s!$B$%d:$B$%d", sheetName, startRow+1, startRow+dataRows),
+			},
+			{
+				Name:       fmt.Sprintf("%s!$C$%d", sheetName, startRow),
+				Categories: fmt.Sprintf("%s!$A$%d:$A$%d", sheetName, startRow+1, startRow+dataRows),
+				Values:     fmt.Sprintf("%s!$C$%d:$C$%d", sheetName, startRow+1, startRow+dataRows),
+			},
+		}
+	} else {
+		series = []excelize.ChartSeries{
+			{
+				Name:       fmt.Sprintf("%s!$A$%d", sheetName, startRow),
+				Categories: fmt.Sprintf("%s!$A$%d:$A$%d", sheetName, startRow+1, startRow+dataRows),
+				Values:     fmt.Sprintf("%s!$B$%d:$B$%d", sheetName, startRow+1, startRow+dataRows),
+			},
+		}
 	}
 
 	// Calculate dynamic height based on table
@@ -351,14 +344,8 @@ func (s *ExcelService) addChartToSheet(f *excelize.File, sheetName string, chart
 	}
 
 	chart := &excelize.Chart{
-		Type: chartType,
-		Series: []excelize.ChartSeries{
-			{
-				Name:       seriesName,
-				Categories: fmt.Sprintf("%s!$A$4:$A$%d", sheetName, 3+dataRows),
-				Values:     fmt.Sprintf("%s!$B$4:$B$%d", sheetName, 3+dataRows),
-			},
-		},
+		Type:   chartType,
+		Series: series,
 		PlotArea: excelize.ChartPlotArea{
 			ShowCatName:     false,
 			ShowLeaderLines: false,
@@ -374,8 +361,8 @@ func (s *ExcelService) addChartToSheet(f *excelize.File, sheetName string, chart
 	}
 
 	// Place chart next to table
-	//cell := fmt.Sprintf("D%d", startRow)
-	cell := fmt.Sprintf("E3") // Fixed position next to table
+	chartColumn := s.getColumn("A", tableHeadersLen+1) // Give an extra column between the data and graph
+	cell := fmt.Sprintf("%s%d", chartColumn, startRow)
 	if err := f.AddChart(sheetName, cell, chart); err != nil {
 		return err
 	}
@@ -476,4 +463,42 @@ func (s *ExcelService) hasChartData(reportData *dto.ExcelReportData) bool {
 		}
 	}
 	return false
+}
+
+func (s *ExcelService) indexToColumnLetter(index int) string {
+	result := ""
+	for index >= 0 {
+		result = string(rune('A'+index%26)) + result
+		index = index/26 - 1
+	}
+	return result
+}
+
+func (s *ExcelService) addToColumn(baseColumn string, offset int) string {
+	// Convert base column to index
+	baseIndex := s.columnLetterToIndex(baseColumn)
+	// Add offset
+	newIndex := baseIndex + offset
+	// Convert back to letter
+	return s.indexToColumnLetter(newIndex)
+}
+
+func (s *ExcelService) columnLetterToIndex(column string) int {
+	result := 0
+	for _, char := range column {
+		result = result*26 + int(char-'A'+1)
+	}
+	return result - 1
+}
+
+func (s *ExcelService) getColumn(startColumn string, offset int) string {
+	// Method 1: If you know startColumn is always single letter
+	if len(startColumn) == 1 {
+		baseIndex := int(startColumn[0] - 'A')
+		newIndex := baseIndex + offset
+		return string(rune('A' + newIndex))
+	}
+
+	// Method 2: For multi-letter columns, use the helper functions
+	return s.addToColumn(startColumn, offset)
 }

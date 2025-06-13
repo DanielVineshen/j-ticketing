@@ -1,3 +1,4 @@
+// File: j-ticketing/internal/core/dto/ticket_group/ticket_group_request.go
 package dto
 
 import "mime/multipart"

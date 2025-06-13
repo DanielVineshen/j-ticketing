@@ -1,3 +1,4 @@
+// File: j-ticketing/pkg/errors/errors.go
 package errors
 
 // ErrorCode represents various error codes and their associated messages

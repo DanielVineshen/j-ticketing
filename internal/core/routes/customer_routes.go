@@ -1,4 +1,4 @@
-// FILE: internal/core/routes/customer_routes.go
+// File: j-ticketing/internal/core/routes/customer_routes.go
 package routes
 
 import (

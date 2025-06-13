@@ -1,3 +1,4 @@
+// File: j-ticketing/internal/core/dto/notification/notification_response.go
 package dto
 
 type NotificationResponse struct {

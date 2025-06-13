@@ -1,3 +1,4 @@
+// File: j-ticketing/internal/core/dto/payment/payment_dto.go
 package payment
 
 type TransactionResponse struct {

@@ -1,4 +1,4 @@
-// FILE: j-ticketing/internal/pkg/utilsmy b/password_generator.go
+// File: j-ticketing/pkg/utils/password_generator.go
 package utils
 
 import (

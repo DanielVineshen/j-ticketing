@@ -1,4 +1,4 @@
-// File: j-ticketing/internal/core/dto/banner/banner_response.go (Updated)
+// File: j-ticketing/internal/core/dto/banner/banner_response.go
 package dto
 
 type BannerListResponse struct {

@@ -1,3 +1,4 @@
+// File: j-ticketing/internal/core/dto/ticket_group/placement_request.go
 package dto
 
 import (

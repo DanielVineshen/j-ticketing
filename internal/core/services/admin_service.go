@@ -1,4 +1,4 @@
-// File: j-ticketing/internal/core/services/admin_service_extended.go
+// File: j-ticketing/internal/core/services/admin_service.go
 package service
 
 import (

@@ -1,3 +1,4 @@
+// File: j-ticketing/pkg/errors/zoo_api_client.go
 package errors
 
 // AppError is the base custom error type for application errors

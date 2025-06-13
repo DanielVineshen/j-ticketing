@@ -31,6 +31,7 @@ type CreateFreeOrderRequest struct {
 	Date             string          `json:"date" validate:"required"`
 	LangChosen       string          `json:"langChosen" validate:"required,oneof=bm en cn"`
 	Tickets          []TicketRequest `json:"tickets" validate:"required,dive"`
+	AllowBypass      bool            `json:"AllowBypass" validate:"omitempty"`
 }
 
 // TicketRequest represents a ticket item in the order request

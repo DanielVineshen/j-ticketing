@@ -686,9 +686,14 @@ func (s *OrderService) CreateFreeOrder(cust *models.Customer, req *orderDto.Crea
 		}
 	}
 
-	// Check if totalAmount > 0
-	if totalAmount > 0 {
-		return nil, fmt.Errorf("failed to create order: total amount for tickets exceed 0")
+	if !req.AllowBypass {
+		// Check if totalAmount > 0
+		if totalAmount > 0 {
+			return nil, fmt.Errorf("failed to create order: total amount for tickets exceed 0")
+		}
+	} else {
+		// Update total amount in order ticket group
+		orderTicketGroup.TotalAmount = totalAmount
 	}
 
 	// If we pass the validation, save the order ticket group

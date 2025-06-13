@@ -1,4 +1,4 @@
-// File: j-ticketing/internal/core/dto/banner/banner_request.go (Updated - Remove RedirectURL validation)
+// File: j-ticketing/internal/core/dto/banner/banner_request.go
 package dto
 
 import (

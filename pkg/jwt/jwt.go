@@ -1,3 +1,4 @@
+// File: j-ticketing/pkg/jwt/jwt.go
 package jwt
 
 import (

@@ -1,3 +1,4 @@
+// File: j-ticketing/internal/db/repositories/banner_repository.go
 package repositories
 
 import (

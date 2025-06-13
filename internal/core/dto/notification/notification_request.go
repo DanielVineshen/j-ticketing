@@ -1,3 +1,4 @@
+// File: j-ticketing/internal/core/dto/notification/notification_request.go
 package dto
 
 import "j-ticketing/pkg/validation"

@@ -1,4 +1,4 @@
-// File: j-ticketing/pkg/email/email_service.go
+// File: j-ticketing/pkg/email/email.go
 package email
 
 import (

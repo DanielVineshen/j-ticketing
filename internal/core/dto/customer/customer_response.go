@@ -1,4 +1,4 @@
-// FILE: internal/core/dto/customer/customer_response.go (Updated)
+// File: j-ticketing/internal/core/dto/customer/customer_response.go
 package dto
 
 import dto "j-ticketing/internal/core/dto/order"

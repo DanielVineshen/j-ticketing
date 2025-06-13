@@ -1,7 +1,9 @@
+// File: j-ticketing/pkg/email/ticket_email.go
 package email
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"github.com/boombuler/barcode"
 	"github.com/boombuler/barcode/qr"
@@ -48,6 +50,28 @@ type EmailText struct {
 	Copyright               string
 }
 
+// encodeMIMEWordUTF8 encodes a string for use in email headers (like Subject)
+// according to RFC 2047 for non-ASCII characters
+func encodeMIMEWordUTF8(s string) string {
+	// Check if the string contains only ASCII characters
+	isASCII := true
+	for _, r := range s {
+		if r > 127 {
+			isASCII = false
+			break
+		}
+	}
+
+	// If it's pure ASCII, return as-is
+	if isASCII {
+		return s
+	}
+
+	// Encode non-ASCII strings using UTF-8 Base64 encoding
+	encoded := base64.StdEncoding.EncodeToString([]byte(s))
+	return fmt.Sprintf("=?UTF-8?B?%s?=", encoded)
+}
+
 // getEmailTexts returns localized text based on language
 func getEmailTexts(lang string, ticketGroup string) EmailText {
 	switch lang {
@@ -89,8 +113,8 @@ func getEmailTexts(lang string, ticketGroup string) EmailText {
 		}
 	case "cn":
 		return EmailText{
-			//Subject:                 fmt.Sprintf("您的%s门票", ticketGroup),
-			Subject:                 fmt.Sprintf("Your %s Tickets", ticketGroup),
+			Subject: encodeMIMEWordUTF8(fmt.Sprintf("您的%s门票", ticketGroup)),
+			//Subject:                 fmt.Sprintf("Your %s Tickets", ticketGroup),
 			Greeting:                "亲爱的%s，",
 			ThankYouMessage:         fmt.Sprintf("感谢您的购买。以下是您的%s门票：", ticketGroup),
 			LeadParticipant:         "主要参与者",

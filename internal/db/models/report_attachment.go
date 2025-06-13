@@ -1,3 +1,4 @@
+// File: j-ticketing/internal/db/models/report_attachment.go
 package models
 
 import "time"

@@ -1,4 +1,4 @@
-// FILE: j-ticketing/internal/pkg/utils/parser.go
+// File: j-ticketing/pkg/utils/parser.go
 package utils
 
 import "strconv"

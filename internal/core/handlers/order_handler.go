@@ -316,17 +316,19 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 	if err != nil {
 		log.Printf("Error finding ticket group %s: %v", req.TicketGroupId, err)
 	}
-	
-	// Get sum to check ticket order limit
-	var totalQty int
-	for _, ticket := range req.Tickets {
-		totalQty += ticket.Qty
-	}
 
-	if totalQty > ticketGroup.OrderTicketLimit {
-		return c.Status(fiber.StatusForbidden).JSON(models.NewBaseErrorResponse(
-			"Tickets quantity have exceeded the total limit allowed of "+strconv.Itoa(ticketGroup.OrderTicketLimit), nil,
-		))
+	if !req.AllowBypass {
+		// Get sum to check ticket order limit
+		var totalQty int
+		for _, ticket := range req.Tickets {
+			totalQty += ticket.Qty
+		}
+
+		if totalQty > ticketGroup.OrderTicketLimit {
+			return c.Status(fiber.StatusForbidden).JSON(models.NewBaseErrorResponse(
+				"Tickets quantity have exceeded the total limit allowed of "+strconv.Itoa(ticketGroup.OrderTicketLimit), nil,
+			))
+		}
 	}
 
 	authHeader := c.Get("Authorization")
@@ -399,6 +401,8 @@ func (h *OrderHandler) CreateFreeOrderTicketGroup(c *fiber.Ctx) error {
 			))
 		}
 	}
+
+	log.Printf("Order no that was generated: %s", orderTicketGroup.OrderNo)
 
 	err = h.orderService.CreateOrderTicketLog("order", "Order Created", "Order was created via Online channel", "System", orderTicketGroup)
 	if err != nil {

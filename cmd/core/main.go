@@ -135,18 +135,20 @@ func main() {
 		generalRepo,
 		customerService,
 	)
-	dashboardService := service.NewDashboardService( // ADD THESE LINES
+	dashboardService := service.NewDashboardService(
 		orderTicketGroupRepo,
 		ticketGroupRepo,
 		customerRepo,
 		notificationRepo,
 	)
-	// Initialize sales analytics service
 	salesAnalyticsService := service.NewSalesAnalyticsService(
 		orderTicketGroupRepo,
 		ticketGroupRepo,
 		customerRepo,
 		ticketVariantRepo,
+	)
+	memberAnalyticsService := service.NewMemberAnalyticsService(
+		customerRepo,
 	)
 	adminService := service.NewAdminServiceExtended(adminRepo, tokenRepo)
 	tagService := service.NewTagService(tagRepo)
@@ -160,6 +162,7 @@ func main() {
 	reportService := service.NewReportService(reportRepo, reportAttachmentRepo, orderTicketGroupService, excelService, emailService)
 
 	// Initialize handlers
+	memberAnalyticsHandler := handlers.NewMemberAnalyticsHandler(memberAnalyticsService)
 	salesAnalyticsHandler := handlers.NewSalesAnalyticsHandler(salesAnalyticsService)
 	adminHandler := handlers.NewAdminHandler(adminService, *notificationService)
 	ticketGroupHandler := handlers.NewTicketGroupHandler(ticketGroupService, notificationService)
@@ -193,6 +196,7 @@ func main() {
 	app.Static("/public", "./pkg/public")
 
 	// Setup routes
+	routes.SetupMemberAnalyticsRoutes(app, memberAnalyticsHandler, jwtService)
 	routes.SetupSalesAnalyticsRoutes(app, salesAnalyticsHandler, jwtService)
 	routes.SetupAdminRoutes(app, adminHandler, jwtService)
 	routes.SetupTicketGroupRoutes(app, ticketGroupHandler, jwtService)
